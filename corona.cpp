@@ -2,88 +2,16 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
-#include <assert.h>
 
-enum state_t {
-	ST_HEALTHY,
-	ST_INFECTED,
-	ST_IMMUNE,
-	ST_DEAD
-};
-
-class cfg_t {
-public:
-	// primary cfg
-	double r0;
-	double death_rate;
-	double days_contagious;
-	uint64_t population;
-	uint32_t days_to_simulate;
-
-	// derived cfg
-	double probability_infect_per_day;
-	double probability_death_per_day;
-
-	cfg_t();
-	void load_derived();
-};
-
-class stats_t {
-public:
-	uint64_t deaths;
-	uint64_t infected;
-	uint64_t new_infected;
-
-	stats_t();
-	void reset();
-};
-
-class region_t;
-
-class person_t
-{
-private:
-	state_t state;
-	int32_t infection_countdown;
-
-public:
-	person_t();
-
-	void cycle ();
-	void cycle_infected ();
-	void die();
-	void infect();
-
-	inline state_t get_state () {
-		return this->state;
-	}
-};
-
-class region_t
-{
-private:
-	person_t *people;
-	uint64_t must_infect_in_cycle;
-	region_t *region;
-
-public:
-	region_t();
-
-	void cycle();
-
-	inline void set_region (region_t *region) {
-		this->region = region;
-	}
-
-	inline region_t* get_region () {
-		return this->region;
-	}
-};
+#include "corona.h"
 
 cfg_t cfg;
-stats_t cycle_stats;
+stats_t *all_cycle_stats;
+stats_t *cycle_stats;
 stats_t global_stats;
 region_t *region = NULL;
+
+/****************************************************************/
 
 /*
 	probability between 0.0 and 1.0
@@ -98,6 +26,14 @@ int roll_dice (double probability)
 	return (dice <= probability);
 }
 
+inline double calculate_infection_probability ()
+{
+	double p = cfg.probability_infect_per_day * ((double)(cfg.population - global_stats.infected) / (double)cfg.population);
+	return p;
+}
+
+/****************************************************************/
+
 stats_t::stats_t ()
 {
 	this->reset();
@@ -109,6 +45,18 @@ void stats_t::reset ()
 	this->infected = 0;
 	this->new_infected = 0;
 }
+
+void stats_t::dump ()
+{
+	cprintf("cycle_deaths:" PU64 " cycle_infected:" PU64 " cycle_new_infected:" PU64 "\n", this->deaths, this->infected, this->new_infected);
+}
+
+void stats_t::global_dump ()
+{
+	cprintf("total_deaths:" PU64 " total_infected:" PU64 "\n", this->deaths, this->infected);
+}
+
+/****************************************************************/
 
 region_t::region_t ()
 {
@@ -124,56 +72,67 @@ region_t::region_t ()
 
 void region_t::cycle ()
 {
-	uint64_t i;
+	uint64_t i, j;
 	person_t *p;
-
-	cycle_stats.reset();
 
 	this->must_infect_in_cycle = 0;
 
 	for (i=0; i<cfg.population; i++) {
-		p = this->people[i];
+		p = this->people + i;
 		p->cycle();
 
 		if (p->get_state() == ST_INFECTED)
-			cycle_stats.infected++;
+			cycle_stats->infected++;
 	}
 
-	for (i=0; i<this->must_infect_in_cycle; i++) {
-		p = this->people[i];
+	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
+
+	for (i=0, j=0; i<cfg.population && j<this->must_infect_in_cycle; i++) {
+		p = this->people + i;
 
 		if (p->get_state() == ST_HEALTHY) {
 			p->infect();
+			j++;
 		}
 	}
+
+	cycle_stats->dump();
+	global_stats.global_dump();
+
+	cprintf("\n");
 }
+
+/****************************************************************/
 
 person_t::person_t ()
 {
 	this->state = ST_HEALTHY;
-	this->infection_countdown = 0;
+	this->infection_countdown = 0.0;
+	this->region = NULL;
 }
 
 void person_t::die ()
 {
 	this->state = ST_DEAD;
-	cycle_stats.deaths++;
+	cycle_stats->deaths++;
 	global_stats.deaths++;
 }
 
 void person_t::cycle_infected ()
 {
-	if (roll_dice(probability_infect_per_day)) {
+	if (roll_dice(calculate_infection_probability())) {
 		this->region->must_infect_in_cycle++;
 	}
 
 	if (roll_dice(cfg.probability_death_per_day))
 		this->die();
 	else {
-		this->infection_countdown--;
+		this->infection_countdown -= 1.0;
 
-		if (this->infection_countdown <= 0) {
+		if (this->infection_countdown <= 0.0) {
+			this->infection_countdown = 0.0;
 			this->state = ST_IMMUNE;
+			//dprintf("I got IMMUNE\n");
 		}
 	}
 }
@@ -181,10 +140,12 @@ void person_t::cycle_infected ()
 void person_t::infect ()
 {
 	this->state = ST_INFECTED;
-	cycle_stats.new_infected++;
-	cycle_stats.infected++;
+	cycle_stats->new_infected++;
+	cycle_stats->infected++;
 
 	global_stats.infected++;
+
+	this->infection_countdown = cfg.days_contagious;
 }
 
 void person_t::cycle ()
@@ -204,23 +165,11 @@ void person_t::cycle ()
 		break;
 
 		default:
-			assert(0);
+			C_ASSERT(0);
 	}
 }
 
-static void simulate ()
-{
-	int32_t i;
-
-	for (i=0; i<cfg.days_to_simulate; i++) {
-		region->cycle();
-	}
-}
-
-static void start_dice_engine ()
-{
-	srand(time(NULL));
-}
+/****************************************************************/
 
 cfg_t::cfg_t ()
 {
@@ -228,15 +177,52 @@ cfg_t::cfg_t ()
 	this->death_rate = 0.02;
 	this->days_contagious = 7.0;
 	this->population = 100000;
-	this->days_to_simulate = 365;
+	this->days_to_simulate = 45;
 
 	this->load_derived();
 }
 
-void cfg::load_derived ()
+void cfg_t::load_derived ()
 {
 	this->probability_infect_per_day = this->r0 / this->days_contagious;
 	this->probability_death_per_day = this->death_rate / this->days_contagious;
+}
+
+void cfg_t::dump ()
+{
+	dprintf("# ro = %0.4f\n", this->r0);
+	dprintf("# death_rate = %0.4f\n", this->death_rate);
+	dprintf("# days_contagious = %0.4f\n", this->days_contagious);
+	dprintf("# population = " PU64 "\n", this->population);
+	dprintf("# days_to_simulate = %u\n", this->days_to_simulate);
+
+	dprintf("# probability_infect_per_day = %0.4f\n", this->probability_infect_per_day);
+	dprintf("# probability_death_per_day = %0.4f\n", this->probability_death_per_day);
+}
+
+/****************************************************************/
+
+static void simulate ()
+{
+	int32_t i;
+
+	cycle_stats = all_cycle_stats;
+
+	region->get_person(0)->infect();
+	cycle_stats->infected = 0; // will be considered during the cycle
+
+	for (i=0; i<cfg.days_to_simulate; i++) {
+		cprintf("Day %i\n", i);
+
+		region->cycle();
+
+		cycle_stats++;
+	}
+}
+
+static void start_dice_engine ()
+{
+	srand(time(NULL));
 }
 
 static void load_region()
@@ -246,8 +232,10 @@ static void load_region()
 
 int main ()
 {
+	cfg.dump();
 	start_dice_engine();
 	load_region();
+	all_cycle_stats = new stats_t[ cfg.days_to_simulate ];
 
 	simulate();
 
