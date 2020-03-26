@@ -56,15 +56,18 @@ public:
 
 class stats_t {
 public:
-	uint64_t deaths;
-	uint64_t infected;
-	uint64_t new_infected;
-	FILE *fp;
+	#define CORONA_STAT(TYPE, PRINT, STAT) TYPE STAT;
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	uint32_t cycle;
 
 	stats_t();
 	void reset();
 	void dump();
 	void global_dump ();
+	void dump_csv_header (FILE *fp);
+	void dump_csv (FILE *fp);
 };
 
 class region_t;

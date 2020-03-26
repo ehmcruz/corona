@@ -11,6 +11,8 @@ stats_t *cycle_stats;
 stats_t global_stats;
 region_t *region = NULL;
 
+static const char default_results_file[] = "results-cycles.txt";
+
 /****************************************************************/
 
 /*
@@ -41,14 +43,40 @@ stats_t::stats_t ()
 
 void stats_t::reset ()
 {
-	this->deaths = 0;
-	this->infected = 0;
-	this->new_infected = 0;
+	#define CORONA_STAT(TYPE, PRINT, STAT) this->STAT = 0;
+	#include "stats.h"
+	#undef CORONA_STAT
 }
 
 void stats_t::dump ()
 {
-	cprintf("cycle_deaths:" PU64 " cycle_infected:" PU64 " cycle_new_infected:" PU64 "\n", this->deaths, this->infected, this->new_infected);
+	#define CORONA_STAT(TYPE, PRINT, STAT) cprintf(#STAT ":" PRINT " ", this->STAT);
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	cprintf("\n");
+}
+
+void stats_t::dump_csv_header (FILE *fp)
+{
+	fprintf(fp, "cycle,");
+
+	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, #STAT ",");
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	fprintf(fp, "\n");
+}
+
+void stats_t::dump_csv (FILE *fp)
+{
+	fprintf(fp, "%u,", this->cycle);
+
+	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, PRINT ",", this->STAT);
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	fprintf(fp, "\n");
 }
 
 void stats_t::global_dump ()
@@ -218,6 +246,9 @@ static void simulate ()
 
 		cycle_stats++;
 	}
+
+	for (i=0; i<cfg.days_to_simulate; i++) {
+	}
 }
 
 static void start_dice_engine ()
@@ -232,12 +263,28 @@ static void load_region()
 
 int main ()
 {
+	int32_t i;
+	FILE *fp;
+
 	cfg.dump();
 	start_dice_engine();
 	load_region();
+	
 	all_cycle_stats = new stats_t[ cfg.days_to_simulate ];
 
+	for (i=0; i<cfg.days_to_simulate; i++)
+		all_cycle_stats[i].cycle = i;
+
 	simulate();
+
+	fp = fopen(default_results_file, "w");
+	C_ASSERT(fp != NULL)
+
+	all_cycle_stats[0].dump_csv_header(fp);
+	for (i=0; i<cfg.days_to_simulate; i++)
+		all_cycle_stats[i].dump_csv(fp);
+
+	fclose(fp);
 
 	return 0;
 }
