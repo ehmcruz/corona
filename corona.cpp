@@ -11,7 +11,7 @@ stats_t *cycle_stats;
 stats_t global_stats;
 region_t *region = NULL;
 
-static const char default_results_file[] = "results-cycles.txt";
+static const char default_results_file[] = "results-cycles.csv";
 
 /****************************************************************/
 
@@ -205,7 +205,7 @@ cfg_t::cfg_t ()
 	this->death_rate = 0.02;
 	this->days_contagious = 7.0;
 	this->population = 100000;
-	this->days_to_simulate = 45;
+	this->days_to_simulate = 180;
 
 	this->load_derived();
 }
@@ -245,9 +245,6 @@ static void simulate ()
 		region->cycle();
 
 		cycle_stats++;
-	}
-
-	for (i=0; i<cfg.days_to_simulate; i++) {
 	}
 }
 
