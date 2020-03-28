@@ -8,6 +8,7 @@
 cfg_t cfg;
 stats_t *all_cycle_stats;
 stats_t *cycle_stats;
+stats_t *prev_cycle_stats;
 stats_t global_stats;
 region_t *region = NULL;
 uint32_t current_cycle;
@@ -33,56 +34,6 @@ inline double calculate_infection_probability ()
 {
 	double p = cfg.probability_infect_per_day * ((double)(cfg.population - global_stats.infected) / (double)cfg.population);
 	return p;
-}
-
-/****************************************************************/
-
-stats_t::stats_t ()
-{
-	this->reset();
-}
-
-void stats_t::reset ()
-{
-	#define CORONA_STAT(TYPE, PRINT, STAT) this->STAT = 0;
-	#include "stats.h"
-	#undef CORONA_STAT
-}
-
-void stats_t::dump ()
-{
-	#define CORONA_STAT(TYPE, PRINT, STAT) cprintf(#STAT ":" PRINT " ", this->STAT);
-	#include "stats.h"
-	#undef CORONA_STAT
-
-	cprintf("\n");
-}
-
-void stats_t::dump_csv_header (FILE *fp)
-{
-	fprintf(fp, "cycle,");
-
-	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, #STAT ",");
-	#include "stats.h"
-	#undef CORONA_STAT
-
-	fprintf(fp, "\n");
-}
-
-void stats_t::dump_csv (FILE *fp)
-{
-	fprintf(fp, "%u,", this->cycle);
-
-	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, PRINT ",", this->STAT);
-	#include "stats.h"
-	#undef CORONA_STAT
-
-	fprintf(fp, "\n");
-}
-
-void stats_t::global_dump ()
-{
-	cprintf("total_deaths:" PU64 " total_infected:" PU64 "\n", this->deaths, this->infected);
 }
 
 /****************************************************************/
@@ -149,9 +100,9 @@ void region_t::sir_calc ()
 	}
 	else {
 		double h = 1.0;
-		double B = cfg.r0;
-		double L = 1.0;
-		stats_t *prev = all_cycle_stats + current_cycle - 1;
+		double B = cfg.r0/10.0;
+		double L = 0.1;
+		stats_t *prev = prev_cycle_stats;
 
 		/*
 		
@@ -229,6 +180,7 @@ void person_t::infect ()
 	this->state = ST_INFECTED;
 	cycle_stats->new_infected++;
 	cycle_stats->infected++;
+	cycle_stats->ac_healthy--;
 
 	global_stats.infected++;
 
@@ -299,13 +251,75 @@ static void simulate ()
 	for (current_cycle=0; current_cycle<cfg.days_to_simulate; current_cycle++) {
 		cprintf("Day %i\n", current_cycle);
 
+		if (likely(current_cycle > 0))
+			cycle_stats->copy_ac(prev_cycle_stats);
+
 		region->cycle();
 
-		cycle_stats++;
+		prev_cycle_stats = cycle_stats++;
 	}
 
 	region->process_data();
 }
+
+/****************************************************************/
+
+stats_t::stats_t ()
+{
+	this->reset();
+}
+
+void stats_t::reset ()
+{
+	#define CORONA_STAT(TYPE, PRINT, STAT) this->STAT = 0;
+	#include "stats.h"
+	#undef CORONA_STAT
+}
+
+void stats_t::copy_ac (stats_t *from)
+{
+	this->ac_deaths = from->ac_deaths;
+	this->ac_immuned = from->ac_immuned;
+	this->ac_healthy = from->ac_healthy;
+}
+
+void stats_t::dump ()
+{
+	#define CORONA_STAT(TYPE, PRINT, STAT) cprintf(#STAT ":" PRINT " ", this->STAT);
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	cprintf("\n");
+}
+
+void stats_t::dump_csv_header (FILE *fp)
+{
+	fprintf(fp, "cycle,");
+
+	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, #STAT ",");
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	fprintf(fp, "\n");
+}
+
+void stats_t::dump_csv (FILE *fp)
+{
+	fprintf(fp, "%u,", this->cycle);
+
+	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, PRINT ",", this->STAT);
+	#include "stats.h"
+	#undef CORONA_STAT
+
+	fprintf(fp, "\n");
+}
+
+void stats_t::global_dump ()
+{
+	cprintf("total_deaths:" PU64 " total_infected:" PU64 "\n", this->deaths, this->infected);
+}
+
+/****************************************************************/
 
 static void start_dice_engine ()
 {
@@ -317,18 +331,28 @@ static void load_region()
 	region = new region_t();
 }
 
+static void load_stats_engine ()
+{
+	int32_t i;
+	
+	all_cycle_stats = new stats_t[ cfg.days_to_simulate ];
+
+	for (i=0; i<cfg.days_to_simulate; i++)
+		all_cycle_stats[i].cycle = i;
+
+	all_cycle_stats[0].ac_healthy = cfg.population;
+}
+
 int main ()
 {
 	int32_t i;
 	FILE *fp;
 
 	cfg.dump();
+
 	start_dice_engine();
 
-	all_cycle_stats = new stats_t[ cfg.days_to_simulate ];
-
-	for (i=0; i<cfg.days_to_simulate; i++)
-		all_cycle_stats[i].cycle = i;
+	load_stats_engine();
 
 	load_region();
 
