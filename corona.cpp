@@ -10,6 +10,7 @@ stats_t *all_cycle_stats;
 stats_t *cycle_stats;
 stats_t global_stats;
 region_t *region = NULL;
+uint32_t current_cycle;
 
 static const char default_results_file[] = "results-cycles.csv";
 
@@ -96,6 +97,8 @@ region_t::region_t ()
 		this->people[i].set_region(this);
 
 	this->must_infect_in_cycle = 0;
+
+	this->sir_init();
 }
 
 void region_t::cycle ()
@@ -124,10 +127,66 @@ void region_t::cycle ()
 		}
 	}
 
+	this->sir_calc();
+
 	cycle_stats->dump();
 	global_stats.global_dump();
 
 	cprintf("\n");
+}
+
+void region_t::sir_init ()
+{
+
+}
+
+void region_t::sir_calc ()
+{
+	if (unlikely(current_cycle == 0)) {
+		cycle_stats->sir_s = (double)(cfg.population - 1) / (double)cfg.population;
+		cycle_stats->sir_i = 1.0 - cycle_stats->sir_s;
+		cycle_stats->sir_r = 0.0;
+	}
+	else {
+		double h = 1.0;
+		double B = cfg.r0;
+		double L = 1.0;
+		stats_t *prev = all_cycle_stats + current_cycle - 1;
+
+		/*
+		
+		dS = -B.S.I
+		dt
+
+		dI = B.S.I - LI
+		dt
+
+		dR = LI
+		dt
+
+		y(t+h) = y(t) + h.dy
+		                  dt
+
+		*/
+
+		cycle_stats->sir_s = prev->sir_s - h * (B * prev->sir_s * prev->sir_i);
+		cycle_stats->sir_i = prev->sir_i + h * (B * prev->sir_s * prev->sir_i - L*prev->sir_i);
+		cycle_stats->sir_r = prev->sir_r + h * (L * prev->sir_i);
+	}
+}
+
+void region_t::process_data ()
+{
+	int32_t i;
+	stats_t *cycle_stats = all_cycle_stats;
+
+	for (i=0; i<cfg.days_to_simulate; i++) {
+		cycle_stats->sir_s *= (double)cfg.population;
+		cycle_stats->sir_i *= (double)cfg.population;
+		cycle_stats->sir_r *= (double)cfg.population;
+
+		cycle_stats++;
+	}
 }
 
 /****************************************************************/
@@ -232,20 +291,20 @@ void cfg_t::dump ()
 
 static void simulate ()
 {
-	int32_t i;
-
 	cycle_stats = all_cycle_stats;
 
 	region->get_person(0)->infect();
 	cycle_stats->infected = 0; // will be considered during the cycle
 
-	for (i=0; i<cfg.days_to_simulate; i++) {
-		cprintf("Day %i\n", i);
+	for (current_cycle=0; current_cycle<cfg.days_to_simulate; current_cycle++) {
+		cprintf("Day %i\n", current_cycle);
 
 		region->cycle();
 
 		cycle_stats++;
 	}
+
+	region->process_data();
 }
 
 static void start_dice_engine ()
@@ -265,12 +324,13 @@ int main ()
 
 	cfg.dump();
 	start_dice_engine();
-	load_region();
-	
+
 	all_cycle_stats = new stats_t[ cfg.days_to_simulate ];
 
 	for (i=0; i<cfg.days_to_simulate; i++)
 		all_cycle_stats[i].cycle = i;
+
+	load_region();
 
 	simulate();
 

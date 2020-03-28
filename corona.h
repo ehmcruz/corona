@@ -116,6 +116,10 @@ public:
 	inline person_t* get_person (uint64_t i) {
 		return (this->people + i);
 	}
+
+	void sir_calc ();
+	void sir_init ();
+	void process_data ();
 };
 
 #endif
