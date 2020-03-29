@@ -31,6 +31,7 @@
 
 enum state_t {
 	ST_HEALTHY,
+	ST_PRE_INFECTION,
 	ST_INFECTED,
 	ST_IMMUNE,
 	ST_DEAD
@@ -41,13 +42,17 @@ public:
 	// primary cfg
 	double r0;
 	double death_rate;
-	double days_contagious;
+	double cycles_contagious;
+	double cycles_pre_infection;
 	uint64_t population;
-	uint32_t days_to_simulate;
+	uint32_t cycles_to_simulate;
+	double probability_asymptomatic;
+	double probability_critical;
 
 	// derived cfg
-	double probability_infect_per_day;
-	double probability_death_per_day;
+	double probability_infect_per_cycle;
+	double probability_death_per_cycle;
+	double probability_sick;
 
 	cfg_t();
 	void load_derived();
@@ -87,6 +92,7 @@ public:
 	void cycle_infected ();
 	void die();
 	void infect();
+	void pre_infect ();
 
 	inline state_t get_state () {
 		return this->state;

@@ -32,7 +32,7 @@ int roll_dice (double probability)
 
 inline double calculate_infection_probability ()
 {
-	double p = cfg.probability_infect_per_day * ((double)(cfg.population - global_stats.infected) / (double)cfg.population);
+	double p = cfg.probability_infect_per_cycle * ((double)(cfg.population - global_stats.infected) / (double)cfg.population);
 	return p;
 }
 
@@ -61,10 +61,11 @@ void region_t::cycle ()
 
 	for (i=0; i<cfg.population; i++) {
 		p = this->people + i;
-		p->cycle();
 
 		if (p->get_state() == ST_INFECTED)
 			cycle_stats->infected++;
+
+		p->cycle();
 	}
 
 	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
@@ -73,7 +74,7 @@ void region_t::cycle ()
 		p = this->people + i;
 
 		if (p->get_state() == ST_HEALTHY) {
-			p->infect();
+			p->pre_infect();
 			j++;
 		}
 	}
@@ -131,7 +132,7 @@ void region_t::process_data ()
 	int32_t i;
 	stats_t *cycle_stats = all_cycle_stats;
 
-	for (i=0; i<cfg.days_to_simulate; i++) {
+	for (i=0; i<cfg.cycles_to_simulate; i++) {
 		cycle_stats->sir_s *= (double)cfg.population;
 		cycle_stats->sir_i *= (double)cfg.population;
 		cycle_stats->sir_r *= (double)cfg.population;
@@ -162,7 +163,7 @@ void person_t::cycle_infected ()
 		this->region->must_infect_in_cycle++;
 	}
 
-	if (roll_dice(cfg.probability_death_per_day))
+	if (roll_dice(cfg.probability_death_per_cycle))
 		this->die();
 	else {
 		this->infection_countdown -= 1.0;
@@ -175,22 +176,41 @@ void person_t::cycle_infected ()
 	}
 }
 
-void person_t::infect ()
+void person_t::pre_infect ()
 {
-	this->state = ST_INFECTED;
+	this->state = ST_PRE_INFECTION;
 	cycle_stats->new_infected++;
-	cycle_stats->infected++;
+	//cycle_stats->infected++;
 	cycle_stats->ac_healthy--;
 
 	global_stats.infected++;
 
-	this->infection_countdown = cfg.days_contagious;
+	this->infection_countdown = cfg.cycles_pre_infection;
+}
+
+void person_t::infect ()
+{
+	if (unlikely(this->state != ST_PRE_INFECTION))
+		this->pre_infect();
+
+	this->state = ST_INFECTED;
+	this->infection_countdown = cfg.cycles_contagious;
 }
 
 void person_t::cycle ()
 {
 	switch (this->state) {
 		case ST_HEALTHY:
+		break;
+
+		case ST_PRE_INFECTION:
+			this->infection_countdown -= 1.0;
+
+			if (this->infection_countdown <= 0.0) {
+				this->infection_countdown = 0.0;
+				this->infect();
+				//dprintf("I got IMMUNE\n");
+			}
 		break;
 
 		case ST_INFECTED:
@@ -214,29 +234,37 @@ cfg_t::cfg_t ()
 {
 	this->r0 = 2.4;
 	this->death_rate = 0.02;
-	this->days_contagious = 7.0;
+	this->cycles_contagious = 4.0;
 	this->population = 100000;
-	this->days_to_simulate = 180;
+	this->cycles_to_simulate = 180;
+	this->cycles_pre_infection = 3.0;
+	this->probability_asymptomatic = 0.85 + 0.809*0.15;
+	this->probability_critical = 0.044*0.15;
 
 	this->load_derived();
 }
 
 void cfg_t::load_derived ()
 {
-	this->probability_infect_per_day = this->r0 / this->days_contagious;
-	this->probability_death_per_day = this->death_rate / this->days_contagious;
+	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious;
+	this->probability_death_per_cycle = this->death_rate / this->cycles_contagious;
+	this->probability_sick = 1.0 - (this->probability_asymptomatic + this->probability_critical);
 }
 
 void cfg_t::dump ()
 {
 	dprintf("# ro = %0.4f\n", this->r0);
 	dprintf("# death_rate = %0.4f\n", this->death_rate);
-	dprintf("# days_contagious = %0.4f\n", this->days_contagious);
+	dprintf("# cycles_contagious = %0.4f\n", this->cycles_contagious);
+	dprintf("# cycles_pre_infection = %0.4f\n", this->cycles_pre_infection);
 	dprintf("# population = " PU64 "\n", this->population);
-	dprintf("# days_to_simulate = %u\n", this->days_to_simulate);
+	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
+	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
+	dprintf("# probability_sick = %0.4f\n", this->probability_sick);
+	dprintf("# probability_critical = %0.4f\n", this->probability_critical);
 
-	dprintf("# probability_infect_per_day = %0.4f\n", this->probability_infect_per_day);
-	dprintf("# probability_death_per_day = %0.4f\n", this->probability_death_per_day);
+	dprintf("# probability_infect_per_cycle = %0.4f\n", this->probability_infect_per_cycle);
+	dprintf("# probability_death_per_cycle = %0.4f\n", this->probability_death_per_cycle);
 }
 
 /****************************************************************/
@@ -248,7 +276,7 @@ static void simulate ()
 	region->get_person(0)->infect();
 	cycle_stats->infected = 0; // will be considered during the cycle
 
-	for (current_cycle=0; current_cycle<cfg.days_to_simulate; current_cycle++) {
+	for (current_cycle=0; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
 		cprintf("Day %i\n", current_cycle);
 
 		if (likely(current_cycle > 0))
@@ -335,9 +363,9 @@ static void load_stats_engine ()
 {
 	int32_t i;
 	
-	all_cycle_stats = new stats_t[ cfg.days_to_simulate ];
+	all_cycle_stats = new stats_t[ cfg.cycles_to_simulate ];
 
-	for (i=0; i<cfg.days_to_simulate; i++)
+	for (i=0; i<cfg.cycles_to_simulate; i++)
 		all_cycle_stats[i].cycle = i;
 
 	all_cycle_stats[0].ac_healthy = cfg.population;
@@ -362,7 +390,7 @@ int main ()
 	C_ASSERT(fp != NULL)
 
 	all_cycle_stats[0].dump_csv_header(fp);
-	for (i=0; i<cfg.days_to_simulate; i++)
+	for (i=0; i<cfg.cycles_to_simulate; i++)
 		all_cycle_stats[i].dump_csv(fp);
 
 	fclose(fp);
