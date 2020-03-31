@@ -13,9 +13,30 @@ stats_t global_stats;
 region_t *region = NULL;
 uint32_t current_cycle;
 
+double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
+
 static const char default_results_file[] = "results-cycles.csv";
 
+char* infected_state_str (int32_t i)
+{
+	static const char *list[] = {
+		"ST_ASYMPTOMATIC",
+		"ST_MILD",
+		"ST_SEVERE",
+		"ST_CRITICAL"
+	};
+
+	C_ASSERT(i < NUMBER_OF_INFECTED_STATES)
+
+	return (char*)list[i];
+}
+
 /****************************************************************/
+
+double generate_random_between_0_and_1 ()
+{
+	return ( (double)rand() / (double)RAND_MAX );
+}
 
 /*
 	probability between 0.0 and 1.0
@@ -23,16 +44,12 @@ static const char default_results_file[] = "results-cycles.csv";
 
 int roll_dice (double probability)
 {
-	double dice;
-
-	dice = (double)rand() / (double)RAND_MAX;
-
-	return (dice <= probability);
+	return (generate_random_between_0_and_1() <= probability);
 }
 
-inline double calculate_infection_probability ()
+inline double calculate_infection_probability (person_t *from)
 {
-	double p = cfg.probability_infect_per_cycle * ((double)(cfg.population - global_stats.infected) / (double)cfg.population);
+	double p = cfg.probability_infect_per_cycle * ((double)(cfg.population - global_stats.infected) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
 	return p;
 }
 
@@ -77,6 +94,11 @@ void region_t::cycle ()
 			p->pre_infect();
 			j++;
 		}
+	}
+
+	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
+		if (cycle_stats->ac_infected_state[i] > cycle_stats->peak[i])
+			cycle_stats->peak[i] = cycle_stats->ac_infected_state[i];
 	}
 
 	this->sir_calc();
@@ -154,25 +176,58 @@ void person_t::die ()
 {
 	this->state = ST_DEAD;
 	cycle_stats->deaths++;
+
+	cycle_stats->ac_infected--;
+	cycle_stats->ac_deaths++;
+
+	cycle_stats->ac_infected_state[ this->infected_state ]--;
+	
 	global_stats.deaths++;
+}
+
+void person_t::recover ()
+{
+	this->state = ST_IMMUNE;
+	cycle_stats->immuned++;
+
+	cycle_stats->ac_infected--;
+	cycle_stats->ac_immuned++;
+	
+	cycle_stats->ac_infected_state[ this->infected_state ]--;
 }
 
 void person_t::cycle_infected ()
 {
-	if (roll_dice(calculate_infection_probability())) {
+	if (roll_dice(calculate_infection_probability(this))) {
 		this->region->must_infect_in_cycle++;
 	}
 
-	if (roll_dice(cfg.probability_death_per_cycle))
-		this->die();
-	else {
-		this->infection_countdown -= 1.0;
+	this->infection_countdown -= 1.0;
 
-		if (this->infection_countdown <= 0.0) {
-			this->infection_countdown = 0.0;
-			this->state = ST_IMMUNE;
-			//dprintf("I got IMMUNE\n");
-		}
+	switch (this->infected_state) {
+		case ST_ASYMPTOMATIC:
+		case ST_MILD:
+		case ST_SEVERE:
+			if (this->infection_countdown <= 0.0) {
+				this->infection_countdown = 0.0;
+				this->recover();
+			}
+		break;
+
+		case ST_CRITICAL:
+			if (roll_dice(cfg.probability_death_per_cycle))
+				this->die();
+			else if (this->infection_countdown <= 0.0) {
+				this->infected_state = ST_SEVERE;
+				this->infection_countdown = cfg.cycles_severe_in_hospital;
+				
+				cycle_stats->ac_infected_state[ ST_CRITICAL ]--;
+				cycle_stats->ac_infected_state[ ST_SEVERE ]++;
+			}
+		break;
+
+		default:
+			C_ASSERT(0)
 	}
 }
 
@@ -180,8 +235,9 @@ void person_t::pre_infect ()
 {
 	this->state = ST_PRE_INFECTION;
 	cycle_stats->new_infected++;
-	//cycle_stats->infected++;
+
 	cycle_stats->ac_healthy--;
+	cycle_stats->ac_infected++;
 
 	global_stats.infected++;
 
@@ -190,11 +246,34 @@ void person_t::pre_infect ()
 
 void person_t::infect ()
 {
+	double p;
+
 	if (unlikely(this->state != ST_PRE_INFECTION))
 		this->pre_infect();
 
 	this->state = ST_INFECTED;
-	this->infection_countdown = cfg.cycles_contagious;
+
+	p = generate_random_between_0_and_1();
+
+	if (p <= cfg.prob_ac_asymptomatic) {
+		this->infected_state = ST_ASYMPTOMATIC;
+		this->infection_countdown = cfg.cycles_contagious;
+	}
+	else if (p <= cfg.prob_ac_mild) {
+		this->infected_state = ST_MILD;
+		this->infection_countdown = cfg.cycles_contagious;
+	}
+	else if (p <= cfg.prob_ac_severe) {
+		this->infected_state = ST_SEVERE;
+		this->infection_countdown = cfg.cycles_severe_in_hospital;
+	}
+	else {
+		this->infected_state = ST_CRITICAL;
+		this->infection_countdown = cfg.cycles_critical_in_icu;
+	}
+
+	cycle_stats->infected_state[ this->infected_state ]++;
+	cycle_stats->ac_infected_state[ this->infected_state ]++;
 }
 
 void person_t::cycle ()
@@ -232,23 +311,47 @@ void person_t::cycle ()
 
 cfg_t::cfg_t ()
 {
-	this->r0 = 2.4;
+	this->r0 = 3.0;
 	this->death_rate = 0.02;
 	this->cycles_contagious = 4.0;
 	this->population = 100000;
 	this->cycles_to_simulate = 180;
-	this->cycles_pre_infection = 3.0;
-	this->probability_asymptomatic = 0.85 + 0.809*0.15;
-	this->probability_critical = 0.044*0.15;
+	this->cycles_pre_infection = 4.0;
+	this->cycles_severe_in_hospital = 8.0;
+	this->cycles_critical_in_icu = 8.0;
+	
+	this->probability_asymptomatic = 0.85;
+	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
+	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
+
+// flu
+#if 0
+	this->probability_asymptomatic = 1.0;
+	this->probability_mild = 0.0;
+	this->probability_critical = 0.0;
+#endif
+
+	this->r0_asymptomatic_factor = 1.0;
 
 	this->load_derived();
 }
 
 void cfg_t::load_derived ()
 {
+	int32_t i;
+
+	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
+		r0_factor_per_group[i] = 1.0;
+	r0_factor_per_group[ST_ASYMPTOMATIC] = this->r0_asymptomatic_factor;
+
 	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious;
 	this->probability_death_per_cycle = this->death_rate / this->cycles_contagious;
-	this->probability_sick = 1.0 - (this->probability_asymptomatic + this->probability_critical);
+	this->probability_severe = 1.0 - (this->probability_asymptomatic + this->probability_mild + this->probability_critical);
+
+	this->prob_ac_asymptomatic = this->probability_asymptomatic;
+	this->prob_ac_mild = this->prob_ac_asymptomatic + this->probability_mild;
+	this->prob_ac_severe = this->prob_ac_mild + this->probability_severe;
+	this->prob_ac_critical = this->prob_ac_severe + this->probability_critical;
 }
 
 void cfg_t::dump ()
@@ -260,11 +363,17 @@ void cfg_t::dump ()
 	dprintf("# population = " PU64 "\n", this->population);
 	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
 	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
-	dprintf("# probability_sick = %0.4f\n", this->probability_sick);
+	dprintf("# probability_mild = %0.4f\n", this->probability_mild);
+	dprintf("# probability_severe = %0.4f\n", this->probability_severe);
 	dprintf("# probability_critical = %0.4f\n", this->probability_critical);
 
 	dprintf("# probability_infect_per_cycle = %0.4f\n", this->probability_infect_per_cycle);
 	dprintf("# probability_death_per_cycle = %0.4f\n", this->probability_death_per_cycle);
+
+	dprintf("# prob_ac_asymptomatic = %0.4f\n", this->prob_ac_asymptomatic);
+	dprintf("# prob_ac_mild = %0.4f\n", this->prob_ac_mild);
+	dprintf("# prob_ac_severe = %0.4f\n", this->prob_ac_severe);
+	dprintf("# prob_ac_critical = %0.4f\n", this->prob_ac_critical);
 }
 
 /****************************************************************/
@@ -274,7 +383,7 @@ static void simulate ()
 	cycle_stats = all_cycle_stats;
 
 	region->get_person(0)->infect();
-	cycle_stats->infected = 0; // will be considered during the cycle
+	//cycle_stats->infected = 0; // will be considered during the cycle
 
 	for (current_cycle=0; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
 		cprintf("Day %i\n", current_cycle);
@@ -286,6 +395,8 @@ static void simulate ()
 
 		prev_cycle_stats = cycle_stats++;
 	}
+
+	cycle_stats = prev_cycle_stats--;
 
 	region->process_data();
 }
@@ -299,23 +410,29 @@ stats_t::stats_t ()
 
 void stats_t::reset ()
 {
-	#define CORONA_STAT(TYPE, PRINT, STAT) this->STAT = 0;
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) this->STAT = 0;
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) this->STAT[i] = 0; }
 	#include "stats.h"
 	#undef CORONA_STAT
+	#undef CORONA_STAT_VECTOR
 }
 
 void stats_t::copy_ac (stats_t *from)
 {
-	this->ac_deaths = from->ac_deaths;
-	this->ac_immuned = from->ac_immuned;
-	this->ac_healthy = from->ac_healthy;
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) if (AC == AC_STAT) this->STAT = from->STAT;
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) if (AC == AC_STAT) { int32_t i; for (i=0; i<N; i++) this->STAT[i] = from->STAT[i]; }
+	#include "stats.h"
+	#undef CORONA_STAT
+	#undef CORONA_STAT_VECTOR
 }
 
 void stats_t::dump ()
 {
-	#define CORONA_STAT(TYPE, PRINT, STAT) cprintf(#STAT ":" PRINT " ", this->STAT);
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) cprintf(#STAT ":" PRINT " ", this->STAT);
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) cprintf(#STAT ".%s:" PRINT " ", LIST##_str(i), this->STAT[i]); }
 	#include "stats.h"
 	#undef CORONA_STAT
+	#undef CORONA_STAT_VECTOR
 
 	cprintf("\n");
 }
@@ -324,9 +441,11 @@ void stats_t::dump_csv_header (FILE *fp)
 {
 	fprintf(fp, "cycle,");
 
-	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, #STAT ",");
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, #STAT ",");
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, #STAT "_%s,", LIST##_str(i)); }
 	#include "stats.h"
 	#undef CORONA_STAT
+	#undef CORONA_STAT_VECTOR
 
 	fprintf(fp, "\n");
 }
@@ -335,9 +454,11 @@ void stats_t::dump_csv (FILE *fp)
 {
 	fprintf(fp, "%u,", this->cycle);
 
-	#define CORONA_STAT(TYPE, PRINT, STAT) fprintf(fp, PRINT ",", this->STAT);
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, PRINT ",", this->STAT);
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, PRINT ",", this->STAT[i]); }
 	#include "stats.h"
 	#undef CORONA_STAT
+	#undef CORONA_STAT_VECTOR
 
 	fprintf(fp, "\n");
 }

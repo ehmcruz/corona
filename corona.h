@@ -29,6 +29,9 @@
 
 #define PU64 "%" PRIu64
 
+#define NON_AC_STAT   0
+#define AC_STAT       1
+
 enum state_t {
 	ST_HEALTHY,
 	ST_PRE_INFECTION,
@@ -36,6 +39,19 @@ enum state_t {
 	ST_IMMUNE,
 	ST_DEAD
 };
+
+enum infected_state_t {
+	// Important !!!
+	// whenever this list is modified, modify also infected_state_str()
+
+	ST_ASYMPTOMATIC,
+	ST_MILD,
+	ST_SEVERE,
+	ST_CRITICAL,
+	NUMBER_OF_INFECTED_STATES
+};
+
+char* infected_state_str (int32_t i);
 
 class cfg_t {
 public:
@@ -47,12 +63,21 @@ public:
 	uint64_t population;
 	uint32_t cycles_to_simulate;
 	double probability_asymptomatic;
+	double probability_mild;
 	double probability_critical;
+	double r0_asymptomatic_factor;
+	double cycles_severe_in_hospital;
+	double cycles_critical_in_icu;
 
 	// derived cfg
 	double probability_infect_per_cycle;
 	double probability_death_per_cycle;
-	double probability_sick;
+	double probability_severe;
+
+	double prob_ac_asymptomatic;
+	double prob_ac_mild;
+	double prob_ac_severe;
+	double prob_ac_critical;
 
 	cfg_t();
 	void load_derived();
@@ -61,9 +86,11 @@ public:
 
 class stats_t {
 public:
-	#define CORONA_STAT(TYPE, PRINT, STAT) TYPE STAT;
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) TYPE STAT;
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) TYPE STAT[N];
 	#include "stats.h"
 	#undef CORONA_STAT
+	#undef CORONA_STAT_VECTOR
 
 	uint32_t cycle;
 
@@ -82,6 +109,7 @@ class person_t
 {
 private:
 	state_t state;
+	infected_state_t infected_state;
 	double infection_countdown;
 	region_t *region;
 
@@ -90,12 +118,17 @@ public:
 
 	void cycle ();
 	void cycle_infected ();
-	void die();
-	void infect();
+	void die ();
+	void recover ();
+	void infect ();
 	void pre_infect ();
 
 	inline state_t get_state () {
 		return this->state;
+	}
+
+	inline infected_state_t get_infected_state () {
+		return this->infected_state;
 	}
 
 	inline void set_region (region_t *region) {
