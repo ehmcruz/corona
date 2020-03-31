@@ -48,7 +48,10 @@ enum infected_state_t {
 	ST_MILD,
 	ST_SEVERE,
 	ST_CRITICAL,
-	NUMBER_OF_INFECTED_STATES
+	NUMBER_OF_INFECTED_STATES,
+
+	// fake states
+	ST_FAKE_IMMUNE
 };
 
 char* infected_state_str (int32_t i);
@@ -68,6 +71,9 @@ public:
 	double r0_asymptomatic_factor;
 	double cycles_severe_in_hospital;
 	double cycles_critical_in_icu;
+	double cycles_before_hospitalization;
+	uint32_t hospital_beds;
+	uint32_t icu_beds;
 
 	// derived cfg
 	double probability_infect_per_cycle;
@@ -110,6 +116,8 @@ class person_t
 private:
 	state_t state;
 	infected_state_t infected_state;
+	infected_state_t next_infected_state;
+	double infection_cycles;
 	double infection_countdown;
 	region_t *region;
 
@@ -129,6 +137,11 @@ public:
 
 	inline infected_state_t get_infected_state () {
 		return this->infected_state;
+	}
+
+	inline void setup_infection_countdown (double cycles) {
+		this->infection_cycles = cycles;
+		this->infection_countdown = cycles;
 	}
 
 	inline void set_region (region_t *region) {

@@ -169,6 +169,7 @@ person_t::person_t ()
 {
 	this->state = ST_HEALTHY;
 	this->infection_countdown = 0.0;
+	this->infection_cycles = 0.0;
 	this->region = NULL;
 }
 
@@ -206,11 +207,41 @@ void person_t::cycle_infected ()
 
 	switch (this->infected_state) {
 		case ST_ASYMPTOMATIC:
-		case ST_MILD:
 		case ST_SEVERE:
 			if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
 				this->recover();
+			}
+		break;
+
+		case ST_MILD:
+			if (this->infection_countdown <= 0.0) {
+				this->infection_countdown = 0.0;
+
+				switch (this->next_infected_state) {
+					case ST_FAKE_IMMUNE:
+						this->recover();
+					break;
+
+					case ST_SEVERE:
+						cycle_stats->ac_infected_state[ST_MILD]--;
+						cycle_stats->ac_infected_state[ST_SEVERE]++;
+
+						this->infected_state = ST_SEVERE;
+						this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
+					break;
+
+					case ST_CRITICAL:
+						cycle_stats->ac_infected_state[ST_MILD]--;
+						cycle_stats->ac_infected_state[ST_CRITICAL]++;
+
+						this->infected_state = ST_CRITICAL;
+						this->setup_infection_countdown(cfg.cycles_critical_in_icu);
+					break;
+
+					default:
+						C_ASSERT(0)
+				}
 			}
 		break;
 
@@ -219,7 +250,8 @@ void person_t::cycle_infected ()
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;
-				this->infection_countdown = cfg.cycles_severe_in_hospital;
+
+				this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
 				
 				cycle_stats->ac_infected_state[ ST_CRITICAL ]--;
 				cycle_stats->ac_infected_state[ ST_SEVERE ]++;
@@ -241,7 +273,7 @@ void person_t::pre_infect ()
 
 	global_stats.infected++;
 
-	this->infection_countdown = cfg.cycles_pre_infection;
+	this->setup_infection_countdown(cfg.cycles_pre_infection);
 }
 
 void person_t::infect ()
@@ -257,19 +289,22 @@ void person_t::infect ()
 
 	if (p <= cfg.prob_ac_asymptomatic) {
 		this->infected_state = ST_ASYMPTOMATIC;
-		this->infection_countdown = cfg.cycles_contagious;
+		this->setup_infection_countdown(cfg.cycles_contagious);
 	}
 	else if (p <= cfg.prob_ac_mild) {
 		this->infected_state = ST_MILD;
-		this->infection_countdown = cfg.cycles_contagious;
+		this->next_infected_state = ST_FAKE_IMMUNE;
+		this->setup_infection_countdown(cfg.cycles_contagious);
 	}
 	else if (p <= cfg.prob_ac_severe) {
-		this->infected_state = ST_SEVERE;
-		this->infection_countdown = cfg.cycles_severe_in_hospital;
+		this->infected_state = ST_MILD;
+		this->next_infected_state = ST_SEVERE;
+		this->setup_infection_countdown(cfg.cycles_before_hospitalization);
 	}
 	else {
-		this->infected_state = ST_CRITICAL;
-		this->infection_countdown = cfg.cycles_critical_in_icu;
+		this->infected_state = ST_MILD;
+		this->next_infected_state = ST_CRITICAL;
+		this->setup_infection_countdown(cfg.cycles_before_hospitalization);
 	}
 
 	cycle_stats->infected_state[ this->infected_state ]++;
@@ -319,6 +354,9 @@ cfg_t::cfg_t ()
 	this->cycles_pre_infection = 4.0;
 	this->cycles_severe_in_hospital = 8.0;
 	this->cycles_critical_in_icu = 8.0;
+	this->cycles_before_hospitalization = 5.0;
+	this->hospital_beds = 70;
+	this->icu_beds = 20;
 	
 	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
