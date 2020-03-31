@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <random>
 
 #include "corona.h"
 
@@ -14,6 +15,10 @@ region_t *region = NULL;
 uint32_t current_cycle;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
+
+//std::default_random_engine rgenerator;
+std::mt19937 rgenerator;
+std::uniform_real_distribution<double> rdistribution(0.0,1.0);
 
 static const char default_results_file[] = "results-cycles.csv";
 
@@ -33,9 +38,16 @@ char* infected_state_str (int32_t i)
 
 /****************************************************************/
 
+static void start_dice_engine ()
+{
+	//srand(time(NULL));
+	rgenerator.seed(time(NULL));
+}
+
 double generate_random_between_0_and_1 ()
 {
-	return ( (double)rand() / (double)RAND_MAX );
+	//return ( (double)rand() / (double)RAND_MAX );
+	return rdistribution(rgenerator);
 }
 
 /*
@@ -507,11 +519,6 @@ void stats_t::global_dump ()
 }
 
 /****************************************************************/
-
-static void start_dice_engine ()
-{
-	srand(time(NULL));
-}
 
 static void load_region()
 {
