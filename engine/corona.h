@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#define SANITY_CHECK
 #define DEBUG
 
 #define C_PRINTF_OUT stdout
@@ -17,6 +18,12 @@
 		cprintf(__VA_ARGS__); \
 		exit(1); \
 	}
+
+#ifdef SANITY_CHECK
+	#define SANITY_ASSERT(V) C_ASSERT(V)
+#else
+	#define SANITY_ASSERT(V)
+#endif
 
 #ifdef DEBUG
 	#define dprintf(...) cprintf(__VA_ARGS__)
@@ -34,7 +41,6 @@
 
 enum state_t {
 	ST_HEALTHY,
-	ST_PRE_INFECTION,
 	ST_INFECTED,
 	ST_IMMUNE,
 	ST_DEAD
@@ -44,6 +50,7 @@ enum infected_state_t {
 	// Important !!!
 	// whenever this list is modified, modify also infected_state_str()
 
+	ST_INCUBATION,
 	ST_ASYMPTOMATIC,
 	ST_MILD,
 	ST_SEVERE,
@@ -51,7 +58,8 @@ enum infected_state_t {
 	NUMBER_OF_INFECTED_STATES,
 
 	// fake states
-	ST_FAKE_IMMUNE
+	ST_FAKE_IMMUNE,
+	ST_NULL
 };
 
 char* infected_state_str (int32_t i);
@@ -62,7 +70,7 @@ public:
 	double r0;
 	double death_rate;
 	double cycles_contagious;
-	double cycles_pre_infection;
+	double cycles_incubation;
 	uint64_t population;
 	uint32_t cycles_to_simulate;
 	double probability_asymptomatic;

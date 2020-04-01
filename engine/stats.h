@@ -1,6 +1,5 @@
 CORONA_STAT(uint64_t, PU64, deaths, NON_AC_STAT)
 CORONA_STAT(uint64_t, PU64, infected, NON_AC_STAT)
-CORONA_STAT(uint64_t, PU64, new_infected, NON_AC_STAT)
 CORONA_STAT(uint64_t, PU64, immuned, NON_AC_STAT)
 
 CORONA_STAT_VECTOR(uint64_t, PU64, infected_state, infected_state, NUMBER_OF_INFECTED_STATES, NON_AC_STAT)

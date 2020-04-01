@@ -9,7 +9,7 @@ myylim = 100000
 #labels = c("sim-infected", "sim-suscetive", "sir-infected", "sir-suscetive")
 labels = c("sim-infected", "sim-suscetive")
 
-plot(data$cycle, data$infected, ylim=c(0,myylim), type="o", col="orange")
+plot(data$cycle, data$ac_infected, ylim=c(0,myylim), type="o", col="orange")
 
 lines(data$cycle, data$ac_healthy, ylim=c(0,myylim), type="o", col="green")
 

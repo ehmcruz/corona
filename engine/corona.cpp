@@ -24,6 +24,7 @@ static const char default_results_file[] = "results-cycles.csv";
 char* infected_state_str (int32_t i)
 {
 	static const char *list[] = {
+		"ST_INCUBATION",
 		"ST_ASYMPTOMATIC",
 		"ST_MILD",
 		"ST_SEVERE",
@@ -84,17 +85,32 @@ void region_t::cycle ()
 {
 	uint64_t i, j;
 	person_t *p;
+#ifdef SANITY_CHECK
+	uint64_t sanity_check = 0, sanity_check2 = 0;
+#endif
+
+#ifdef SANITY_CHECK
+	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
+		sanity_check2 += cycle_stats->ac_infected_state[i];
+
+	SANITY_ASSERT(cycle_stats->ac_infected == sanity_check2)
+
+	sanity_check2 = 0;
+#endif
 
 	this->must_infect_in_cycle = 0;
 
 	for (i=0; i<cfg.population; i++) {
 		p = this->people + i;
 
-		if (p->get_state() == ST_INFECTED)
-			cycle_stats->infected++;
+	#ifdef SANITY_CHECK
+		sanity_check += (p->get_state() == ST_INFECTED);
+	#endif
 
 		p->cycle();
 	}
+
+	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_infected)
 
 	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
 
@@ -110,7 +126,13 @@ void region_t::cycle ()
 	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
 		if (cycle_stats->ac_infected_state[i] > cycle_stats->peak[i])
 			cycle_stats->peak[i] = cycle_stats->ac_infected_state[i];
+		
+		#ifdef SANITY_CHECK
+			sanity_check2 += cycle_stats->ac_infected_state[i];
+		#endif
 	}
+
+	SANITY_ASSERT(cycle_stats->ac_infected == sanity_check2)
 
 	this->sir_calc();
 
@@ -173,6 +195,7 @@ void region_t::process_data ()
 person_t::person_t ()
 {
 	this->state = ST_HEALTHY;
+	this->infected_state = ST_NULL;
 	this->infection_countdown = 0.0;
 	this->infection_cycles = 0.0;
 	this->region = NULL;
@@ -202,13 +225,22 @@ void person_t::recover ()
 
 void person_t::cycle_infected ()
 {
-	if (roll_dice(calculate_infection_probability(this))) {
-		this->region->must_infect_in_cycle++;
+	if (this->infected_state != ST_INCUBATION) {
+		if (roll_dice(calculate_infection_probability(this))) {
+			this->region->must_infect_in_cycle++;
+		}
 	}
 
 	this->infection_countdown -= 1.0;
 
 	switch (this->infected_state) {
+		case ST_INCUBATION:
+			if (this->infection_countdown <= 0.0) {
+				this->infection_countdown = 0.0;
+				this->infect();
+			}
+		break;
+
 		case ST_ASYMPTOMATIC:
 		case ST_SEVERE:
 			if (this->infection_countdown <= 0.0) {
@@ -268,23 +300,27 @@ void person_t::cycle_infected ()
 
 void person_t::pre_infect ()
 {
-	this->state = ST_PRE_INFECTION;
-	cycle_stats->new_infected++;
+	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL)
+
+	this->state = ST_INFECTED;
+	cycle_stats->infected++;
+
+	this->infected_state = ST_INCUBATION;
+
+	cycle_stats->infected_state[ ST_INCUBATION ]++;
+	cycle_stats->ac_infected_state[ ST_INCUBATION ]++;
 
 	cycle_stats->ac_healthy--;
 	cycle_stats->ac_infected++;
 
-	this->setup_infection_countdown(cfg.cycles_pre_infection);
+	this->setup_infection_countdown(cfg.cycles_incubation);
 }
 
 void person_t::infect ()
 {
 	double p;
 
-	if (unlikely(this->state != ST_PRE_INFECTION))
-		this->pre_infect();
-
-	this->state = ST_INFECTED;
+	SANITY_ASSERT(this->state == ST_INFECTED && this->infected_state == ST_INCUBATION)
 
 	p = generate_random_between_0_and_1();
 
@@ -309,6 +345,8 @@ void person_t::infect ()
 	}
 
 	cycle_stats->infected_state[ this->infected_state ]++;
+
+	cycle_stats->ac_infected_state[ ST_INCUBATION ]--;
 	cycle_stats->ac_infected_state[ this->infected_state ]++;
 }
 
@@ -316,16 +354,6 @@ void person_t::cycle ()
 {
 	switch (this->state) {
 		case ST_HEALTHY:
-		break;
-
-		case ST_PRE_INFECTION:
-			this->infection_countdown -= 1.0;
-
-			if (this->infection_countdown <= 0.0) {
-				this->infection_countdown = 0.0;
-				this->infect();
-				//dprintf("I got IMMUNE\n");
-			}
 		break;
 
 		case ST_INFECTED:
@@ -374,7 +402,7 @@ void cfg_t::dump ()
 	dprintf("# ro = %0.4f\n", this->r0);
 	dprintf("# death_rate = %0.4f\n", this->death_rate);
 	dprintf("# cycles_contagious = %0.4f\n", this->cycles_contagious);
-	dprintf("# cycles_pre_infection = %0.4f\n", this->cycles_pre_infection);
+	dprintf("# cycles_incubation = %0.4f\n", this->cycles_incubation);
 	dprintf("# population = " PU64 "\n", this->population);
 	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
 	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
@@ -395,8 +423,8 @@ void cfg_t::dump ()
 
 static void simulate ()
 {
+	region->get_person(0)->pre_infect();
 	region->get_person(0)->infect();
-	//cycle_stats->infected = 0; // will be considered during the cycle
 
 	for (current_cycle=1; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
 		cprintf("Day %i\n", current_cycle);

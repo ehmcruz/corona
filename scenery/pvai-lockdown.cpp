@@ -7,7 +7,7 @@ void cfg_t::scenery_setup ()
 	this->cycles_contagious = 4.0;
 	this->population = 100000;
 	this->cycles_to_simulate = 180;
-	this->cycles_pre_infection = 4.0;
+	this->cycles_incubation = 4.0;
 	this->cycles_severe_in_hospital = 8.0;
 	this->cycles_critical_in_icu = 8.0;
 	this->cycles_before_hospitalization = 5.0;
