@@ -184,6 +184,7 @@ public:
 
 	void callback_before_cycle (uint32_t cycle); // coded in scenery
 	void callback_after_cycle (uint32_t cycle); // coded in scenery
+	void callback_end (); // coded in scenery
 
 	void sir_calc ();
 	void sir_init ();

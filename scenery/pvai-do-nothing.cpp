@@ -39,3 +39,8 @@ void region_t::callback_after_cycle (uint32_t cycle)
 {
 
 }
+
+void region_t::callback_end ()
+{
+
+}

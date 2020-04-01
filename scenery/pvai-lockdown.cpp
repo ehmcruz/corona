@@ -1,4 +1,12 @@
 #include <corona.h>
+#include <math.h>
+
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics.hpp>
+
+using namespace boost::accumulators;
+
+static accumulator_set<double, features<tag::mean, tag::median, tag::variance, tag::count, tag::sum> > acc_quarentine;
 
 void cfg_t::scenery_setup ()
 {
@@ -32,15 +40,20 @@ void cfg_t::scenery_setup ()
 
 void region_t::callback_before_cycle (uint32_t cycle)
 {
-	static int32_t already_locked = 0;
+	static int32_t locked = 0, lock_start_cycle;
 
 	if (cycle < (18*30)) {
-		if (already_locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 2) {
+		if (locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 2) {
+			locked = 1;
 			cfg.global_r0_factor = 0.35;
-			already_locked = 0;
+
+			lock_start_cycle = cycle;
 		}
-		else if (cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
+		else if (locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
+			locked = 0;
 			cfg.global_r0_factor = 1.0;
+
+			acc_quarentine( (double)(cycle - lock_start_cycle) );
 		}
 	}
 	else if (cycle == (18*30))
@@ -50,4 +63,12 @@ void region_t::callback_before_cycle (uint32_t cycle)
 void region_t::callback_after_cycle (uint32_t cycle)
 {
 
+}
+
+void region_t::callback_end ()
+{
+	cprintf("quarentine avg cycles: %.2f\n", mean(acc_quarentine));
+	cprintf("quarentine std dev cycles: %.2f\n", sqrt(variance(acc_quarentine)) );
+	cprintf("number of quarentines: %i\n", (int)count(acc_quarentine) );
+	cprintf("quarentine total cycles: %.2f\n", sum(acc_quarentine) );
 }

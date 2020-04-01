@@ -450,6 +450,7 @@ static void simulate ()
 	}
 
 	region->process_data();
+	region->callback_end();
 }
 
 /****************************************************************/
