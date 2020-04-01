@@ -401,8 +401,6 @@ void cfg_t::dump ()
 
 static void simulate ()
 {
-	cycle_stats = all_cycle_stats;
-
 	region->get_person(0)->infect();
 	//cycle_stats->infected = 0; // will be considered during the cycle
 
@@ -502,7 +500,9 @@ static void load_stats_engine ()
 	for (i=0; i<cfg.cycles_to_simulate; i++)
 		all_cycle_stats[i].cycle = i;
 
-	all_cycle_stats[0].ac_healthy = cfg.population;
+	cycle_stats = all_cycle_stats;
+
+	cycle_stats->ac_healthy = cfg.population;
 }
 
 int main ()
