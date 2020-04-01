@@ -104,7 +104,6 @@ public:
 	stats_t();
 	void reset();
 	void dump();
-	void global_dump ();
 	void copy_ac (stats_t *from);
 	void dump_csv_header (FILE *fp);
 	void dump_csv (FILE *fp);

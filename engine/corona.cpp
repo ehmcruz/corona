@@ -10,7 +10,6 @@ cfg_t cfg;
 stats_t *all_cycle_stats;
 stats_t *cycle_stats;
 stats_t *prev_cycle_stats;
-stats_t global_stats;
 region_t *region = NULL;
 uint32_t current_cycle;
 
@@ -61,7 +60,7 @@ int roll_dice (double probability)
 
 inline double calculate_infection_probability (person_t *from)
 {
-	double p = cfg.probability_infect_per_cycle * ((double)(cfg.population - global_stats.infected) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
+	double p = cfg.probability_infect_per_cycle * ((double)(cycle_stats->ac_healthy) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
 	return p;
 }
 
@@ -116,7 +115,6 @@ void region_t::cycle ()
 	this->sir_calc();
 
 	cycle_stats->dump();
-	global_stats.global_dump();
 
 	cprintf("\n");
 }
@@ -189,8 +187,6 @@ void person_t::die ()
 	cycle_stats->ac_deaths++;
 
 	cycle_stats->ac_infected_state[ this->infected_state ]--;
-	
-	global_stats.deaths++;
 }
 
 void person_t::recover ()
@@ -277,8 +273,6 @@ void person_t::pre_infect ()
 
 	cycle_stats->ac_healthy--;
 	cycle_stats->ac_infected++;
-
-	global_stats.infected++;
 
 	this->setup_infection_countdown(cfg.cycles_pre_infection);
 }
@@ -477,11 +471,6 @@ void stats_t::dump_csv (FILE *fp)
 	#undef CORONA_STAT_VECTOR
 
 	fprintf(fp, "\n");
-}
-
-void stats_t::global_dump ()
-{
-	cprintf("total_deaths:" PU64 " total_infected:" PU64 "\n", this->deaths, this->infected);
 }
 
 /****************************************************************/
