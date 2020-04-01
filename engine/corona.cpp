@@ -123,42 +123,37 @@ void region_t::cycle ()
 
 void region_t::sir_init ()
 {
-
+	cycle_stats->sir_s = (double)(cfg.population - 1) / (double)cfg.population;
+	cycle_stats->sir_i = 1.0 - cycle_stats->sir_s;
+	cycle_stats->sir_r = 0.0;
 }
 
 void region_t::sir_calc ()
 {
-	if (unlikely(current_cycle == 0)) {
-		cycle_stats->sir_s = (double)(cfg.population - 1) / (double)cfg.population;
-		cycle_stats->sir_i = 1.0 - cycle_stats->sir_s;
-		cycle_stats->sir_r = 0.0;
-	}
-	else {
-		double h = 1.0;
-		double B = cfg.r0/10.0;
-		double L = 0.1;
-		stats_t *prev = prev_cycle_stats;
+	double h = 1.0;
+	double B = cfg.r0/10.0;
+	double L = 0.1;
+	stats_t *prev = prev_cycle_stats;
 
-		/*
-		
-		dS = -B.S.I
-		dt
+	/*
+	
+	dS = -B.S.I
+	dt
 
-		dI = B.S.I - LI
-		dt
+	dI = B.S.I - LI
+	dt
 
-		dR = LI
-		dt
+	dR = LI
+	dt
 
-		y(t+h) = y(t) + h.dy
-		                  dt
+	y(t+h) = y(t) + h.dy
+	                  dt
 
-		*/
+	*/
 
-		cycle_stats->sir_s = prev->sir_s - h * (B * prev->sir_s * prev->sir_i);
-		cycle_stats->sir_i = prev->sir_i + h * (B * prev->sir_s * prev->sir_i - L*prev->sir_i);
-		cycle_stats->sir_r = prev->sir_r + h * (L * prev->sir_i);
-	}
+	cycle_stats->sir_s = prev->sir_s - h * (B * prev->sir_s * prev->sir_i);
+	cycle_stats->sir_i = prev->sir_i + h * (B * prev->sir_s * prev->sir_i - L*prev->sir_i);
+	cycle_stats->sir_r = prev->sir_r + h * (L * prev->sir_i);
 }
 
 void region_t::process_data ()
@@ -411,18 +406,15 @@ static void simulate ()
 	region->get_person(0)->infect();
 	//cycle_stats->infected = 0; // will be considered during the cycle
 
-	for (current_cycle=0; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
+	for (current_cycle=1; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
 		cprintf("Day %i\n", current_cycle);
 
-		if (likely(current_cycle > 0))
-			cycle_stats->copy_ac(prev_cycle_stats);
+		prev_cycle_stats = cycle_stats++;
+
+		cycle_stats->copy_ac(prev_cycle_stats);
 
 		region->cycle();
-
-		prev_cycle_stats = cycle_stats++;
 	}
-
-	cycle_stats = prev_cycle_stats--;
 
 	region->process_data();
 }
