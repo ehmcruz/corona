@@ -9,7 +9,7 @@
 cfg_t cfg;
 stats_t *all_cycle_stats;
 stats_t *cycle_stats;
-stats_t *prev_cycle_stats;
+stats_t *prev_cycle_stats = NULL;
 region_t *region = NULL;
 uint32_t current_cycle;
 
@@ -61,7 +61,7 @@ int roll_dice (double probability)
 
 inline double calculate_infection_probability (person_t *from)
 {
-	double p = cfg.probability_infect_per_cycle * ((double)(cycle_stats->ac_healthy) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
+	double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor * ((double)(cycle_stats->ac_healthy) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
 	return p;
 }
 
@@ -79,6 +79,12 @@ region_t::region_t ()
 	this->must_infect_in_cycle = 0;
 
 	this->sir_init();
+}
+
+void region_t::summon ()
+{
+	if (roll_dice(cfg.probability_summon_per_cycle))
+		this->must_infect_in_cycle++;
 }
 
 void region_t::cycle ()
@@ -111,6 +117,8 @@ void region_t::cycle ()
 	}
 
 	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_infected)
+
+	this->summon();
 
 	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
 
@@ -423,8 +431,11 @@ void cfg_t::dump ()
 
 static void simulate ()
 {
+	current_cycle = 0;
+	region->callback_before_cycle(current_cycle);
 	region->get_person(0)->pre_infect();
 	region->get_person(0)->infect();
+	region->callback_after_cycle(current_cycle);
 
 	for (current_cycle=1; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
 		cprintf("Day %i\n", current_cycle);
@@ -433,7 +444,9 @@ static void simulate ()
 
 		cycle_stats->copy_ac(prev_cycle_stats);
 
+		region->callback_before_cycle(current_cycle);
 		region->cycle();
+		region->callback_after_cycle(current_cycle);
 	}
 
 	region->process_data();

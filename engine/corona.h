@@ -80,6 +80,8 @@ public:
 	double cycles_severe_in_hospital;
 	double cycles_critical_in_icu;
 	double cycles_before_hospitalization;
+	double global_r0_factor;
+	double probability_summon_per_cycle;
 	uint32_t hospital_beds;
 	uint32_t icu_beds;
 
@@ -178,9 +180,19 @@ public:
 		return (this->people + i);
 	}
 
+	void summon ();
+
+	void callback_before_cycle (uint32_t cycle); // coded in scenery
+	void callback_after_cycle (uint32_t cycle); // coded in scenery
+
 	void sir_calc ();
 	void sir_init ();
 	void process_data ();
 };
+
+extern cfg_t cfg;
+extern stats_t *cycle_stats;
+extern stats_t *prev_cycle_stats;
+extern uint32_t current_cycle;
 
 #endif

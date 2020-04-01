@@ -21,7 +21,7 @@ grid(col = "gray", lwd=2)
 #legend(150, 100000, labels, cex=0.8, col=c("orange","green","gray","gray"), pch=21:22, lty=1:2);
 legend(150, 50000, labels, cex=0.8, col=c("orange", "green"), pch=21:22, lty=1:2);
 
-pdf(file=paste0("results-cycles-hospital.pdf"), width=11)
+pdf(file=paste0("results-cycles-critical.pdf"), width=11)
 
 labels = c("sim-critical")
 
@@ -30,3 +30,23 @@ plot(data$cycle, data$ac_infected_state_ST_CRITICAL, type="o", col="red")
 grid(col = "gray", lwd=2)
 
 legend(150, 10000, labels, cex=0.8, col=c("red"), pch=21:22, lty=1:2);
+
+pdf(file=paste0("results-cycles-severe.pdf"), width=11)
+
+labels = c("sim-severe")
+
+plot(data$cycle, data$ac_infected_state_ST_SEVERE, type="o", col="orange")
+
+grid(col = "gray", lwd=2)
+
+legend(150, 10000, labels, cex=0.8, col=c("orange"), pch=21:22, lty=1:2);
+
+pdf(file=paste0("results-cycles-mild.pdf"), width=11)
+
+labels = c("sim-mild")
+
+plot(data$cycle, data$ac_infected_state_ST_MILD, type="o", col="pink")
+
+grid(col = "gray", lwd=2)
+
+legend(150, 10000, labels, cex=0.8, col=c("pink"), pch=21:22, lty=1:2);
