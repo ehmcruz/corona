@@ -1,15 +1,27 @@
 #!/usr/bin/env Rscript
 
+args = commandArgs(trailingOnly=TRUE)
+
+if (length(args) < 1)
+	stop("Usage: plot-cycles.R <prefix>\n")
+
+prefix = args[1]
+
+options(scipen=999)
+
+
 data = read.csv("results-cycles.csv", header = TRUE)
 
-pdf(file=paste0("results-cycles.pdf"), width=11)
+# -----------------------------------------------------
+
+pdf(file=paste0("results-", prefix, "-cycles.pdf"), width=11)
 
 myylim = 100000
 
 #labels = c("sim-infected", "sim-suscetive", "sir-infected", "sir-suscetive")
 labels = c("sim-infected", "sim-suscetive")
 
-plot(data$cycle, data$ac_infected, ylim=c(0,myylim), type="o", col="orange")
+plot(data$cycle, data$ac_infected, ylim=c(0,myylim), xlab="Dias desde paciente zero", ylab="Total de pessoas", type="o", col="orange")
 
 lines(data$cycle, data$ac_healthy, ylim=c(0,myylim), type="o", col="green")
 
@@ -21,31 +33,37 @@ grid(col = "gray", lwd=2)
 #legend(150, 100000, labels, cex=0.8, col=c("orange","green","gray","gray"), pch=21:22, lty=1:2);
 legend(150, 50000, labels, cex=0.8, col=c("orange", "green"), pch=21:22, lty=1:2);
 
-pdf(file=paste0("results-cycles-critical.pdf"), width=11)
+# -----------------------------------------------------
+
+pdf(file=paste0("results-", prefix, "-critical.pdf"), width=11)
 
 labels = c("sim-critical")
 
-plot(data$cycle, data$ac_infected_state_ST_CRITICAL, type="o", col="red")
+plot(data$cycle, data$ac_infected_state_ST_CRITICAL, xlab="Dias desde paciente zero", ylab="Casos críticos - necessitam de UTI", type="o", col="red")
 
 grid(col = "gray", lwd=2)
 
 legend(150, 10000, labels, cex=0.8, col=c("red"), pch=21:22, lty=1:2);
 
-pdf(file=paste0("results-cycles-severe.pdf"), width=11)
+# -----------------------------------------------------
+
+pdf(file=paste0("results-", prefix, "-severe.pdf"), width=11)
 
 labels = c("sim-severe")
 
-plot(data$cycle, data$ac_infected_state_ST_SEVERE, type="o", col="orange")
+plot(data$cycle, data$ac_infected_state_ST_SEVERE, xlab="Dias desde paciente zero", ylab="Casos severos - necessitam de Internação na Enfermaria", type="o", col="orange")
 
 grid(col = "gray", lwd=2)
 
 legend(150, 10000, labels, cex=0.8, col=c("orange"), pch=21:22, lty=1:2);
 
-pdf(file=paste0("results-cycles-mild.pdf"), width=11)
+# -----------------------------------------------------
+
+pdf(file=paste0("results-", prefix, "-mild.pdf"), width=11)
 
 labels = c("sim-mild")
 
-plot(data$cycle, data$ac_infected_state_ST_MILD, type="o", col="pink")
+plot(data$cycle, data$ac_infected_state_ST_MILD, xlab="Dias desde paciente zero", ylab="Casos moderados - podem se recuperar em casa", type="o", col="pink")
 
 grid(col = "gray", lwd=2)
 

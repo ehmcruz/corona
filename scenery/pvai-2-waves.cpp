@@ -6,7 +6,7 @@
 
 using namespace boost::accumulators;
 
-static accumulator_set<double, features<tag::mean, tag::median, tag::variance, tag::count, tag::sum> > acc_quarentine;
+//static accumulator_set<double, features<tag::mean, tag::median, tag::variance, tag::count, tag::sum> > acc_quarentine;
 
 void cfg_t::scenery_setup ()
 {
@@ -14,7 +14,7 @@ void cfg_t::scenery_setup ()
 	this->death_rate = 0.02;
 	this->cycles_contagious = 4.0;
 	this->population = 100000;
-	this->cycles_to_simulate = 720;
+	this->cycles_to_simulate = 360;
 	this->cycles_incubation = 4.0;
 	this->cycles_severe_in_hospital = 8.0;
 	this->cycles_critical_in_icu = 8.0;
@@ -40,24 +40,17 @@ void cfg_t::scenery_setup ()
 
 void region_t::callback_before_cycle (uint32_t cycle)
 {
-	static int32_t locked = 0, lock_start_cycle;
+	static int32_t has_already_locked = 0, lock_start_cycle;
 
-	if (cycle < (18*30)) {
-		if (locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 2) {
-			locked = 1;
-			cfg.global_r0_factor = 0.35;
+	if (has_already_locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 3) {
+		has_already_locked = 1;
+		cfg.global_r0_factor = 0.35;
 
-			lock_start_cycle = cycle;
-		}
-		else if (locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
-			locked = 0;
-			cfg.global_r0_factor = 1.0;
-
-			acc_quarentine( (double)(cycle - lock_start_cycle) );
-		}
+		lock_start_cycle = cycle;
 	}
-	else if (cycle == (18*30))
+	else if (has_already_locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
 		cfg.global_r0_factor = 1.0;
+	}
 }
 
 void region_t::callback_after_cycle (uint32_t cycle)
@@ -67,8 +60,5 @@ void region_t::callback_after_cycle (uint32_t cycle)
 
 void region_t::callback_end ()
 {
-	cprintf("quarentine avg cycles: %.2f\n", mean(acc_quarentine));
-	cprintf("quarentine std dev cycles: %.2f\n", sqrt(variance(acc_quarentine)) );
-	cprintf("number of quarentines: %i\n", (int)count(acc_quarentine) );
-	cprintf("quarentine total cycles: %.2f\n", sum(acc_quarentine) );
+	
 }
