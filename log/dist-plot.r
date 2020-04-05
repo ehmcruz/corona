@@ -39,8 +39,6 @@ print(betha)
 
 pdf(file=paste0("teste-incubation.pdf"), width=11)
 
-#curve(dgamma(x, shape=alpha, scale=betha), main="Gamma distribution")
-
 x = rgamma(100000, shape=alpha, scale=betha)
 
 den <- density(x)
@@ -51,4 +49,23 @@ dat <- data.frame(x = den$x, y = den$y)
 
 ggplot(data = dat, aes(x = x, y = y)) + 
   geom_point(size = 3) +
+  theme_classic()
+
+# ------------------------------------------------------------------
+
+pdf(file=paste0("teste-infection-exp.pdf"), width=11)
+
+mean = 2.09
+
+x = rexp(100000, rate=1/mean)
+
+den <- density(x)
+
+dat <- data.frame(x = den$x, y = den$y)
+
+# Plot density as points
+
+ggplot(data = dat, aes(x = x, y = y)) + 
+  geom_point(size = 3) +
+  xlim(0, 15)+
   theme_classic()
