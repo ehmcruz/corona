@@ -15,10 +15,6 @@ uint32_t current_cycle;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
-//std::default_random_engine rgenerator;
-std::mt19937 rgenerator;
-std::uniform_real_distribution<double> rdistribution(0.0,1.0);
-
 static const char default_results_file[] = "results-cycles.csv";
 
 char* infected_state_str (int32_t i)
@@ -34,35 +30,6 @@ char* infected_state_str (int32_t i)
 	C_ASSERT(i < NUMBER_OF_INFECTED_STATES)
 
 	return (char*)list[i];
-}
-
-/****************************************************************/
-
-static void start_dice_engine ()
-{
-	//srand(time(NULL));
-	rgenerator.seed(time(NULL));
-}
-
-double generate_random_between_0_and_1 ()
-{
-	//return ( (double)rand() / (double)RAND_MAX );
-	return rdistribution(rgenerator);
-}
-
-/*
-	probability between 0.0 and 1.0
-*/
-
-int roll_dice (double probability)
-{
-	return (generate_random_between_0_and_1() <= probability);
-}
-
-inline double calculate_infection_probability (person_t *from)
-{
-	double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor * ((double)(cycle_stats->ac_healthy) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
-	return p;
 }
 
 /****************************************************************/
@@ -321,7 +288,7 @@ void person_t::pre_infect ()
 	cycle_stats->ac_healthy--;
 	cycle_stats->ac_infected++;
 
-	this->setup_infection_countdown(cfg.cycles_incubation);
+	this->setup_infection_countdown( calculate_incubation_cycles() );
 }
 
 void person_t::infect ()
@@ -410,7 +377,10 @@ void cfg_t::dump ()
 	dprintf("# ro = %0.4f\n", this->r0);
 	dprintf("# death_rate = %0.4f\n", this->death_rate);
 	dprintf("# cycles_contagious = %0.4f\n", this->cycles_contagious);
-	dprintf("# cycles_incubation = %0.4f\n", this->cycles_incubation);
+	
+	dprintf("# cycles_incubation_mean = %0.4f\n", this->cycles_incubation_mean);
+	dprintf("# cycles_incubation_stddev = %0.4f\n", this->cycles_incubation_stddev);
+	
 	dprintf("# population = " PU64 "\n", this->population);
 	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
 	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
@@ -546,6 +516,8 @@ int main ()
 	start_dice_engine();
 
 	load_stats_engine();
+
+	load_gdistribution_incubation(cfg.cycles_incubation_mean, cfg.cycles_incubation_stddev);
 
 	load_region();
 

@@ -70,7 +70,10 @@ public:
 	double r0;
 	double death_rate;
 	double cycles_contagious;
-	double cycles_incubation;
+
+	double cycles_incubation_mean;
+	double cycles_incubation_stddev;
+
 	uint64_t population;
 	uint32_t cycles_to_simulate;
 	double probability_asymptomatic;
@@ -191,9 +194,19 @@ public:
 	void process_data ();
 };
 
+// probability.cpp
+
+void start_dice_engine ();
+double generate_random_between_0_and_1 ();
+int roll_dice (double probability);
+double calculate_infection_probability (person_t *from);
+void load_gdistribution_incubation (double mean, double stddev);
+double calculate_incubation_cycles ();
+
 extern cfg_t cfg;
 extern stats_t *cycle_stats;
 extern stats_t *prev_cycle_stats;
 extern uint32_t current_cycle;
+extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
 #endif
