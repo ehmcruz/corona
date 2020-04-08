@@ -24,9 +24,8 @@ struct lex_token_t {
 
 class lex_t
 {
-public:
+private:
 	char *fname;
-	FILE *fp;
 	char *buffer;
 	uint32_t bsize;
 	uint32_t bpos;
@@ -38,7 +37,8 @@ public:
 	uint32_t has_newline_token; // default: 0
 
 public:
-	void init (char *fname); // initialize with default configuration
+	lex_t (char *fname, uint32_t has_white_space_token, uint32_t merge_white_space, uint32_t has_newline_token);
+	~lex_t ();
 	void get_token (lex_token_t *token);
 
 private:

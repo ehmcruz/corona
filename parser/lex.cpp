@@ -30,22 +30,43 @@ const char* lex_token_str (lex_token_type_t type)
 	return (const char*)token_str[type];
 }
 
+lex_t::lex_t (char *fname, uint32_t has_white_space_token, uint32_t merge_white_space, uint32_t has_newline_token)
+{
+	this->fname = fname;
+	this->load_file();
+
+	this->col = 1;
+	this->row = 1;
+	this->has_white_space_token = has_white_space_token;
+	this->merge_white_space = merge_white_space;
+	this->has_newline_token = has_newline_token;
+}
+
+~lex_t::lex_t ()
+{
+	free(this->buffer);
+}
+
 void lex_t::load_file ()
 {
-	this->fp = fopen(this->fname, "r");
+	FILE *fp;
 
-	C_ASSERT_PRINTF(this->fp != NULL, "cannot open file %s\n", this->fname)
+	fp = fopen(this->fname, "r");
 
-	fseek(this->fp, 0, SEEK_END);
-	this->bsize = ftell(this->fp);
+	C_ASSERT_PRINTF(fp != NULL, "cannot open file %s\n", this->fname)
+
+	fseek(fp, 0, SEEK_END);
+	this->bsize = ftell(fp);
 	
 	dprintf("file %s has %u bytes\n", this->fname, this->bsize);
 	
 	this->buffer = (char*)malloc(this->bsize + 1);
 	C_ASSERT(this->buffer != NULL);
-	rewind(this->fp);
+	rewind(fp);
 
-	C_ASSERT_PRINTF( fread(this->buffer, 1, this->bsize, this->fp) == this->bsize, "error loading file %s\n", this->fname )
+	C_ASSERT_PRINTF( fread(this->buffer, 1, this->bsize, fp) == this->bsize, "error loading file %s\n", this->fname )
+
+	fclose(fp);
 
 	this->buffer[ this->bsize ] = 0;
 	this->bpos = 0;
@@ -59,18 +80,6 @@ char lex_t::io_fgetc_no_inc ()
 void lex_t::io_inc ()
 {
 	this->bpos++;
-}
-
-void lex_t::init (char *fname)
-{
-	this->fname = fname;
-	this->load_file();
-
-	this->col = 1;
-	this->row = 1;
-	this->has_white_space_token = 0;
-	this->merge_white_space = 1;
-	this->has_newline_token = 0;
 }
 
 void lex_t::get_token (lex_token_t *token)
