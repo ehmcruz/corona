@@ -8,7 +8,6 @@ void cfg_t::scenery_setup ()
 	this->r0 = 3.0;
 	this->death_rate = 0.02;
 	this->cycles_contagious = 4.0;
-	this->population = 100000;
 	this->cycles_to_simulate = 180;
 
 	this->cycles_incubation_mean = 4.58;
@@ -35,9 +34,16 @@ void cfg_t::scenery_setup ()
 
 	this->r0_asymptomatic_factor = 1.0;
 
-	csv = new csv_t((char*)"teste.csv", 1);
+	csv = new csv_t((char*)"data/distribuicao-etaria-paranavai.csv", 1);
 	csv->dump();
-	exit(0);
+	//exit(0);
+}
+
+void region_t::setup_region ()
+{
+	this->set_population_number(100000);
+
+	this->add_people(100000, 20);
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)

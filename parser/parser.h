@@ -27,4 +27,11 @@ private:
 	void token_check_type (lex_token_t *token, lex_token_type_t type);
 };
 
+class csv_ages_t: public csv_t
+{
+private:
+public:
+	csv_ages_t (char *fname);
+};
+
 #endif

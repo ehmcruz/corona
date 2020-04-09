@@ -138,6 +138,9 @@ void lex_t::get_token (lex_token_t *token)
 						state = LEX_STATE_END;
 					}
 				}
+				else if (c == '\r') {
+					this->io_inc();
+				}
 				else if (c == '-') {
 					this->io_inc();
 					n = 0;
@@ -180,7 +183,7 @@ void lex_t::get_token (lex_token_t *token)
 					this->io_inc();
 				}
 				else {
-					cprintf("lex error line %u char %c\n", this->row, c);
+					cprintf("lex error line %u (ascii %i)\n", this->row, (int32_t)c);
 					exit(1);
 				}
 				break;

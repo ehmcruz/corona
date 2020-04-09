@@ -38,14 +38,42 @@ region_t::region_t ()
 {
 	uint64_t i;
 
-	this->people = new person_t[ cfg.population ];
+	this->npopulation = 0;
 
-	for (i=0; i<cfg.population; i++)
-		this->people[i].set_region(this);
+	this->setup_region();
+
+	C_ASSERT(this->people.size() > 0)
+	C_ASSERT(this->people.size() == this->npopulation)
+
+	cycle_stats->ac_healthy += this->npopulation;
+
+	for (i=0; i<this->npopulation; i++)
+		this->people[i]->set_region(this);
 
 	this->must_infect_in_cycle = 0;
 
 	this->sir_init();
+}
+
+void region_t::add_people (uint64_t n, uint32_t age)
+{
+	uint64_t i;
+	person_t *p;
+
+	C_ASSERT( (this->people.size() + n) <= this->npopulation )
+
+	p = new person_t[n];
+
+	for (i=0; i<n; i++) {
+		p[i].set_age(age);
+		this->people.push_back( p+i );
+	}
+}
+
+void region_t::set_population_number (uint64_t npopulation)
+{
+	this->npopulation = npopulation;
+	this->people.reserve(npopulation);
 }
 
 void region_t::summon ()
@@ -73,8 +101,8 @@ void region_t::cycle ()
 
 	this->must_infect_in_cycle = 0;
 
-	for (i=0; i<cfg.population; i++) {
-		p = this->people + i;
+	for (i=0; i<this->npopulation; i++) {
+		p = this->people[i];
 
 	#ifdef SANITY_CHECK
 		sanity_check += (p->get_state() == ST_INFECTED);
@@ -89,8 +117,8 @@ void region_t::cycle ()
 
 	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
 
-	for (i=0, j=0; i<cfg.population && j<this->must_infect_in_cycle; i++) {
-		p = this->people + i;
+	for (i=0, j=0; i<this->npopulation && j<this->must_infect_in_cycle; i++) {
+		p = this->people[i];
 
 		if (p->get_state() == ST_HEALTHY) {
 			p->pre_infect();
@@ -118,7 +146,7 @@ void region_t::cycle ()
 
 void region_t::sir_init ()
 {
-	cycle_stats->sir_s = (double)(cfg.population - 1) / (double)cfg.population;
+	cycle_stats->sir_s = (double)(this->npopulation - 1) / (double)this->npopulation;
 	cycle_stats->sir_i = 1.0 - cycle_stats->sir_s;
 	cycle_stats->sir_r = 0.0;
 }
@@ -157,9 +185,9 @@ void region_t::process_data ()
 	stats_t *cycle_stats = all_cycle_stats;
 
 	for (i=0; i<cfg.cycles_to_simulate; i++) {
-		cycle_stats->sir_s *= (double)cfg.population;
-		cycle_stats->sir_i *= (double)cfg.population;
-		cycle_stats->sir_r *= (double)cfg.population;
+		cycle_stats->sir_s *= (double)this->npopulation;
+		cycle_stats->sir_i *= (double)this->npopulation;
+		cycle_stats->sir_r *= (double)this->npopulation;
 
 		cycle_stats++;
 	}
@@ -174,6 +202,7 @@ person_t::person_t ()
 	this->infection_countdown = 0.0;
 	this->infection_cycles = 0.0;
 	this->region = NULL;
+	this->age = 0;
 }
 
 void person_t::die ()
@@ -381,7 +410,6 @@ void cfg_t::dump ()
 	dprintf("# cycles_incubation_mean = %0.4f\n", this->cycles_incubation_mean);
 	dprintf("# cycles_incubation_stddev = %0.4f\n", this->cycles_incubation_stddev);
 	
-	dprintf("# population = " PU64 "\n", this->population);
 	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
 	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
 	dprintf("# probability_mild = %0.4f\n", this->probability_mild);
@@ -502,8 +530,6 @@ static void load_stats_engine ()
 		all_cycle_stats[i].cycle = i;
 
 	cycle_stats = all_cycle_stats;
-
-	cycle_stats->ac_healthy = cfg.population;
 }
 
 int main ()

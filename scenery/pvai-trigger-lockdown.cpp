@@ -13,7 +13,6 @@ void cfg_t::scenery_setup ()
 	this->r0 = 3.0;
 	this->death_rate = 0.02;
 	this->cycles_contagious = 4.0;
-	this->population = 100000;
 	this->cycles_to_simulate = 720;
 
 	this->cycles_incubation_mean = 4.58;
@@ -39,6 +38,10 @@ void cfg_t::scenery_setup ()
 #endif
 
 	this->r0_asymptomatic_factor = 1.0;
+}
+
+void region_t::setup_region ()
+{
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)

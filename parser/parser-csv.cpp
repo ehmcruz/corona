@@ -67,7 +67,7 @@ void csv_t::parse ()
 				line = NULL;
 			}
 			else {
-				syntax_error_printf("expected token %s or %s", lex_token_str(LEX_TOKEN_COMMA), lex_token_str(LEX_TOKEN_NEWLINE));
+				syntax_error_printf("expected token %s or %s, provided %s", lex_token_str(LEX_TOKEN_COMMA), lex_token_str(LEX_TOKEN_NEWLINE), lex_token_str(token.type));
 			}
 		}
 		else if (token.type == LEX_TOKEN_COMMA) { // comma after comma, or comma after newline
@@ -116,4 +116,10 @@ void csv_t::dump ()
 
 		cprintf("\n");
 	}
+}
+
+csv_ages_t::csv_ages_t (char *fname)
+	: csv_t(fname, 1)
+{
+
 }

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include <vector>
+
 #define SANITY_CHECK
 #define DEBUG
 
@@ -38,6 +40,17 @@
 
 #define NON_AC_STAT   0
 #define AC_STAT       1
+
+#define OO_ENCAPSULATE(TYPE, VAR) \
+	private: \
+	TYPE VAR; \
+	public: \
+	inline void set_##VAR (TYPE VAR) { \
+		this->VAR = VAR; \
+	} \
+	inline TYPE get_##VAR () { \
+		return this->VAR; \
+	}
 
 enum state_t {
 	ST_HEALTHY,
@@ -74,7 +87,6 @@ public:
 	double cycles_incubation_mean;
 	double cycles_incubation_stddev;
 
-	uint64_t population;
 	uint32_t cycles_to_simulate;
 	double probability_asymptomatic;
 	double probability_mild;
@@ -126,13 +138,14 @@ class region_t;
 
 class person_t
 {
+	OO_ENCAPSULATE(uint32_t, age)
+	OO_ENCAPSULATE(state_t, state)
+	OO_ENCAPSULATE(infected_state_t, infected_state)
+	OO_ENCAPSULATE(region_t*, region)
 private:
-	state_t state;
-	infected_state_t infected_state;
 	infected_state_t next_infected_state;
 	double infection_cycles;
 	double infection_countdown;
-	region_t *region;
 
 public:
 	person_t();
@@ -144,25 +157,9 @@ public:
 	void infect ();
 	void pre_infect ();
 
-	inline state_t get_state () {
-		return this->state;
-	}
-
-	inline infected_state_t get_infected_state () {
-		return this->infected_state;
-	}
-
 	inline void setup_infection_countdown (double cycles) {
 		this->infection_cycles = cycles;
 		this->infection_countdown = cycles;
-	}
-
-	inline void set_region (region_t *region) {
-		this->region = region;
-	}
-
-	inline region_t* get_region () {
-		return this->region;
 	}
 };
 
@@ -171,16 +168,26 @@ class region_t
 	friend class person_t;
 
 private:
-	person_t *people;
+	std::vector<person_t*> people;
+	uint64_t npopulation;
 	uint64_t must_infect_in_cycle;
 
 public:
 	region_t();
 
+	void setup_region (); // coded in scenery
+
 	void cycle();
 
+	void add_people (uint64_t n, uint32_t age);
+	void set_population_number (uint64_t npopulation);
+
 	inline person_t* get_person (uint64_t i) {
-		return (this->people + i);
+		return this->people[i];
+	}
+
+	inline uint64_t get_npopulation () {
+		return this->npopulation;
 	}
 
 	void summon ();

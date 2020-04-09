@@ -63,6 +63,8 @@ int roll_dice (double probability)
 
 double calculate_infection_probability (person_t *from)
 {
-	double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor * ((double)(cycle_stats->ac_healthy) / (double)cfg.population) * r0_factor_per_group[ from->get_infected_state() ];
+	double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor
+	         * ((double)(cycle_stats->ac_healthy) / (double)from->get_region()->get_npopulation())
+	         * r0_factor_per_group[ from->get_infected_state() ];
 	return p;
 }
