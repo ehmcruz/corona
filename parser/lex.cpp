@@ -42,7 +42,7 @@ lex_t::lex_t (char *fname, uint32_t has_white_space_token, uint32_t merge_white_
 	this->has_newline_token = has_newline_token;
 }
 
-~lex_t::lex_t ()
+lex_t::~lex_t ()
 {
 	free(this->buffer);
 }

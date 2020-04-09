@@ -1,4 +1,7 @@
 #include <corona.h>
+#include <parser.h>
+
+csv_t *csv;
 
 void cfg_t::scenery_setup ()
 {
@@ -31,6 +34,9 @@ void cfg_t::scenery_setup ()
 #endif
 
 	this->r0_asymptomatic_factor = 1.0;
+
+	csv = new csv_t((char*)"teste.csv", 1);
+	exit(0);
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)

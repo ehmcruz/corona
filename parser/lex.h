@@ -2,6 +2,7 @@
 #define __LEX_H__
 
 #include <stdint.h>
+#include <string.h>
 
 #define MAX_LABEL_LENGTH 30
 
@@ -12,7 +13,9 @@ enum lex_token_type_t {
 	LEX_TOKEN_MAX
 };
 
-struct lex_token_t {
+class lex_token_t
+{
+public:
 	union {
 		char label[MAX_LABEL_LENGTH];
 		char string[MAX_LABEL_LENGTH];
@@ -20,6 +23,10 @@ struct lex_token_t {
 	} data;
 	
 	lex_token_type_t type;
+
+	inline void copy (lex_token_t *from) {
+		memcpy(this, from, sizeof(lex_token_t));
+	}
 };
 
 class lex_t
@@ -40,6 +47,18 @@ public:
 	lex_t (char *fname, uint32_t has_white_space_token, uint32_t merge_white_space, uint32_t has_newline_token);
 	~lex_t ();
 	void get_token (lex_token_t *token);
+
+	inline char* get_fname () {
+		return this->fname;
+	}
+
+	inline uint32_t get_col () {
+		return this->col;
+	}
+
+	inline uint32_t get_row () {
+		return this->row;
+	}
 
 private:
 	void load_file ();

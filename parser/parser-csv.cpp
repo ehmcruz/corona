@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <corona.h>
 #include <parser.h>
 
@@ -13,23 +15,88 @@ csv_t::~csv_t ()
 
 }
 
-enum parser_state_t {
-	PSTATE_HEADER,
-};
+#define syntax_error_printf(...) { cprintf("syntax error file %s line %u: ", this->lex.get_fname(), this->lex.get_row()); cprintf(__VA_ARGS__); cprintf("\n"); exit(1); }
+
+void csv_t::get_token (lex_token_t *token)
+{
+	this->lex.get_token(token);
+	dprintf("fetched token type %s\n", lex_token_str(token->type));
+}
+
+void csv_t::token_check_type (lex_token_t *token, lex_token_type_t type)
+{
+	if (token->type != type) {
+		syntax_error_printf("expected %s, given %s", lex_token_str(type), lex_token_str(token->type));
+	}
+}
 
 void csv_t::parse ()
 {
-	parser_state_t state;
 	lex_token_t token;
+	std::vector<lex_token_t> *line = NULL;
+	std::vector<lex_token_t> *first_line = NULL;
 
-	state = PSTATE_HEADER;
+	this->ncols = 0;
+	this->nrows = 0;
 
-	switch (state) {
-		case PSTATE_HEADER:
-			this->lex.get_token(&token);
-		break;
+	this->get_token(&token);
 
-		default:
-			C_ASSERT(0)
+	do {
+		if (token.type == LEX_TOKEN_INTEGER || token.type == LEX_TOKEN_LABEL || token.type == LEX_TOKEN_STRING) {
+			if (line == NULL) {
+				line = new std::vector<lex_token_t>;
+				this->data.push_back( line );
+
+				if (first_line == NULL)
+					first_line = line;
+			}
+
+			line->push_back(token);
+			this->ncols++;
+
+			this->get_token(&token);
+
+			if (token.type == LEX_TOKEN_COMMA) {
+				this->get_token(&token);
+			}
+			else if (token.type == LEX_TOKEN_NEWLINE) {
+				if (line->size() != first_line->size())
+					syntax_error_printf("all lines should have the same number of cols");
+
+				this->get_token(&token);
+				line = NULL;
+			}
+			else {
+				syntax_error_printf("expected token %s or %s", lex_token_str(LEX_TOKEN_COMMA), lex_token_str(LEX_TOKEN_NEWLINE));
+			}
+		}
+		else if (token.type == LEX_TOKEN_COMMA) { // comma after comma, or comma after newline
+			syntax_error_printf("comma should be after data");
+		}
+		else if (token.type == LEX_TOKEN_NEWLINE) { // newline after newline, or newline after comma
+			if (line == NULL) // empty line
+				this->get_token(&token);
+			else {
+				syntax_error_printf("newline should be after data");
+			}
+		}
+		else if (token.type != LEX_TOKEN_END) {
+			syntax_error_printf("something really wrong with the csv");
+		}
+	} while (token.type != LEX_TOKEN_END);
+}
+
+void csv_t::dump ()
+{
+	uint32_t i, j;
+	std::vector<lex_token_t> *line;
+
+	for (i=0; i<this->data.size(); i++) {
+		line = this->data[i];
+
+		for (j=0; j<line->size(); j++) {
+			lex_token_t& token = 
+			switch ()
+		}
 	}
 }

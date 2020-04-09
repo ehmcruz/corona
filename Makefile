@@ -16,7 +16,7 @@ HEADERS = $(wildcard engine/*.h) $(wildcard parser/*.h)
 	$(CPP) $(CPPFLAGS) -c -o $@ $<
 
 %.exec: %.o $(OBJS)
-	$(CPP) $(CPPFLAGS) -o $@ $< $(OBJS_ENGINE)
+	$(CPP) $(CPPFLAGS) -o $@ $< $(OBJS_ENGINE) $(OBJS_PARSER)
 
 all: $(ALL_OBJS) $(BINARIES)
 	@echo "Everything compiled! yes!"
