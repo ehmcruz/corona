@@ -36,6 +36,7 @@ void cfg_t::scenery_setup ()
 	this->r0_asymptomatic_factor = 1.0;
 
 	csv = new csv_t((char*)"teste.csv", 1);
+	csv->dump();
 	exit(0);
 }
 

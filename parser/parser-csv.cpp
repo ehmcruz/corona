@@ -88,15 +88,32 @@ void csv_t::parse ()
 
 void csv_t::dump ()
 {
-	uint32_t i, j;
-	std::vector<lex_token_t> *line;
+	uint32_t i, j;	;
 
 	for (i=0; i<this->data.size(); i++) {
-		line = this->data[i];
+		std::vector<lex_token_t>& line = *this->data[i];
 
-		for (j=0; j<line->size(); j++) {
-			lex_token_t& token = 
-			switch ()
+		for (j=0; j<line.size(); j++) {
+			lex_token_t& token = line[j];
+
+			switch (token.type) {
+				case LEX_TOKEN_INTEGER:
+					cprintf("%i, ", token.data.vint);
+				break;
+
+				case LEX_TOKEN_LABEL:
+					cprintf("%s, ", token.data.label);
+				break;
+
+				case LEX_TOKEN_STRING:
+					cprintf("%s, ", token.data.string);
+				break;
+
+				default:
+					C_ASSERT(0)
+			}
 		}
+
+		cprintf("\n");
 	}
 }
