@@ -6,20 +6,22 @@
 #include <string>
 
 #include <lex.h>
+#include <corona.h>
 
 class csv_t
 {
+	OO_ENCAPSULATE_RO(uint32_t, ncols)
+	OO_ENCAPSULATE_RO(uint32_t, nrows)
 private:
 	lex_t lex;
 	std::vector< std::vector<lex_token_t>* > data;
 	int32_t has_header;
-	uint32_t ncols;
-	uint32_t nrows;
 
 public:
 	csv_t (char *fname, int32_t has_header);
 	~csv_t ();
 	void dump ();
+	lex_token_t* get_cell (uint32_t row, uint32_t col);
 
 private:
 	void parse ();
@@ -29,9 +31,21 @@ private:
 
 class csv_ages_t: public csv_t
 {
+	OO_ENCAPSULATE_RO(uint32_t, first_age)
+	OO_ENCAPSULATE_RO(uint32_t, last_age)
 private:
+	uint32_t nages;
+	uint32_t ncities;
+	uint32_t **matrix;
+
 public:
 	csv_ages_t (char *fname);
+	uint32_t get_population_per_age (char *city_name, uint32_t age);
+
+private:
+	void validate ();
+	void validate_again ();
+	void expand ();
 };
 
 #endif

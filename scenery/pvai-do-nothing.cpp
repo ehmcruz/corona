@@ -1,10 +1,12 @@
 #include <corona.h>
 #include <parser.h>
 
-csv_t *csv;
+csv_ages_t *csv;
 
 void cfg_t::scenery_setup ()
 {
+	uint32_t i;
+
 	this->r0 = 3.0;
 	this->death_rate = 0.02;
 	this->cycles_contagious = 4.0;
@@ -34,9 +36,14 @@ void cfg_t::scenery_setup ()
 
 	this->r0_asymptomatic_factor = 1.0;
 
-	csv = new csv_t((char*)"data/distribuicao-etaria-paranavai.csv", 1);
+	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
 	csv->dump();
-	//exit(0);
+
+	for (i=csv->get_first_age(); i<=csv->get_last_age(); i++) {
+		cprintf("pvai habitantes idade %i -> %i\n", i, csv->get_population_per_age((char*)"Paranavai", i));
+	}
+
+	exit(0);
 }
 
 void region_t::setup_region ()

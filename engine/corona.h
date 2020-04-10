@@ -52,6 +52,15 @@
 		return this->VAR; \
 	}
 
+// read-only
+#define OO_ENCAPSULATE_RO(TYPE, VAR) \
+	private: \
+	TYPE VAR; \
+	public: \
+	inline TYPE get_##VAR () { \
+		return this->VAR; \
+	}
+
 enum state_t {
 	ST_HEALTHY,
 	ST_INFECTED,
