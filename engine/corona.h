@@ -5,6 +5,7 @@
 #include <inttypes.h>
 
 #include <vector>
+#include <random>
 
 #define SANITY_CHECK
 #define DEBUG
@@ -147,6 +148,14 @@ class region_t;
 
 class person_t
 {
+	OO_ENCAPSULATE_RO(double, probability_asymptomatic)
+	OO_ENCAPSULATE_RO(double, probability_mild)
+	OO_ENCAPSULATE_RO(double, probability_severe)
+	OO_ENCAPSULATE_RO(double, probability_critical)
+	OO_ENCAPSULATE_RO(double, prob_ac_asymptomatic)
+	OO_ENCAPSULATE_RO(double, prob_ac_mild)
+	OO_ENCAPSULATE_RO(double, prob_ac_severe)
+	OO_ENCAPSULATE_RO(double, prob_ac_critical)
 	OO_ENCAPSULATE(uint32_t, age)
 	OO_ENCAPSULATE(state_t, state)
 	OO_ENCAPSULATE(infected_state_t, infected_state)
@@ -166,6 +175,8 @@ public:
 	void infect ();
 	void pre_infect ();
 
+	void setup_infection_probabilities (double pmild, double psevere, double pcritical);
+
 	inline void setup_infection_countdown (double cycles) {
 		this->infection_cycles = cycles;
 		this->infection_countdown = cycles;
@@ -176,9 +187,10 @@ class region_t
 {
 	friend class person_t;
 
+	OO_ENCAPSULATE_RO(uint64_t, npopulation)
+
 private:
 	std::vector<person_t*> people;
-	uint64_t npopulation;
 	uint64_t must_infect_in_cycle;
 
 public:
@@ -193,10 +205,6 @@ public:
 
 	inline person_t* get_person (uint64_t i) {
 		return this->people[i];
-	}
-
-	inline uint64_t get_npopulation () {
-		return this->npopulation;
 	}
 
 	void summon ();
@@ -224,5 +232,7 @@ extern stats_t *cycle_stats;
 extern stats_t *prev_cycle_stats;
 extern uint32_t current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
+
+extern std::mt19937 rgenerator;
 
 #endif

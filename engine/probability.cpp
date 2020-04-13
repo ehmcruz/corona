@@ -2,7 +2,7 @@
 
 #include <corona.h>
 
-static std::mt19937 rgenerator;
+std::mt19937 rgenerator;
 
 static std::uniform_real_distribution<double> rdistribution(0.0, 1.0);
 

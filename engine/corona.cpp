@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <random>
+#include <algorithm>
 
 #include <corona.h>
 
@@ -205,6 +206,22 @@ person_t::person_t ()
 	this->age = 0;
 }
 
+void person_t::setup_infection_probabilities (double pmild, double psevere, double pcritical)
+{
+	this->probability_asymptomatic = 1.0 - (pmild + psevere + pcritical);
+	this->probability_mild = pmild;
+	this->probability_severe = psevere;
+	this->probability_critical = pcritical;
+
+	this->prob_ac_asymptomatic = this->probability_asymptomatic;
+	this->prob_ac_mild = this->prob_ac_asymptomatic + this->probability_mild;
+	this->prob_ac_severe = this->prob_ac_mild + this->probability_severe;
+	this->prob_ac_critical = this->prob_ac_severe + this->probability_critical;
+	
+//	dprintf("age:%i pasymptomatic:%.4f pmild:%.4f psevere:%.4f pcritical:%.4f ", this->age, this->probability_asymptomatic, this->probability_mild, this->probability_severe, this->probability_critical);
+//	dprintf("ac_pasymptomatic:%.4f ac_pmild:%.4f ac_psevere:%.4f ac_pcritical:%.4f\n", this->prob_ac_asymptomatic, this->prob_ac_mild, this->prob_ac_severe, this->prob_ac_critical);
+}
+
 void person_t::die ()
 {
 	this->state = ST_DEAD;
@@ -328,16 +345,16 @@ void person_t::infect ()
 
 	p = generate_random_between_0_and_1();
 
-	if (p <= cfg.prob_ac_asymptomatic) {
+	if (p <= this->prob_ac_asymptomatic) {
 		this->infected_state = ST_ASYMPTOMATIC;
 		this->setup_infection_countdown(cfg.cycles_contagious);
 	}
-	else if (p <= cfg.prob_ac_mild) {
+	else if (p <= this->prob_ac_mild) {
 		this->infected_state = ST_MILD;
 		this->next_infected_state = ST_FAKE_IMMUNE;
 		this->setup_infection_countdown(cfg.cycles_contagious);
 	}
-	else if (p <= cfg.prob_ac_severe) {
+	else if (p <= this->prob_ac_severe) {
 		this->infected_state = ST_MILD;
 		this->next_infected_state = ST_SEVERE;
 		this->setup_infection_countdown(cfg.cycles_before_hospitalization);

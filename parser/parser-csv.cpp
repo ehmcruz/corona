@@ -333,22 +333,44 @@ void csv_ages_t::validate_again ()
 	}
 }
 
-uint32_t csv_ages_t::get_population_per_age (char *city_name, uint32_t age)
+int32_t csv_ages_t::get_city_row (char *city_name)
 {
-	uint32_t i;
+	int32_t i;
+
 	lex_token_t *token;
 
 	for (i=0; i<this->ncities; i++) {
 		token = this->get_cell(i+1, 1);
 
-		if (strcmp(token->data.label, city_name) == 0) {
-			if (age < this->first_age || age > this->last_age)
-				return 0;
-			return this->matrix[i][age];
-		}
+		if (strcmp(token->data.label, city_name) == 0)
+			return i;
 	}
 
 	C_ASSERT_PRINTF(0, "city %s not found\n", city_name)
+	return -1;
+}
 
-	return 0;
+uint32_t csv_ages_t::get_population_per_age (char *city_name, uint32_t age)
+{
+	uint32_t i;
+
+	i = this->get_city_row(city_name);
+
+	if (age < this->first_age || age > this->last_age)
+		return 0;
+
+	return this->matrix[i][age];
+}
+
+uint32_t csv_ages_t::get_population (char *city_name)
+{
+	uint32_t i, j, total;
+
+	i = this->get_city_row(city_name);
+
+	total = 0;
+	for (j=0; j<this->nages; j++)
+		total += this->matrix[i][j];
+
+	return total;
 }

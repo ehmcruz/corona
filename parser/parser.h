@@ -41,11 +41,14 @@ private:
 public:
 	csv_ages_t (char *fname);
 	uint32_t get_population_per_age (char *city_name, uint32_t age);
+	uint32_t get_population (char *city_name);
 
 private:
 	void validate ();
 	void validate_again ();
 	void expand ();
+
+	int32_t get_city_row (char *city_name);
 };
 
 #endif
