@@ -62,6 +62,13 @@
 		return this->VAR; \
 	}
 
+#define AGE_CATS_N 10
+
+inline int32_t get_age_cat (int32_t age)
+{
+	return (age < 90) ? (age / 10) : 9;
+}
+
 enum state_t {
 	ST_HEALTHY,
 	ST_INFECTED,
@@ -86,6 +93,8 @@ enum infected_state_t {
 };
 
 char* infected_state_str (int32_t i);
+
+char* critical_per_age_str (int32_t age_group);
 
 class cfg_t {
 public:

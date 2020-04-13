@@ -33,6 +33,26 @@ char* infected_state_str (int32_t i)
 	return (char*)list[i];
 }
 
+char* critical_per_age_str (int32_t age_group)
+{
+	static const char *list[AGE_CATS_N] = {
+		"00-09",
+		"10-19",
+		"20-29",
+		"30-39",
+		"40-49",
+		"50-59",
+		"60-69",
+		"70-79",
+		"80-89",
+		"90+",
+	};
+
+	C_ASSERT(age_group < AGE_CATS_N)
+	
+	return (char*)list[age_group];
+}
+
 /****************************************************************/
 
 region_t::region_t ()
@@ -137,6 +157,11 @@ void region_t::cycle ()
 	}
 
 	SANITY_ASSERT(cycle_stats->ac_infected == sanity_check2)
+	
+	for (i=0; i<AGE_CATS_N; i++) {
+		if (cycle_stats->ac_critical_per_age[i] > cycle_stats->peak_critical_per_age[i])
+			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
+	}
 
 	this->sir_calc();
 
@@ -218,7 +243,7 @@ void person_t::setup_infection_probabilities (double pmild, double psevere, doub
 	this->prob_ac_severe = this->prob_ac_mild + this->probability_severe;
 	this->prob_ac_critical = this->prob_ac_severe + this->probability_critical;
 	
-//	dprintf("age:%i pasymptomatic:%.4f pmild:%.4f psevere:%.4f pcritical:%.4f ", this->age, this->probability_asymptomatic, this->probability_mild, this->probability_severe, this->probability_critical);
+//	dprintf("age:%i pasymptomatic:%.4f pmild:%.4f psevere:%.4f pcritical:%.4f\n", this->age, this->probability_asymptomatic, this->probability_mild, this->probability_severe, this->probability_critical);
 //	dprintf("ac_pasymptomatic:%.4f ac_pmild:%.4f ac_psevere:%.4f ac_pcritical:%.4f\n", this->prob_ac_asymptomatic, this->prob_ac_mild, this->prob_ac_severe, this->prob_ac_critical);
 }
 
@@ -291,6 +316,8 @@ void person_t::cycle_infected ()
 						cycle_stats->ac_infected_state[ST_MILD]--;
 						cycle_stats->ac_infected_state[ST_CRITICAL]++;
 
+						cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]++;
+
 						this->infected_state = ST_CRITICAL;
 						this->setup_infection_countdown(cfg.cycles_critical_in_icu);
 					break;
@@ -302,15 +329,18 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_CRITICAL:
-			if (roll_dice(cfg.probability_death_per_cycle))
-				this->die();
-			else if (this->infection_countdown <= 0.0) {
+			// if (roll_dice(cfg.probability_death_per_cycle))
+			// 	this->die();
+			// else
+			if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;
 
 				this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
 				
 				cycle_stats->ac_infected_state[ ST_CRITICAL ]--;
 				cycle_stats->ac_infected_state[ ST_SEVERE ]++;
+//dprintf("blah %i e %i\n", this->age, get_age_cat(this->age));
+				cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]--;
 			}
 		break;
 

@@ -44,9 +44,9 @@ void cfg_t::scenery_setup ()
 void region_t::setup_region ()
 {
 	uint32_t i, cat, n;
-	uint32_t people_per_age[10];
+	uint32_t people_per_age[AGE_CATS_N];
 
-	uint32_t deaths_per_age[10] = { // deaths according to the "Boletim da Pandemia"
+	uint32_t deaths_per_age[AGE_CATS_N] = { // deaths according to the "Boletim da Pandemia"
 		2,         // 0-9
 		2,         // 10-19
 		9,         // 20-29
@@ -61,12 +61,12 @@ void region_t::setup_region ()
 
 	uint32_t deaths_per_age_sum;
 
-	double deaths_weight_per_age[10];
-	double predicted_critical_per_age[10];
+	double deaths_weight_per_age[AGE_CATS_N];
+	double predicted_critical_per_age[AGE_CATS_N];
 	double k, sum;
 	double pmild, psevere, pcritical;
 
-	for (i=0; i<10; i++) 
+	for (i=0; i<AGE_CATS_N; i++)
 		people_per_age[i] = 0;
 
 	this->set_population_number( csv->get_population((char*)"Paranavai") );
@@ -78,20 +78,18 @@ void region_t::setup_region ()
 		cprintf("pvai habitantes idade %i -> %i\n", i, n);
 		this->add_people(n, i);
 
-		cat = i/10;
-		if (cat >= 10)
-			cat = 9;
+		cat = get_age_cat(i);
 		people_per_age[cat] += n;
 	}
 
-	for (i=0; i<10; i++) {
+	for (i=0; i<AGE_CATS_N; i++) {
 		if (people_per_age[i] == 0)
 			deaths_per_age[i] = 0;
 	}
 
 	sum = 0.0;
 	deaths_per_age_sum = 0;
-	for (i=0; i<10; i++) {
+	for (i=0; i<AGE_CATS_N; i++) {
 		if (people_per_age[i])
 			deaths_weight_per_age[i] = (double)deaths_per_age[i] / (double)people_per_age[i];
 		else
@@ -116,7 +114,7 @@ void region_t::setup_region ()
 	cprintf("sum:%.4f k:%.4f deaths_per_age_sum:%u\n", sum, k, deaths_per_age_sum);
 
 	sum = 0.0;
-	for (i=0; i<10; i++) {
+	for (i=0; i<AGE_CATS_N; i++) {
 		deaths_weight_per_age[i] *= k;
 		predicted_critical_per_age[i] = (double)people_per_age[i] * deaths_weight_per_age[i];
 		sum += predicted_critical_per_age[i];
@@ -138,9 +136,7 @@ void region_t::setup_region ()
 
 		p = this->get_person(i);
 
-		cat = p->get_age() / 10;
-		if (cat >= 10)
-			cat = 9;
+		cat = get_age_cat( p->get_age() );
 
 		pcritical = deaths_weight_per_age[cat];
 		//pcritical = cfg.probability_critical;
