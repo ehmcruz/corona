@@ -7,6 +7,9 @@
 #include <vector>
 #include <random>
 
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/undirected_graph.hpp>
+
 #define SANITY_CHECK
 #define DEBUG
 
@@ -119,6 +122,9 @@ public:
 	uint32_t hospital_beds;
 	uint32_t icu_beds;
 
+	double family_size_mean;
+	double family_size_stddev;
+
 	// derived cfg
 	double probability_infect_per_cycle;
 	double probability_death_per_cycle;
@@ -154,10 +160,30 @@ public:
 };
 
 class region_t;
+class person_t;
+
+enum relation_type_t {
+	RELATION_FAMILY,
+	RELATION_FRIENDS,
+	RELATION_OTHERS
+};
+
+struct pop_vertex_data_t {
+	person_t *p;
+};
+
+struct pop_edge_data_t {
+	double probability;
+	relation_type_t relation;
+};
+
+typedef boost::undirected_graph<pop_vertex_data_t, pop_edge_data_t> pop_graph_t;
+typedef boost::graph_traits<pop_graph_t>::vertex_descriptor pop_vertex_t;
 
 class person_t
 {
 	OO_ENCAPSULATE_RO(double, probability_asymptomatic)
+	OO_ENCAPSULATE_RO(uint32_t, id)
 	OO_ENCAPSULATE_RO(double, probability_mild)
 	OO_ENCAPSULATE_RO(double, probability_severe)
 	OO_ENCAPSULATE_RO(double, probability_critical)
@@ -173,6 +199,8 @@ private:
 	infected_state_t next_infected_state;
 	double infection_cycles;
 	double infection_countdown;
+public:
+	pop_vertex_t vertex;
 
 public:
 	person_t();
@@ -206,6 +234,9 @@ public:
 	region_t();
 
 	void setup_region (); // coded in scenery
+	
+	void add_to_population_graph ();
+	void create_families ();
 
 	void cycle();
 
@@ -227,6 +258,10 @@ public:
 	void process_data ();
 };
 
+// network.cpp
+
+void start_population_graph ();
+
 // probability.cpp
 
 void start_dice_engine ();
@@ -241,6 +276,7 @@ extern stats_t *cycle_stats;
 extern stats_t *prev_cycle_stats;
 extern uint32_t current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
+extern region_t *region;
 
 extern std::mt19937 rgenerator;
 

@@ -23,6 +23,9 @@ void cfg_t::scenery_setup ()
 	this->probability_summon_per_cycle = 0.0;
 	this->hospital_beds = 70;
 	this->icu_beds = 20;
+
+	this->family_size_mean = 3.0;
+	this->family_size_stddev = 1.0;
 	
 	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);

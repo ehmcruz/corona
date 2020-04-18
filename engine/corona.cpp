@@ -223,6 +223,10 @@ void region_t::process_data ()
 
 person_t::person_t ()
 {
+	static uint32_t id_ = 0;
+
+	this->id = id_++;
+
 	this->state = ST_HEALTHY;
 	this->infected_state = ST_NULL;
 	this->infection_countdown = 0.0;
@@ -565,6 +569,10 @@ void stats_t::dump_csv (FILE *fp)
 static void load_region()
 {
 	region = new region_t();
+
+	start_population_graph();
+
+	region->add_to_population_graph();
 }
 
 static void load_stats_engine ()
