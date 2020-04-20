@@ -94,14 +94,18 @@ person_t* pick_random_person (state_t state)
 		random = distribution(rgenerator);
 
 		for (auto it=population.begin(); it!=population.end(); ++it) {
-			if (unlikely(random == 0)) {
-				p = *it;
-				break;
+			if ((*it)->get_state() == state) {
+				if (unlikely(random == 0)) {{
+					p = *it;
+					break;
+				}
+	
+				random--;}
 			}
-
-			random--;
 		}
 	}
+
+	C_ASSERT((total == 0 && p == nullptr) || (total > 0 && p->get_state() == state))
 
 	return p;
 }
