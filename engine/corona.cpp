@@ -284,11 +284,11 @@ void person_t::cycle_infected ()
 {
 	if (this->infected_state != ST_INCUBATION) {
 	#if 0
-		double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor
-		         * ((double)(cycle_stats->ac_healthy) / (double)from->get_region()->get_npopulation())
-		         * r0_factor_per_group[ from->get_infected_state() ];
+		double prob = (cfg.probability_infect_per_cycle * cfg.global_r0_factor
+				         * r0_factor_per_group[ this->get_infected_state() ]) / population.size();
 		for (auto it = this->get_neighbor_list()->begin(); *it != nullptr; ++it) {
-			if (unlikely(roll_dice(p))) {
+			person_t *p = *it;
+			if (unlikely(p->get_state() == ST_HEALTHY && roll_dice(prob))) {
 				this->region->must_infect_in_cycle++;
 			}
 		}
