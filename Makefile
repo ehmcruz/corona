@@ -23,6 +23,7 @@ all: $(ALL_OBJS) $(BINARIES)
 
 test: $(OBJS) test.cpp
 	$(CPP) $(CPPFLAGS) -o test $(OBJS) test.cpp
+	@echo "Test compiled! yes!"
 
 clean:
 	- rm -rf $(BINARIES) $(ALL_OBJS) test

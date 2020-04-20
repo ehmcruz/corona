@@ -10,60 +10,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
 
-#define SANITY_CHECK
-#define DEBUG
-
-#define C_PRINTF_OUT stdout
-#define cprintf(...) fprintf(C_PRINTF_OUT, __VA_ARGS__)
-
-#define C_ASSERT(V) C_ASSERT_PRINTF(V, "bye!\n")
-
-#define C_ASSERT_PRINTF(V, ...) \
-	if (unlikely(!(V))) { \
-		cprintf("sanity error!\nfile %s at line %u assertion failed!\n%s\n", __FILE__, __LINE__, #V); \
-		cprintf(__VA_ARGS__); \
-		exit(1); \
-	}
-
-#ifdef SANITY_CHECK
-	#define SANITY_ASSERT(V) C_ASSERT(V)
-#else
-	#define SANITY_ASSERT(V)
-#endif
-
-#ifdef DEBUG
-	#define dprintf(...) cprintf(__VA_ARGS__)
-#else
-	#define dprintf(...)
-#endif
-
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
-
-#define PU64 "%" PRIu64
-
-#define NON_AC_STAT   0
-#define AC_STAT       1
-
-#define OO_ENCAPSULATE(TYPE, VAR) \
-	private: \
-	TYPE VAR; \
-	public: \
-	inline void set_##VAR (TYPE VAR) { \
-		this->VAR = VAR; \
-	} \
-	inline TYPE get_##VAR () { \
-		return this->VAR; \
-	}
-
-// read-only
-#define OO_ENCAPSULATE_RO(TYPE, VAR) \
-	private: \
-	TYPE VAR; \
-	public: \
-	inline TYPE get_##VAR () { \
-		return this->VAR; \
-	}
+#include <lib.h>
 
 #define AGE_CATS_N 10
 
@@ -191,19 +138,23 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_mild)
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
+	OO_ENCAPSULATE_RO(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
 	OO_ENCAPSULATE(state_t, state)
 	OO_ENCAPSULATE(infected_state_t, infected_state)
 	OO_ENCAPSULATE(region_t*, region)
+
 private:
 	infected_state_t next_infected_state;
 	double infection_cycles;
 	double infection_countdown;
+
 public:
 	pop_vertex_t vertex;
 
 public:
-	person_t();
+	person_t ();
+	~person_t ();
 
 	void cycle ();
 	void cycle_infected ();
@@ -277,6 +228,7 @@ extern stats_t *prev_cycle_stats;
 extern uint32_t current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern region_t *region;
+extern std::vector<person_t*> population;
 
 extern std::mt19937 rgenerator;
 

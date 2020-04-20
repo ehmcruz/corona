@@ -13,6 +13,7 @@ stats_t *cycle_stats;
 stats_t *prev_cycle_stats = NULL;
 region_t *region = NULL;
 uint32_t current_cycle;
+std::vector<person_t*> population;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
@@ -122,9 +123,7 @@ void region_t::cycle ()
 
 	this->must_infect_in_cycle = 0;
 
-	for (i=0; i<this->npopulation; i++) {
-		p = this->people[i];
-
+	for (person_t* p: this->people) {
 	#ifdef SANITY_CHECK
 		sanity_check += (p->get_state() == ST_INFECTED);
 	#endif
@@ -138,8 +137,9 @@ void region_t::cycle ()
 
 	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
 
-	for (i=0, j=0; i<this->npopulation && j<this->must_infect_in_cycle; i++) {
-		p = this->people[i];
+	j = 0;
+	for (auto it=this->people.begin(); it!=this->people.end() && j<this->must_infect_in_cycle; ++it) {
+		p = *it;
 
 		if (p->get_state() == ST_HEALTHY) {
 			p->pre_infect();
@@ -233,6 +233,13 @@ person_t::person_t ()
 	this->infection_cycles = 0.0;
 	this->region = NULL;
 	this->age = 0;
+
+	this->neighbor_list = new neighbor_list_fully_connected_t(this);
+}
+
+person_t::~person_t ()
+{
+	delete this->neighbor_list;
 }
 
 void person_t::setup_infection_probabilities (double pmild, double psevere, double pcritical)
@@ -276,9 +283,20 @@ void person_t::recover ()
 void person_t::cycle_infected ()
 {
 	if (this->infected_state != ST_INCUBATION) {
+	#if 0
+		double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor
+		         * ((double)(cycle_stats->ac_healthy) / (double)from->get_region()->get_npopulation())
+		         * r0_factor_per_group[ from->get_infected_state() ];
+		for (auto it = this->get_neighbor_list()->begin(); *it != nullptr; ++it) {
+			if (unlikely(roll_dice(p))) {
+				this->region->must_infect_in_cycle++;
+			}
+		}
+	#else
 		if (roll_dice(calculate_infection_probability(this))) {
 			this->region->must_infect_in_cycle++;
 		}
+	#endif
 	}
 
 	this->infection_countdown -= 1.0;
@@ -428,56 +446,6 @@ void person_t::cycle ()
 
 /****************************************************************/
 
-cfg_t::cfg_t ()
-{
-	this->scenery_setup();
-	this->load_derived();
-}
-
-void cfg_t::load_derived ()
-{
-	int32_t i;
-
-	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
-		r0_factor_per_group[i] = 1.0;
-	r0_factor_per_group[ST_ASYMPTOMATIC] = this->r0_asymptomatic_factor;
-
-	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious;
-	this->probability_death_per_cycle = this->death_rate / this->cycles_contagious;
-	this->probability_severe = 1.0 - (this->probability_asymptomatic + this->probability_mild + this->probability_critical);
-
-	this->prob_ac_asymptomatic = this->probability_asymptomatic;
-	this->prob_ac_mild = this->prob_ac_asymptomatic + this->probability_mild;
-	this->prob_ac_severe = this->prob_ac_mild + this->probability_severe;
-	this->prob_ac_critical = this->prob_ac_severe + this->probability_critical;
-}
-
-void cfg_t::dump ()
-{
-	dprintf("# ro = %0.4f\n", this->r0);
-	dprintf("# death_rate = %0.4f\n", this->death_rate);
-	dprintf("# cycles_contagious = %0.4f\n", this->cycles_contagious);
-	
-	dprintf("# cycles_incubation_mean = %0.4f\n", this->cycles_incubation_mean);
-	dprintf("# cycles_incubation_stddev = %0.4f\n", this->cycles_incubation_stddev);
-	
-	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
-	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
-	dprintf("# probability_mild = %0.4f\n", this->probability_mild);
-	dprintf("# probability_severe = %0.4f\n", this->probability_severe);
-	dprintf("# probability_critical = %0.4f\n", this->probability_critical);
-
-	dprintf("# probability_infect_per_cycle = %0.4f\n", this->probability_infect_per_cycle);
-	dprintf("# probability_death_per_cycle = %0.4f\n", this->probability_death_per_cycle);
-
-	dprintf("# prob_ac_asymptomatic = %0.4f\n", this->prob_ac_asymptomatic);
-	dprintf("# prob_ac_mild = %0.4f\n", this->prob_ac_mild);
-	dprintf("# prob_ac_severe = %0.4f\n", this->prob_ac_severe);
-	dprintf("# prob_ac_critical = %0.4f\n", this->prob_ac_critical);
-}
-
-/****************************************************************/
-
 static void simulate ()
 {
 	current_cycle = 0;
@@ -504,75 +472,31 @@ static void simulate ()
 
 /****************************************************************/
 
-stats_t::stats_t ()
-{
-	this->reset();
-}
-
-void stats_t::reset ()
-{
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) this->STAT = 0;
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) this->STAT[i] = 0; }
-	#include "stats.h"
-	#undef CORONA_STAT
-	#undef CORONA_STAT_VECTOR
-}
-
-void stats_t::copy_ac (stats_t *from)
-{
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) if (AC == AC_STAT) this->STAT = from->STAT;
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) if (AC == AC_STAT) { int32_t i; for (i=0; i<N; i++) this->STAT[i] = from->STAT[i]; }
-	#include "stats.h"
-	#undef CORONA_STAT
-	#undef CORONA_STAT_VECTOR
-}
-
-void stats_t::dump ()
-{
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) cprintf(#STAT ":" PRINT " ", this->STAT);
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) cprintf(#STAT ".%s:" PRINT " ", LIST##_str(i), this->STAT[i]); }
-	#include "stats.h"
-	#undef CORONA_STAT
-	#undef CORONA_STAT_VECTOR
-
-	cprintf("\n");
-}
-
-void stats_t::dump_csv_header (FILE *fp)
-{
-	fprintf(fp, "cycle,");
-
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, #STAT ",");
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, #STAT "_%s,", LIST##_str(i)); }
-	#include "stats.h"
-	#undef CORONA_STAT
-	#undef CORONA_STAT_VECTOR
-
-	fprintf(fp, "\n");
-}
-
-void stats_t::dump_csv (FILE *fp)
-{
-	fprintf(fp, "%u,", this->cycle);
-
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, PRINT ",", this->STAT);
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, PRINT ",", this->STAT[i]); }
-	#include "stats.h"
-	#undef CORONA_STAT
-	#undef CORONA_STAT_VECTOR
-
-	fprintf(fp, "\n");
-}
-
-/****************************************************************/
-
 static void load_region()
 {
+	uint64_t i, total;
+
 	region = new region_t();
 
 	start_population_graph();
 
 	region->add_to_population_graph();
+
+	total = region->get_npopulation();
+	population.reserve(total);
+
+	for (i=0; i<total; i++)
+		population.push_back(region->get_person(i));
+
+	C_ASSERT(population.size() == total)
+
+	neighbor_list_t::iterator_t it;
+
+	for (it = region->get_person(0)->get_neighbor_list()->begin(); *it != nullptr; ++it) {
+		cprintf("person id %u\n", (*it)->get_id());
+	}
+
+//exit(0);
 }
 
 static void load_stats_engine ()
