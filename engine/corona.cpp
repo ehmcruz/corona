@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+
+#include <deque>
+
 #include <random>
 #include <algorithm>
 
@@ -13,7 +16,9 @@ stats_t *cycle_stats;
 stats_t *prev_cycle_stats = NULL;
 region_t *region = NULL;
 uint32_t current_cycle;
+
 std::vector<person_t*> population;
+std::deque<person_t*> to_infect_in_cycle;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
@@ -72,8 +77,6 @@ region_t::region_t ()
 	for (i=0; i<this->npopulation; i++)
 		this->people[i]->set_region(this);
 
-	this->must_infect_in_cycle = 0;
-
 	this->sir_init();
 }
 
@@ -100,14 +103,20 @@ void region_t::set_population_number (uint64_t npopulation)
 
 void region_t::summon ()
 {
-	if (roll_dice(cfg.probability_summon_per_cycle))
-		this->must_infect_in_cycle++;
+	if (roll_dice(cfg.probability_summon_per_cycle)) {
+		person_t *p;
+
+		p = pick_random_person(ST_HEALTHY);
+
+		if (likely(p != nullptr))
+			to_infect_in_cycle.push_back(p);
+	}
 }
 
 void region_t::cycle ()
 {
-	uint64_t i, j;
-	person_t *p;
+	uint64_t i;
+
 #ifdef SANITY_CHECK
 	uint64_t sanity_check = 0, sanity_check2 = 0;
 #endif
@@ -121,8 +130,6 @@ void region_t::cycle ()
 	sanity_check2 = 0;
 #endif
 
-	this->must_infect_in_cycle = 0;
-
 	for (person_t* p: this->people) {
 	#ifdef SANITY_CHECK
 		sanity_check += (p->get_state() == ST_INFECTED);
@@ -135,17 +142,16 @@ void region_t::cycle ()
 
 	this->summon();
 
-	dprintf("must_infect_in_cycle: " PU64 "\n", this->must_infect_in_cycle);
+	dprintf("must_infect_in_cycle: " PU64 "\n", (uint64_t)to_infect_in_cycle.size());
 
-	j = 0;
-	for (auto it=this->people.begin(); it!=this->people.end() && j<this->must_infect_in_cycle; ++it) {
-		p = *it;
+	for (person_t *p: to_infect_in_cycle) {
+		C_ASSERT(p->get_state() == ST_HEALTHY || (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_INCUBATION && p->get_infected_cycle() == current_cycle))
 
-		if (p->get_state() == ST_HEALTHY) {
+		if (p->get_state() == ST_HEALTHY)
 			p->pre_infect();
-			j++;
-		}
 	}
+
+	to_infect_in_cycle.clear();
 
 	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
 		if (cycle_stats->ac_infected_state[i] > cycle_stats->peak[i])
@@ -233,6 +239,7 @@ person_t::person_t ()
 	this->infection_cycles = 0.0;
 	this->region = NULL;
 	this->age = 0;
+	this->infected_cycle = -1;
 
 	this->neighbor_list = new neighbor_list_fully_connected_t(this);
 }
@@ -283,20 +290,10 @@ void person_t::recover ()
 void person_t::cycle_infected ()
 {
 	if (this->infected_state != ST_INCUBATION) {
-	#if 0
-		double prob = (cfg.probability_infect_per_cycle * cfg.global_r0_factor
-				         * r0_factor_per_group[ this->get_infected_state() ]) / population.size();
 		for (auto it = this->get_neighbor_list()->begin(); *it != nullptr; ++it) {
-			person_t *p = *it;
-			if (unlikely(p->get_state() == ST_HEALTHY && roll_dice(prob))) {
-				this->region->must_infect_in_cycle++;
-			}
+			if (it.check_probability())
+				to_infect_in_cycle.push_back(*it);
 		}
-	#else
-		if (roll_dice(calculate_infection_probability(this))) {
-			this->region->must_infect_in_cycle++;
-		}
-	#endif
 	}
 
 	this->infection_countdown -= 1.0;
@@ -373,7 +370,9 @@ void person_t::cycle_infected ()
 
 void person_t::pre_infect ()
 {
-	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL)
+	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL && this->infected_cycle == -1)
+
+	this->infected_cycle = current_cycle;
 
 	this->state = ST_INFECTED;
 	cycle_stats->infected++;

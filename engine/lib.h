@@ -76,26 +76,26 @@ public:
 		friend class neighbor_list_t;
 		friend class neighbor_list_fully_connected_t;
 	private:
-		double get_probability_ ();
+		bool check_probability_ ();
 		person_t* get_person_ ();
 		iterator_t& next_ ();
 	protected:
 		person_t *current;
-		uint64_t pos;
+		double prob;
 
-		typedef double (neighbor_list_t::iterator_t::*prob_func_t)();
+		typedef bool (neighbor_list_t::iterator_t::*prob_func_t)();
 		typedef person_t* (neighbor_list_t::iterator_t::*person_func_t)();
 		typedef iterator_t& (neighbor_list_t::iterator_t::*next_func_t)();
 
-		prob_func_t ptr_get_probability;
+		prob_func_t ptr_check_probability;
 		person_func_t ptr_get_person;
 		next_func_t ptr_next;
 
 	public:
 		iterator_t();
 
-		inline double get_probability () {
-			return (this->*ptr_get_probability)();
+		inline bool check_probability () {
+			return (this->*ptr_check_probability)();
 		}
 
 		inline person_t* operator* () {
@@ -108,7 +108,7 @@ public:
 	};
 
 private:
-	OO_ENCAPSULATE_RO(person_t*, p)
+	OO_ENCAPSULATE_RO(person_t*, person)
 
 public:
 	neighbor_list_t (person_t *p);
@@ -120,10 +120,13 @@ class neighbor_list_fully_connected_t: public neighbor_list_t
 {
 public:
 	class iterator_fully_connected_t: public neighbor_list_t::iterator_t {
+		friend class neighbor_list_fully_connected_t;
 	private:
-		double get_probability_ ();
+		bool check_probability_ ();
 		person_t* get_person_ ();
 		iterator_t& next_ ();
+
+		void calc ();
 	public:
 		iterator_fully_connected_t ();
 	};

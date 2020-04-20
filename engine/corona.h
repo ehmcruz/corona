@@ -138,6 +138,7 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_mild)
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
+	OO_ENCAPSULATE_RO(int32_t, infected_cycle);
 	OO_ENCAPSULATE_RO(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
 	OO_ENCAPSULATE(state_t, state)
@@ -173,13 +174,10 @@ public:
 
 class region_t
 {
-	friend class person_t;
-
 	OO_ENCAPSULATE_RO(uint64_t, npopulation)
 
 private:
 	std::vector<person_t*> people;
-	uint64_t must_infect_in_cycle;
 
 public:
 	region_t();
@@ -221,6 +219,8 @@ int roll_dice (double probability);
 double calculate_infection_probability (person_t *from);
 void load_gdistribution_incubation (double mean, double stddev);
 double calculate_incubation_cycles ();
+person_t* pick_random_person ();
+person_t* pick_random_person (state_t state);
 
 extern cfg_t cfg;
 extern stats_t *cycle_stats;
@@ -230,6 +230,6 @@ extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern region_t *region;
 extern std::vector<person_t*> population;
 
-extern std::mt19937 rgenerator;
+extern std::mt19937_64 rgenerator;
 
 #endif
