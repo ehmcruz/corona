@@ -20,11 +20,18 @@ inline int32_t get_age_cat (int32_t age)
 }
 
 enum state_t {
+	// Important !!!
+	// whenever this list is modified, modify also state_str()
+
 	ST_HEALTHY,
 	ST_INFECTED,
 	ST_IMMUNE,
-	ST_DEAD
+	ST_DEAD,
+
+	NUMBER_OF_STATES
 };
+
+char* state_str (int32_t i);
 
 enum infected_state_t {
 	// Important !!!
@@ -212,7 +219,6 @@ void start_population_graph ();
 void start_dice_engine ();
 double generate_random_between_0_and_1 ();
 int roll_dice (double probability);
-double calculate_infection_probability (person_t *from);
 void load_gdistribution_incubation (double mean, double stddev);
 double calculate_incubation_cycles ();
 person_t* pick_random_person ();

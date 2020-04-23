@@ -21,9 +21,9 @@ myylim = 100000
 #labels = c("sim-infected", "sim-suscetive", "sir-infected", "sir-suscetive")
 labels = c("sim-infected", "sim-suscetive")
 
-plot(data$cycle, data$ac_infected, ylim=c(0,myylim), xlab="Dias desde paciente zero", ylab="Total de pessoas", type="o", col="orange")
+plot(data$cycle, data$ac_state_ST_INFECTED, ylim=c(0,myylim), xlab="Dias desde paciente zero", ylab="Total de pessoas", type="o", col="orange")
 
-lines(data$cycle, data$ac_healthy, ylim=c(0,myylim), type="o", col="green")
+lines(data$cycle, data$ac_state_ST_HEALTHY, ylim=c(0,myylim), type="o", col="green")
 
 #lines(data$cycle, data$sir_i, ylim=c(0,myylim), type="o", col="gray")
 #lines(data$cycle, data$sir_s, ylim=c(0,myylim), type="o", col="gray")

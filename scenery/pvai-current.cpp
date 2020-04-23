@@ -48,7 +48,7 @@ void region_t::callback_before_cycle (uint32_t cycle)
 {
 	static int32_t has_already_locked = 0, lock_start_cycle;
 
-	if (has_already_locked == 0 && cycle_stats->ac_infected >= 2) {
+	if (has_already_locked == 0 && cycle_stats->ac_state[ST_INFECTED] >= 2) {
 		has_already_locked = 1;
 		cfg.global_r0_factor = 0.35;
 

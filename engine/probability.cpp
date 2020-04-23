@@ -62,14 +62,6 @@ int roll_dice (double probability)
 	return (generate_random_between_0_and_1() <= probability);
 }
 
-double calculate_infection_probability (person_t *from)
-{
-	double p = cfg.probability_infect_per_cycle * cfg.global_r0_factor
-	         * ((double)(cycle_stats->ac_healthy) / (double)from->get_region()->get_npopulation())
-	         * r0_factor_per_group[ from->get_infected_state() ];
-	return p;
-}
-
 person_t* pick_random_person ()
 {
 	std::uniform_int_distribution<uint64_t> distribution(0, population.size()-1);

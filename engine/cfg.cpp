@@ -33,7 +33,7 @@ void cfg_t::dump ()
 	dprintf("# cycles_incubation_mean = %0.4f\n", this->cycles_incubation_mean);
 	dprintf("# cycles_incubation_stddev = %0.4f\n", this->cycles_incubation_stddev);
 	
-	dprintf("# cycles_to_simulate = %u\n", this->cycles_to_simulate);
+	dprintf("# cycles_to_simulate = %.2f\n", this->cycles_to_simulate);
 	dprintf("# probability_asymptomatic = %0.4f\n", this->probability_asymptomatic);
 	dprintf("# probability_mild = %0.4f\n", this->probability_mild);
 	dprintf("# probability_severe = %0.4f\n", this->probability_severe);

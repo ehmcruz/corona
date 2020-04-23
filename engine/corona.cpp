@@ -25,6 +25,20 @@ double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
 static const char default_results_file[] = "results-cycles.csv";
 
+char* state_str (int32_t i)
+{
+	static const char *list[] = {
+		"ST_HEALTHY",
+		"ST_INFECTED",
+		"ST_IMMUNE",
+		"ST_DEAD"
+	};
+
+	C_ASSERT(i < NUMBER_OF_STATES)
+
+	return (char*)list[i];
+}
+
 char* infected_state_str (int32_t i)
 {
 	static const char *list[] = {
@@ -73,8 +87,6 @@ region_t::region_t ()
 	C_ASSERT(this->people.size() > 0)
 	C_ASSERT(this->people.size() == this->npopulation)
 
-	cycle_stats->ac_healthy += this->npopulation;
-
 	for (i=0; i<this->npopulation; i++)
 		this->people[i]->set_region(this);
 }
@@ -92,6 +104,8 @@ void region_t::add_people (uint64_t n, uint32_t age)
 		p[i].set_age(age);
 		this->people.push_back( p+i );
 	}
+
+	cycle_stats->ac_state[ST_HEALTHY] += n;
 }
 
 void region_t::set_population_number (uint64_t npopulation)
@@ -105,9 +119,9 @@ void region_t::summon ()
 	if (roll_dice(cfg.probability_summon_per_cycle)) {
 		person_t *p;
 
-		p = pick_random_person(ST_HEALTHY);
+		p = pick_random_person();
 
-		if (likely(p != nullptr))
+		if (p->get_state() == ST_HEALTHY)
 			to_infect_in_cycle.push_back(p);
 	}
 }
@@ -121,10 +135,18 @@ void region_t::cycle ()
 #endif
 
 #ifdef SANITY_CHECK
+	sanity_check = 0;
+	for (i=0; i<NUMBER_OF_STATES; i++)
+		sanity_check += cycle_stats->ac_state[i];
+	SANITY_ASSERT(population.size() == sanity_check)
+	sanity_check = 0;
+#endif
+
+#ifdef SANITY_CHECK
 	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
 		sanity_check2 += cycle_stats->ac_infected_state[i];
 
-	SANITY_ASSERT(cycle_stats->ac_infected == sanity_check2)
+	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
 
 	sanity_check2 = 0;
 #endif
@@ -137,7 +159,7 @@ void region_t::cycle ()
 		p->cycle();
 	}
 
-	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_infected)
+	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_state[ST_INFECTED])
 
 	this->summon();
 
@@ -161,16 +183,19 @@ void region_t::cycle ()
 		#endif
 	}
 
-	SANITY_ASSERT(cycle_stats->ac_infected == sanity_check2)
+	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
+
+#ifdef SANITY_CHECK
+	sanity_check = 0;
+	for (i=0; i<NUMBER_OF_STATES; i++)
+		sanity_check += cycle_stats->ac_state[i];
+	SANITY_ASSERT(population.size() == sanity_check)
+#endif
 	
 	for (i=0; i<AGE_CATS_N; i++) {
 		if (cycle_stats->ac_critical_per_age[i] > cycle_stats->peak_critical_per_age[i])
 			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
 	}
-
-	cycle_stats->dump();
-
-	cprintf("\n");
 }
 
 /****************************************************************/
@@ -215,22 +240,26 @@ void person_t::setup_infection_probabilities (double pmild, double psevere, doub
 
 void person_t::die ()
 {
-	this->state = ST_DEAD;
-	cycle_stats->deaths++;
+	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_SEVERE || this->infected_state == ST_CRITICAL))
 
-	cycle_stats->ac_infected--;
-	cycle_stats->ac_deaths++;
+	this->state = ST_DEAD;
+	cycle_stats->state[ST_DEAD]++;
+
+	cycle_stats->ac_state[ST_INFECTED]--;
+	cycle_stats->ac_state[ST_DEAD]++;
 
 	cycle_stats->ac_infected_state[ this->infected_state ]--;
 }
 
 void person_t::recover ()
 {
-	this->state = ST_IMMUNE;
-	cycle_stats->immuned++;
+	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_ASYMPTOMATIC || this->infected_state == ST_MILD || this->infected_state == ST_SEVERE))
 
-	cycle_stats->ac_infected--;
-	cycle_stats->ac_immuned++;
+	this->state = ST_IMMUNE;
+	cycle_stats->state[ST_IMMUNE]++;
+
+	cycle_stats->ac_state[ST_INFECTED]--;
+	cycle_stats->ac_state[ST_IMMUNE]++;
 	
 	cycle_stats->ac_infected_state[ this->infected_state ]--;
 }
@@ -323,15 +352,15 @@ void person_t::pre_infect ()
 	this->infected_cycle = current_cycle;
 
 	this->state = ST_INFECTED;
-	cycle_stats->infected++;
+	cycle_stats->state[ST_INFECTED]++;
 
 	this->infected_state = ST_INCUBATION;
 
 	cycle_stats->infected_state[ ST_INCUBATION ]++;
 	cycle_stats->ac_infected_state[ ST_INCUBATION ]++;
 
-	cycle_stats->ac_healthy--;
-	cycle_stats->ac_infected++;
+	cycle_stats->ac_state[ST_HEALTHY]--;
+	cycle_stats->ac_state[ST_INFECTED]++;
 
 	this->setup_infection_countdown( calculate_incubation_cycles() );
 }
@@ -415,6 +444,9 @@ static void simulate ()
 		region->callback_before_cycle(current_cycle);
 		region->cycle();
 		region->callback_after_cycle(current_cycle);
+
+		cycle_stats->dump();
+		cprintf("\n");
 	}
 
 	region->callback_end();
@@ -440,9 +472,7 @@ static void load_region()
 
 	C_ASSERT(population.size() == total)
 
-	neighbor_list_t::iterator_t it;
-
-	for (it = region->get_person(0)->get_neighbor_list()->begin(); *it != nullptr; ++it) {
+	for (auto it = region->get_person(0)->get_neighbor_list()->begin(); *it != nullptr; ++it) {
 		cprintf("person id %u\n", (*it)->get_id());
 	}
 
