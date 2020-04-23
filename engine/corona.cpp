@@ -269,6 +269,8 @@ person_t::person_t ()
 	this->age = 0;
 	this->infected_cycle = -1.0;
 
+	this->setup_infection_probabilities(cfg.probability_mild, cfg.probability_severe, cfg.probability_critical);
+
 	this->neighbor_list = new neighbor_list_fully_connected_t(this);
 }
 
