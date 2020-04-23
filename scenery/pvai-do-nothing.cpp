@@ -88,8 +88,9 @@ void region_t::setup_region ()
 	for (i=0; i<AGE_CATS_N; i++) {
 		if (people_per_age[i] == 0)
 			deaths_per_age[i] = 0;
+		cprintf("pvai habitantes por faixa etária %s -> %i\n", critical_per_age_str(i), people_per_age[i]);
 	}
-
+//exit(1);
 	sum = 0.0;
 	deaths_per_age_sum = 0;
 	for (i=0; i<AGE_CATS_N; i++) {

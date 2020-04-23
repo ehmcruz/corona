@@ -56,7 +56,7 @@ public:
 	double cycles_incubation_mean;
 	double cycles_incubation_stddev;
 
-	uint32_t cycles_to_simulate;
+	double cycles_to_simulate;
 	double probability_asymptomatic;
 	double probability_mild;
 	double probability_critical;
@@ -96,13 +96,13 @@ public:
 	#undef CORONA_STAT
 	#undef CORONA_STAT_VECTOR
 
-	uint32_t cycle;
+	double cycle;
 
-	stats_t();
+	stats_t (double cycle);
 	void reset();
 	void dump();
 	void copy_ac (stats_t *from);
-	void dump_csv_header (FILE *fp);
+	static void dump_csv_header (FILE *fp);
 	void dump_csv (FILE *fp);
 };
 
@@ -138,7 +138,7 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_mild)
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
-	OO_ENCAPSULATE_RO(int32_t, infected_cycle);
+	OO_ENCAPSULATE_RO(double, infected_cycle);
 	OO_ENCAPSULATE_RO(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
 	OO_ENCAPSULATE(state_t, state)
@@ -201,10 +201,6 @@ public:
 	void callback_before_cycle (uint32_t cycle); // coded in scenery
 	void callback_after_cycle (uint32_t cycle); // coded in scenery
 	void callback_end (); // coded in scenery
-
-	void sir_calc ();
-	void sir_init ();
-	void process_data ();
 };
 
 // network.cpp
@@ -224,8 +220,7 @@ person_t* pick_random_person (state_t state);
 
 extern cfg_t cfg;
 extern stats_t *cycle_stats;
-extern stats_t *prev_cycle_stats;
-extern uint32_t current_cycle;
+extern double current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern region_t *region;
 extern std::vector<person_t*> population;

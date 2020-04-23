@@ -1,8 +1,9 @@
 #include <corona.h>
 
-stats_t::stats_t ()
+stats_t::stats_t (double cycle)
 {
 	this->reset();
+	this->cycle = cycle;
 }
 
 void stats_t::reset ()
@@ -49,7 +50,7 @@ void stats_t::dump_csv_header (FILE *fp)
 
 void stats_t::dump_csv (FILE *fp)
 {
-	fprintf(fp, "%u,", this->cycle);
+	fprintf(fp, "%.2f,", this->cycle);
 
 	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, PRINT ",", this->STAT);
 	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, PRINT ",", this->STAT[i]); }

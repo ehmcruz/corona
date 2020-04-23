@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include <deque>
+#include <list>
 
 #include <random>
 #include <algorithm>
@@ -11,14 +12,14 @@
 #include <corona.h>
 
 cfg_t cfg;
-stats_t *all_cycle_stats;
-stats_t *cycle_stats;
-stats_t *prev_cycle_stats = NULL;
-region_t *region = NULL;
-uint32_t current_cycle;
+stats_t *cycle_stats = nullptr;
+static stats_t *prev_cycle_stats = nullptr;
+static std::list<stats_t> all_cycle_stats;
+region_t *region = nullptr;
+double current_cycle;
 
 std::vector<person_t*> population;
-std::deque<person_t*> to_infect_in_cycle;
+static std::deque<person_t*> to_infect_in_cycle;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
@@ -76,8 +77,6 @@ region_t::region_t ()
 
 	for (i=0; i<this->npopulation; i++)
 		this->people[i]->set_region(this);
-
-	this->sir_init();
 }
 
 void region_t::add_people (uint64_t n, uint32_t age)
@@ -169,60 +168,9 @@ void region_t::cycle ()
 			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
 	}
 
-	this->sir_calc();
-
 	cycle_stats->dump();
 
 	cprintf("\n");
-}
-
-void region_t::sir_init ()
-{
-	cycle_stats->sir_s = (double)(this->npopulation - 1) / (double)this->npopulation;
-	cycle_stats->sir_i = 1.0 - cycle_stats->sir_s;
-	cycle_stats->sir_r = 0.0;
-}
-
-void region_t::sir_calc ()
-{
-	double h = 1.0;
-	double B = cfg.r0/10.0;
-	double L = 0.1;
-	stats_t *prev = prev_cycle_stats;
-
-	/*
-	
-	dS = -B.S.I
-	dt
-
-	dI = B.S.I - LI
-	dt
-
-	dR = LI
-	dt
-
-	y(t+h) = y(t) + h.dy
-	                  dt
-
-	*/
-
-	cycle_stats->sir_s = prev->sir_s - h * (B * prev->sir_s * prev->sir_i);
-	cycle_stats->sir_i = prev->sir_i + h * (B * prev->sir_s * prev->sir_i - L*prev->sir_i);
-	cycle_stats->sir_r = prev->sir_r + h * (L * prev->sir_i);
-}
-
-void region_t::process_data ()
-{
-	int32_t i;
-	stats_t *cycle_stats = all_cycle_stats;
-
-	for (i=0; i<cfg.cycles_to_simulate; i++) {
-		cycle_stats->sir_s *= (double)this->npopulation;
-		cycle_stats->sir_i *= (double)this->npopulation;
-		cycle_stats->sir_r *= (double)this->npopulation;
-
-		cycle_stats++;
-	}
 }
 
 /****************************************************************/
@@ -239,7 +187,7 @@ person_t::person_t ()
 	this->infection_cycles = 0.0;
 	this->region = NULL;
 	this->age = 0;
-	this->infected_cycle = -1;
+	this->infected_cycle = -1.0;
 
 	this->neighbor_list = new neighbor_list_fully_connected_t(this);
 }
@@ -370,7 +318,7 @@ void person_t::cycle_infected ()
 
 void person_t::pre_infect ()
 {
-	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL && this->infected_cycle == -1)
+	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL && this->infected_cycle == -1.0)
 
 	this->infected_cycle = current_cycle;
 
@@ -447,16 +395,20 @@ void person_t::cycle ()
 
 static void simulate ()
 {
-	current_cycle = 0;
+	current_cycle = 0.0;
 	region->callback_before_cycle(current_cycle);
 	region->get_person(0)->pre_infect();
 	region->get_person(0)->infect();
 	region->callback_after_cycle(current_cycle);
 
-	for (current_cycle=1; current_cycle<cfg.cycles_to_simulate; current_cycle++) {
-		cprintf("Day %i\n", current_cycle);
+	for (current_cycle=1.0; current_cycle<cfg.cycles_to_simulate; current_cycle+=1.0) {
+		cprintf("Cycle %.2f\n", current_cycle);
 
-		prev_cycle_stats = cycle_stats++;
+		prev_cycle_stats = cycle_stats;
+
+		all_cycle_stats.push_back(stats_t(current_cycle));
+		cycle_stats = &all_cycle_stats.back();
+		C_ASSERT(cycle_stats->cycle == current_cycle)
 
 		cycle_stats->copy_ac(prev_cycle_stats);
 
@@ -465,7 +417,6 @@ static void simulate ()
 		region->callback_after_cycle(current_cycle);
 	}
 
-	region->process_data();
 	region->callback_end();
 }
 
@@ -500,19 +451,13 @@ static void load_region()
 
 static void load_stats_engine ()
 {
-	int32_t i;
-	
-	all_cycle_stats = new stats_t[ cfg.cycles_to_simulate ];
-
-	for (i=0; i<cfg.cycles_to_simulate; i++)
-		all_cycle_stats[i].cycle = i;
-
-	cycle_stats = all_cycle_stats;
+	all_cycle_stats.push_back(stats_t(0.0));
+	cycle_stats = &all_cycle_stats.back();
+	C_ASSERT(cycle_stats->cycle == 0.0)
 }
 
 int main ()
 {
-	int32_t i;
 	FILE *fp;
 
 	cfg.dump();
@@ -530,9 +475,9 @@ int main ()
 	fp = fopen(default_results_file, "w");
 	C_ASSERT(fp != NULL)
 
-	all_cycle_stats[0].dump_csv_header(fp);
-	for (i=0; i<cfg.cycles_to_simulate; i++)
-		all_cycle_stats[i].dump_csv(fp);
+	stats_t::dump_csv_header(fp);
+	for (auto it=all_cycle_stats.begin(); it!=all_cycle_stats.end(); ++it)
+		it->dump_csv(fp);
 
 	fclose(fp);
 
