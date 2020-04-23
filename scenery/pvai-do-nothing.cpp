@@ -47,9 +47,8 @@ void cfg_t::scenery_setup ()
 void region_t::setup_region ()
 {
 	uint32_t i, cat, n;
-	uint32_t people_per_age[AGE_CATS_N];
 
-	uint32_t deaths_per_age[AGE_CATS_N] = { // deaths according to the "Boletim da Pandemia"
+	uint32_t reported_deaths_per_age[AGE_CATS_N] = { // deaths according to the "Boletim da Pandemia"
 		2,         // 0-9
 		2,         // 10-19
 		9,         // 20-29
@@ -62,15 +61,12 @@ void region_t::setup_region ()
 		48         // 90+
 	};
 
-	uint32_t deaths_per_age_sum;
 
-	double deaths_weight_per_age[AGE_CATS_N];
-	double predicted_critical_per_age[AGE_CATS_N];
-	double k, sum;
-	double pmild, psevere, pcritical;
+	std::string name;
 
-	for (i=0; i<AGE_CATS_N; i++)
-		people_per_age[i] = 0;
+	name = "Paranavai";
+
+	this->set_name(name);
 
 	this->set_population_number( csv->get_population((char*)"Paranavai") );
 
@@ -80,77 +76,10 @@ void region_t::setup_region ()
 		n = csv->get_population_per_age((char*)"Paranavai", i);
 		cprintf("pvai habitantes idade %i -> %i\n", i, n);
 		this->add_people(n, i);
-
-		cat = get_age_cat(i);
-		people_per_age[cat] += n;
 	}
-
-	for (i=0; i<AGE_CATS_N; i++) {
-		if (people_per_age[i] == 0)
-			deaths_per_age[i] = 0;
-		cprintf("pvai habitantes por faixa etária %s -> %i\n", critical_per_age_str(i), people_per_age[i]);
-	}
-//exit(1);
-	sum = 0.0;
-	deaths_per_age_sum = 0;
-	for (i=0; i<AGE_CATS_N; i++) {
-		if (people_per_age[i])
-			deaths_weight_per_age[i] = (double)deaths_per_age[i] / (double)people_per_age[i];
-		else
-			deaths_weight_per_age[i] = 0.0;
-
-		deaths_per_age_sum += deaths_per_age[i];
-		
-		//sum += (double)deaths_weight_per_age[i] * (double)people_per_age[i];
-		sum += (double)deaths_per_age[i];
-		
-		cprintf("pvai habitantes por idade (%i ate %i): %u death weight:%.4f\n", (i*10), (i*10 + 9), people_per_age[i], deaths_weight_per_age[i]);
-	}
-
-	/*
-		(k * (sum weight*people_per_age) / total_people) = critical_rate
-		k * (sum weight*people_per_age) = critical_rate * total_people
-		k = (critical_rate * total_people) / (sum weight*people_per_age)
-	*/
-
-	k = (cfg.probability_critical * (double)this->get_npopulation()) / sum;
-
-	cprintf("sum:%.4f k:%.4f deaths_per_age_sum:%u\n", sum, k, deaths_per_age_sum);
-
-	sum = 0.0;
-	for (i=0; i<AGE_CATS_N; i++) {
-		deaths_weight_per_age[i] *= k;
-		predicted_critical_per_age[i] = (double)people_per_age[i] * deaths_weight_per_age[i];
-		sum += predicted_critical_per_age[i];
-
-		cprintf("pvai habitantes por idade (%i ate %i): %u death weight:%.4f critical:%2.f\n", (i*10), (i*10 + 9), people_per_age[i], deaths_weight_per_age[i], predicted_critical_per_age[i]);
-	}
-
-	cprintf("total critical predicted:%.4f sum:%.2f critical_rate:%.4f critical_rate_test:%.4f\n",
-	       (cfg.probability_critical * (double)this->get_npopulation()),
-	       sum,
-	       cfg.probability_critical,
-	       sum / (double)this->get_npopulation()
-	       );
-
-	std::shuffle(this->people.begin(), this->people.end(), rgenerator);
-
-	for (i=0; i<this->get_npopulation(); i++) {
-		person_t *p;
-
-		p = this->get_person(i);
-
-		cat = get_age_cat( p->get_age() );
-
-		pcritical = deaths_weight_per_age[cat];
-		//pcritical = cfg.probability_critical;
-		psevere = pcritical * (cfg.probability_severe / cfg.probability_critical);
-		pmild = pcritical * (cfg.probability_mild / cfg.probability_critical);
-
-		p->setup_infection_probabilities(pmild, psevere, pcritical);
-	}
-
 	//exit(1);
+
+	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)

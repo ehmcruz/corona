@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <random>
+#include <string>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
@@ -182,6 +183,7 @@ public:
 class region_t
 {
 	OO_ENCAPSULATE_RO(uint64_t, npopulation)
+	OO_ENCAPSULATE_REFERENCE(std::string, name)
 
 private:
 	std::vector<person_t*> people;
@@ -199,6 +201,9 @@ public:
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);
 
+	// number of elements of reported_deaths_per_age_ must be AGE_CATS_N
+	void adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age_);
+
 	inline person_t* get_person (uint64_t i) {
 		return this->people[i];
 	}
@@ -214,15 +219,7 @@ public:
 
 void start_population_graph ();
 
-// probability.cpp
-
-void start_dice_engine ();
-double generate_random_between_0_and_1 ();
-int roll_dice (double probability);
-void load_gdistribution_incubation (double mean, double stddev);
-double calculate_incubation_cycles ();
-person_t* pick_random_person ();
-person_t* pick_random_person (state_t state);
+#include <probability.h>
 
 extern cfg_t cfg;
 extern stats_t *cycle_stats;
@@ -230,7 +227,5 @@ extern double current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern region_t *region;
 extern std::vector<person_t*> population;
-
-extern std::mt19937_64 rgenerator;
 
 #endif

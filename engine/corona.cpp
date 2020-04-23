@@ -84,6 +84,8 @@ region_t::region_t ()
 
 	this->setup_region();
 
+	std::shuffle(this->people.begin(), this->people.end(), rgenerator);
+
 	C_ASSERT(this->people.size() > 0)
 	C_ASSERT(this->people.size() == this->npopulation)
 
@@ -112,6 +114,78 @@ void region_t::set_population_number (uint64_t npopulation)
 {
 	this->npopulation = npopulation;
 	this->people.reserve(npopulation);
+}
+
+void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age_)
+{
+	uint64_t people_per_age[AGE_CATS_N];
+	uint32_t reported_deaths_per_age[AGE_CATS_N];
+	double deaths_weight_per_age[AGE_CATS_N], sum, k;
+	double predicted_critical_per_age[AGE_CATS_N];
+	double pmild, psevere, pcritical;
+	uint32_t i;
+
+	for (i=0; i<AGE_CATS_N; i++)
+		people_per_age[i] = 0;
+
+	for (person_t *p: this->people) {
+		people_per_age[ get_age_cat(p->get_age()) ]++;
+	}
+
+	for (i=0; i<AGE_CATS_N; i++) {
+		if (people_per_age[i] == 0)
+			reported_deaths_per_age[i] = 0;
+		else
+			reported_deaths_per_age[i] = reported_deaths_per_age_[i];
+	}
+
+	sum = 0.0;
+	for (i=0; i<AGE_CATS_N; i++) {
+		if (people_per_age[i])
+			deaths_weight_per_age[i] = (double)reported_deaths_per_age[i] / (double)people_per_age[i];
+		else
+			deaths_weight_per_age[i] = 0.0;
+		
+		//sum += (double)deaths_weight_per_age[i] * (double)people_per_age[i];
+		sum += (double)reported_deaths_per_age[i];
+		
+		dprintf("city %s people_per_age %s: " PU64 " death weight:%.4f\n", this->name.c_str(), critical_per_age_str(i), people_per_age[i], deaths_weight_per_age[i]);
+	}
+
+	/*
+		(k * (sum weight*people_per_age) / total_people) = critical_rate
+		k * (sum weight*people_per_age) = critical_rate * total_people
+		k = (critical_rate * total_people) / (sum weight*people_per_age)
+	*/
+
+	k = (cfg.probability_critical * (double)this->get_npopulation()) / sum;
+
+	dprintf("sum:%.4f k:%.4f\n", sum, k);
+
+	sum = 0.0;
+	for (i=0; i<AGE_CATS_N; i++) {
+		deaths_weight_per_age[i] *= k;
+		predicted_critical_per_age[i] = (double)people_per_age[i] * deaths_weight_per_age[i];
+		sum += predicted_critical_per_age[i];
+
+		dprintf("city %s people_per_age %s: " PU64 " death weight:%.4f critical:%2.f\n", this->name.c_str(), critical_per_age_str(i), people_per_age[i], deaths_weight_per_age[i], predicted_critical_per_age[i]);
+	}
+
+	dprintf("total critical predicted:%.4f sum:%.2f critical_rate:%.4f critical_rate_test:%.4f\n",
+	       (cfg.probability_critical * (double)this->get_npopulation()),
+	       sum,
+	       cfg.probability_critical,
+	       sum / (double)this->get_npopulation()
+	       );
+//exit(1);
+	for (person_t *p: this->people) {
+		pcritical = deaths_weight_per_age[ get_age_cat( p->get_age() ) ];
+		//pcritical = cfg.probability_critical;
+		psevere = pcritical * (cfg.probability_severe / cfg.probability_critical);
+		pmild = pcritical * (cfg.probability_mild / cfg.probability_critical);
+
+		p->setup_infection_probabilities(pmild, psevere, pcritical);
+	}
 }
 
 void region_t::summon ()
