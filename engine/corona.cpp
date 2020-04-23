@@ -57,16 +57,16 @@ char* infected_state_str (int32_t i)
 char* critical_per_age_str (int32_t age_group)
 {
 	static const char *list[AGE_CATS_N] = {
-		"00-09",
-		"10-19",
-		"20-29",
-		"30-39",
-		"40-49",
-		"50-59",
-		"60-69",
-		"70-79",
-		"80-89",
-		"90+",
+		"00_09",
+		"10_19",
+		"20_29",
+		"30_39",
+		"40_49",
+		"50_59",
+		"60_69",
+		"70_79",
+		"80_89",
+		"90_",
 	};
 
 	C_ASSERT(age_group < AGE_CATS_N)
@@ -116,13 +116,12 @@ void region_t::set_population_number (uint64_t npopulation)
 	this->people.reserve(npopulation);
 }
 
-void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age_)
+void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age)
 {
 	uint64_t people_per_age[AGE_CATS_N];
-	uint32_t reported_deaths_per_age[AGE_CATS_N];
-	double deaths_weight_per_age[AGE_CATS_N], sum, k;
+	double deaths_weight_per_age[AGE_CATS_N];
 	double predicted_critical_per_age[AGE_CATS_N];
-	double pmild, psevere, pcritical;
+	double pmild, psevere, pcritical, sum;
 	uint32_t i;
 
 	for (i=0; i<AGE_CATS_N; i++)
@@ -132,25 +131,12 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 		people_per_age[ get_age_cat(p->get_age()) ]++;
 	}
 
-	for (i=0; i<AGE_CATS_N; i++) {
-		if (people_per_age[i] == 0)
-			reported_deaths_per_age[i] = 0;
-		else
-			reported_deaths_per_age[i] = reported_deaths_per_age_[i];
-	}
-
-	sum = 0.0;
-	for (i=0; i<AGE_CATS_N; i++) {
-		if (people_per_age[i])
-			deaths_weight_per_age[i] = (double)reported_deaths_per_age[i] / (double)people_per_age[i];
-		else
-			deaths_weight_per_age[i] = 0.0;
-		
-		//sum += (double)deaths_weight_per_age[i] * (double)people_per_age[i];
-		sum += (double)reported_deaths_per_age[i];
-		
-		dprintf("city %s people_per_age %s: " PU64 " death weight:%.4f\n", this->name.c_str(), critical_per_age_str(i), people_per_age[i], deaths_weight_per_age[i]);
-	}
+	adjust_weights_to_fit_mean<uint32_t, uint64_t, AGE_CATS_N> (
+		reported_deaths_per_age,
+		people_per_age,
+		cfg.probability_critical * (double)this->get_npopulation(),
+		deaths_weight_per_age
+		);
 
 	/*
 		(k * (sum weight*people_per_age) / total_people) = critical_rate
@@ -158,13 +144,8 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 		k = (critical_rate * total_people) / (sum weight*people_per_age)
 	*/
 
-	k = (cfg.probability_critical * (double)this->get_npopulation()) / sum;
-
-	dprintf("sum:%.4f k:%.4f\n", sum, k);
-
 	sum = 0.0;
 	for (i=0; i<AGE_CATS_N; i++) {
-		deaths_weight_per_age[i] *= k;
 		predicted_critical_per_age[i] = (double)people_per_age[i] * deaths_weight_per_age[i];
 		sum += predicted_critical_per_age[i];
 
