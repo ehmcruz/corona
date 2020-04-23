@@ -43,6 +43,14 @@ public:
 	uint32_t get_population_per_age (char *city_name, uint32_t age);
 	uint32_t get_population (char *city_name);
 
+	inline uint32_t get_population_per_age (std::string& city_name, uint32_t age) {
+		return this->get_population_per_age((char*)city_name.c_str(), age);
+	}
+
+	inline uint32_t get_population (std::string& city_name) {
+		return this->get_population((char*)city_name.c_str());
+	}
+
 private:
 	void validate ();
 	void validate_again ();

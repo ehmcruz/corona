@@ -91,6 +91,7 @@ public:
 	double prob_ac_critical;
 
 	cfg_t();
+	void set_defaults ();
 	void scenery_setup (); // coded in scenery
 	void load_derived();
 	void dump ();
