@@ -98,6 +98,9 @@ public:
 };
 
 class stats_t {
+private:
+	uint32_t n;
+
 public:
 	#define CORONA_STAT(TYPE, PRINT, STAT, AC) TYPE STAT;
 	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) TYPE STAT[N];
@@ -111,7 +114,7 @@ public:
 	void reset();
 	void dump();
 	void copy_ac (stats_t *from);
-	static void dump_csv_header (FILE *fp);
+	void dump_csv_header (FILE *fp);
 	void dump_csv (FILE *fp);
 };
 

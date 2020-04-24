@@ -3,18 +3,18 @@
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args) < 1)
-	stop("Usage: plot-cycles.R <prefix>\n")
+	stop("Usage: plot-cycles.R <csv>\n")
 
 prefix = args[1]
 
 options(scipen=999)
 
 
-data = read.csv("results-cycles.csv", header = TRUE)
+data = read.csv(prefix, header = TRUE)
 
 # -----------------------------------------------------
 
-pdf(file=paste0("results-", prefix, "-cycles.pdf"), width=11)
+pdf(file=paste0(prefix, "-cycles.pdf"), width=11)
 
 myylim = 100000
 
@@ -35,7 +35,7 @@ legend(150, 50000, labels, cex=0.8, col=c("orange", "green"), pch=21:22, lty=1:2
 
 # -----------------------------------------------------
 
-pdf(file=paste0("results-", prefix, "-critical.pdf"), width=11)
+pdf(file=paste0(prefix, "-critical.pdf"), width=11)
 
 labels = c("sim-critical")
 
@@ -47,7 +47,7 @@ legend(150, 10000, labels, cex=0.8, col=c("red"), pch=21:22, lty=1:2);
 
 # -----------------------------------------------------
 
-pdf(file=paste0("results-", prefix, "-severe.pdf"), width=11)
+pdf(file=paste0(prefix, "-severe.pdf"), width=11)
 
 labels = c("sim-severe")
 
@@ -59,7 +59,7 @@ legend(150, 10000, labels, cex=0.8, col=c("orange"), pch=21:22, lty=1:2);
 
 # -----------------------------------------------------
 
-pdf(file=paste0("results-", prefix, "-mild.pdf"), width=11)
+pdf(file=paste0(prefix, "-mild.pdf"), width=11)
 
 labels = c("sim-mild")
 

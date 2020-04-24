@@ -8,8 +8,10 @@ stats_t::stats_t (double cycle)
 
 void stats_t::reset ()
 {
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) this->STAT = 0;
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) this->STAT[i] = 0; }
+	this->n = 0;
+
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) this->STAT = 0; this->n++;
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) { this->STAT[i] = 0; this->n++; } }
 	#include "stats.h"
 	#undef CORONA_STAT
 	#undef CORONA_STAT_VECTOR
@@ -37,10 +39,12 @@ void stats_t::dump ()
 
 void stats_t::dump_csv_header (FILE *fp)
 {
+	uint32_t j = 0;
+
 	fprintf(fp, "cycle,");
 
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, #STAT ",");
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, #STAT "_%s,", LIST##_str(i)); }
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, #STAT); if (++j < this->n) { fprintf(fp, ","); }
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) { fprintf(fp, #STAT "_%s", LIST##_str(i)); if (++j < this->n) { fprintf(fp, ","); } } }
 	#include "stats.h"
 	#undef CORONA_STAT
 	#undef CORONA_STAT_VECTOR
@@ -50,10 +54,12 @@ void stats_t::dump_csv_header (FILE *fp)
 
 void stats_t::dump_csv (FILE *fp)
 {
+	uint32_t j = 0;
+
 	fprintf(fp, "%.2f,", this->cycle);
 
-	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, PRINT ",", this->STAT);
-	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) fprintf(fp, PRINT ",", this->STAT[i]); }
+	#define CORONA_STAT(TYPE, PRINT, STAT, AC) fprintf(fp, PRINT, this->STAT); if (++j < this->n) { fprintf(fp, ","); }
+	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) { int32_t i; for (i=0; i<N; i++) { fprintf(fp, PRINT, this->STAT[i]); if (++j < this->n) { fprintf(fp, ","); } } }
 	#include "stats.h"
 	#undef CORONA_STAT
 	#undef CORONA_STAT_VECTOR

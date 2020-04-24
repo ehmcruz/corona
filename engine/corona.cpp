@@ -24,6 +24,7 @@ static std::deque<person_t*> to_infect_in_cycle;
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
 static const char default_results_file[] = "results-cycles.csv";
+static char *results_file;
 
 char* state_str (int32_t i)
 {
@@ -543,9 +544,18 @@ static void load_stats_engine ()
 	C_ASSERT(cycle_stats->cycle == 0.0)
 }
 
-int main ()
+int main (int argc, char **argv)
 {
 	FILE *fp;
+
+	if (argc == 1)
+		results_file = (char*)default_results_file;
+	else if (argc == 2)
+		results_file = argv[1];
+	else {
+		cprintf("Usage: %s <results_file>\n", argv[0]);
+		exit(1);
+	}
 
 	cfg.dump();
 
@@ -559,10 +569,10 @@ int main ()
 
 	simulate();
 
-	fp = fopen(default_results_file, "w");
+	fp = fopen(results_file, "w");
 	C_ASSERT(fp != NULL)
 
-	stats_t::dump_csv_header(fp);
+	all_cycle_stats.front().dump_csv_header(fp);
 	for (auto it=all_cycle_stats.begin(); it!=all_cycle_stats.end(); ++it)
 		it->dump_csv(fp);
 
