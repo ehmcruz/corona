@@ -15,8 +15,8 @@ library(ggplot2)
 
 # https://stackoverflow.com/questions/38470111/how-to-graph-with-geom-ribbon
 
-counters <- list("ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL")
-colors <- c("yellow", "orange", "red")
+counters <- list("ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL", "ac_state_ST_DEAD")
+colors <- c("yellow", "orange", "red", "blue")
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -51,7 +51,8 @@ for (counter in counters) {
 
 	# h + geom_ribbon(aes(ymin = level - 1, ymax = level + 1), fill = "grey70") + geom_line(aes(y = level))
 
-	png(file=paste0(output_base, "-", counter, ".png"))
+	#png(file=paste0(output_base, "-", counter, ".png"))
+	pdf(file=paste0(output_base, "-", counter, ".pdf"))
 
 	print(p <- ggplot(data, aes(x =cycle))
 		+

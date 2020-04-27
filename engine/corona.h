@@ -5,6 +5,7 @@
 #include <inttypes.h>
 
 #include <vector>
+#include <list>
 #include <random>
 #include <string>
 
@@ -56,39 +57,9 @@ char* critical_per_age_str (int32_t age_group);
 
 class cfg_t {
 public:
-	// primary cfg
-	double r0;
-	double death_rate;
-	double cycles_contagious;
-
-	double cycles_incubation_mean;
-	double cycles_incubation_stddev;
-
-	double cycles_to_simulate;
-	double probability_asymptomatic;
-	double probability_mild;
-	double probability_critical;
-	double r0_asymptomatic_factor;
-	double cycles_severe_in_hospital;
-	double cycles_critical_in_icu;
-	double cycles_before_hospitalization;
-	double global_r0_factor;
-	double probability_summon_per_cycle;
-	uint32_t hospital_beds;
-	uint32_t icu_beds;
-
-	double family_size_mean;
-	double family_size_stddev;
-
-	// derived cfg
-	double probability_infect_per_cycle;
-	double probability_death_per_cycle;
-	double probability_severe;
-
-	double prob_ac_asymptomatic;
-	double prob_ac_mild;
-	double prob_ac_severe;
-	double prob_ac_critical;
+	#define CORONA_CFG(TYPE, PRINT, STAT) TYPE STAT;
+	#include <cfg.h>
+	#undef CORONA_CFG
 
 	cfg_t();
 	void set_defaults ();
@@ -104,7 +75,7 @@ private:
 public:
 	#define CORONA_STAT(TYPE, PRINT, STAT, AC) TYPE STAT;
 	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) TYPE STAT[N];
-	#include "stats.h"
+	#include <stats.h>
 	#undef CORONA_STAT
 	#undef CORONA_STAT_VECTOR
 
@@ -139,6 +110,8 @@ struct pop_edge_data_t {
 typedef boost::undirected_graph<pop_vertex_data_t, pop_edge_data_t> pop_graph_t;
 typedef boost::graph_traits<pop_graph_t>::vertex_descriptor pop_vertex_t;
 
+class health_unit_t;
+
 class person_t
 {
 	OO_ENCAPSULATE_RO(double, probability_asymptomatic)
@@ -156,6 +129,7 @@ class person_t
 	OO_ENCAPSULATE(state_t, state)
 	OO_ENCAPSULATE(infected_state_t, infected_state)
 	OO_ENCAPSULATE(region_t*, region)
+	OO_ENCAPSULATE(health_unit_t*, health_unit)
 
 private:
 	infected_state_t next_infected_state;
@@ -184,6 +158,18 @@ public:
 	}
 };
 
+class health_unit_t
+{
+	OO_ENCAPSULATE_RO(uint32_t, n_units)
+	OO_ENCAPSULATE_RO(infected_state_t, type)
+	OO_ENCAPSULATE_RO(uint32_t, n_occupied)
+private:
+public:
+	health_unit_t (uint32_t n_units, infected_state_t type);
+	bool enter (person_t *p);
+	void leave (person_t *p);
+};
+
 class region_t
 {
 	OO_ENCAPSULATE_RO(uint64_t, npopulation)
@@ -191,11 +177,18 @@ class region_t
 
 private:
 	std::vector<person_t*> people;
+	std::list<health_unit_t*> health_units;
 
 public:
 	region_t();
 
 	void setup_region (); // coded in scenery
+
+	inline void add_health_unit (health_unit_t *hu) {
+		this->health_units.push_back(hu);
+	}
+
+	health_unit_t* enter_health_unit (person_t *p);
 	
 	void add_to_population_graph ();
 	void create_families ();

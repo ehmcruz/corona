@@ -187,7 +187,7 @@ void region_t::cycle ()
 	uint64_t i;
 
 #ifdef SANITY_CHECK
-	uint64_t sanity_check = 0, sanity_check2 = 0;
+	uint64_t sanity_check = 0, sanity_check2 = 0, sanity_critical = 0;
 #endif
 
 #ifdef SANITY_CHECK
@@ -213,6 +213,10 @@ void region_t::cycle ()
 	#endif
 
 		p->cycle();
+
+	#ifdef SANITY_CHECK
+		sanity_critical += (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_CRITICAL);
+	#endif
 	}
 
 	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_state[ST_INFECTED])
@@ -247,11 +251,70 @@ void region_t::cycle ()
 		sanity_check += cycle_stats->ac_state[i];
 	SANITY_ASSERT(population.size() == sanity_check)
 #endif
+
+#ifdef SANITY_CHECK
+{
+	uint64_t sanity_check = 0;
+	for (i=0; i<AGE_CATS_N; i++)
+		sanity_check += cycle_stats->ac_critical_per_age[i];
+	SANITY_ASSERT( sanity_critical == sanity_check )
+}
+#endif
 	
 	for (i=0; i<AGE_CATS_N; i++) {
 		if (cycle_stats->ac_critical_per_age[i] > cycle_stats->peak_critical_per_age[i])
 			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
 	}
+}
+
+health_unit_t* region_t::enter_health_unit (person_t *p)
+{
+	C_ASSERT(p->get_state() == ST_INFECTED && (p->get_infected_state() == ST_SEVERE || p->get_infected_state() == ST_CRITICAL))
+
+	for (auto it=this->health_units.begin(); it!=this->health_units.end(); ++it) {
+		health_unit_t *hu = *it;
+		if (p->get_infected_state() == hu->get_type()) {
+			if (hu->enter(p))
+				return hu;
+		}
+	}
+
+	return nullptr;
+}
+
+/****************************************************************/
+
+health_unit_t::health_unit_t (uint32_t n_units, infected_state_t type)
+{
+	this->n_units = n_units;
+	this->type = type;
+	this->n_occupied = 0;
+}
+
+bool health_unit_t::enter (person_t *p)
+{
+	bool r;
+
+	if (this->n_occupied < this->n_units) {
+		r = true;
+
+		C_ASSERT(p->get_health_unit() == nullptr)
+		C_ASSERT(p->get_infected_state() == this->type)
+
+		this->n_occupied++;
+		p->set_health_unit(this);
+	}
+	else
+		r = false;
+
+	return r;
+}
+
+void health_unit_t::leave (person_t *p)
+{
+	C_ASSERT(p->get_health_unit() == this)
+	C_ASSERT(this->n_occupied > 0)
+	this->n_occupied--;
 }
 
 /****************************************************************/
@@ -271,6 +334,8 @@ person_t::person_t ()
 	this->infected_cycle = -1.0;
 
 	this->setup_infection_probabilities(cfg.probability_mild, cfg.probability_severe, cfg.probability_critical);
+
+	this->health_unit = nullptr;
 
 	this->neighbor_list = new neighbor_list_fully_connected_t(this);
 }
@@ -300,6 +365,9 @@ void person_t::die ()
 {
 	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_SEVERE || this->infected_state == ST_CRITICAL))
 
+	if (this->infected_state == ST_CRITICAL)
+		cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]--;
+
 	this->state = ST_DEAD;
 	cycle_stats->state[ST_DEAD]++;
 
@@ -307,6 +375,11 @@ void person_t::die ()
 	cycle_stats->ac_state[ST_DEAD]++;
 
 	cycle_stats->ac_infected_state[ this->infected_state ]--;
+
+	if (this->health_unit != nullptr) {
+		this->health_unit->leave(this);
+		this->health_unit = nullptr;
+	}
 }
 
 void person_t::recover ()
@@ -320,6 +393,11 @@ void person_t::recover ()
 	cycle_stats->ac_state[ST_IMMUNE]++;
 	
 	cycle_stats->ac_infected_state[ this->infected_state ]--;
+
+	if (this->health_unit != nullptr) {
+		this->health_unit->leave(this);
+		this->health_unit = nullptr;
+	}
 }
 
 void person_t::cycle_infected ()
@@ -342,7 +420,6 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_ASYMPTOMATIC:
-		case ST_SEVERE:
 			if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
 				this->recover();
@@ -363,6 +440,9 @@ void person_t::cycle_infected ()
 						cycle_stats->ac_infected_state[ST_SEVERE]++;
 
 						this->infected_state = ST_SEVERE;
+
+						this->health_unit = this->region->enter_health_unit(this);
+
 						this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
 					break;
 
@@ -373,6 +453,9 @@ void person_t::cycle_infected ()
 						cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]++;
 
 						this->infected_state = ST_CRITICAL;
+
+						this->health_unit = this->region->enter_health_unit(this);
+
 						this->setup_infection_countdown(cfg.cycles_critical_in_icu);
 					break;
 
@@ -382,11 +465,25 @@ void person_t::cycle_infected ()
 			}
 		break;
 
+		case ST_SEVERE:
+			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_severe_in_hospital_per_cycle))
+				this->die();
+			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_severe_outside_hospital_per_cycle))
+				this->die();
+			else if (this->infection_countdown <= 0.0) {
+				this->infection_countdown = 0.0;
+				this->recover();
+			}
+			else if (this->health_unit == nullptr) // yeah, I know I reapeat this condition, but it is easier this way
+				this->health_unit = this->region->enter_health_unit(this);
+		break;
+
 		case ST_CRITICAL:
-			// if (roll_dice(cfg.probability_death_per_cycle))
-			// 	this->die();
-			// else
-			if (this->infection_countdown <= 0.0) {
+			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_critical_in_hospital_per_cycle))
+				this->die();
+			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_critical_outside_hospital_per_cycle))
+				this->die();
+			else if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;
 
 				this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
@@ -396,6 +493,8 @@ void person_t::cycle_infected ()
 //dprintf("blah %i e %i\n", this->age, get_age_cat(this->age));
 				cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]--;
 			}
+			else if (this->health_unit == nullptr) // yeah, I know I reapeat this condition, but it is easier this way
+				this->health_unit = this->region->enter_health_unit(this);
 		break;
 
 		default:

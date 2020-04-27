@@ -6,8 +6,9 @@
 # fi
 
 #sceneries="pvai-do-nothing pvai-2-waves"
+sceneries="pvai-do-nothing"
 #sceneries="palmas-do-nothing palmas-2-waves"
-sceneries="palmas-do-nothing"
+#sceneries="palmas-do-nothing"
 
 for test in $sceneries
 do
