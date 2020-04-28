@@ -101,3 +101,21 @@ person_t* pick_random_person (state_t state)
 
 	return p;
 }
+
+normal_double_dist_t::normal_double_dist_t (double mean, double stddev, double min, double max)
+	: dist_double_t(min, max),
+	  distribution(mean, stddev)
+{
+	this->mean = mean;
+	this->stddev = stddev;
+}
+
+double normal_double_dist_t::generate_ ()
+{
+	return this->distribution(rgenerator);
+}
+
+void normal_double_dist_t::print_params (FILE *fp)
+{
+	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->mean, this->stddev);
+}

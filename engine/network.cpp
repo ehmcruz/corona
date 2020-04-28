@@ -11,11 +11,20 @@
 
 pop_graph_t *pop_graph;
 
-static std::normal_distribution<double> *distribution;
-
 void start_population_graph ()
 {
 	pop_graph = new pop_graph_t( region->get_npopulation() );
+}
+
+void print_vertex_neighbors (pop_vertex_t vertex)
+{
+	boost::graph_traits<pop_graph_t>::adjacency_iterator vi, vi_end;
+
+	cprintf("%i -> ", (*pop_graph)[vertex].p->get_id());
+	for (boost::tie(vi, vi_end) = adjacent_vertices(vertex, *pop_graph); vi != vi_end; ++vi) {
+		cprintf("%i,", (*pop_graph)[*vi].p->get_id());
+	}
+	cprintf("\n");
 }
 
 void region_t::add_to_population_graph ()
@@ -40,22 +49,24 @@ return;
 	exit(1);
 #endif
 	this->create_families();
+	this->create_random_connections();
 
-print_graph(*pop_graph);
-exit(0);
+#if 1
+	for (boost::tie(vi,vend) = vertices(*pop_graph), i=0; vi != vend; ++vi, i++) print_vertex_neighbors(*vi);
+	cprintf("--------------------------------------------\n");
+	print_graph(*pop_graph);
+	exit(0);
+#endif
 }
 
 static uint32_t calc_family_size (region_t *region, uint32_t filled)
 {
-	int32_t r, max;
+	int32_t r;
 
-	r = (int32_t)((*distribution)(rgenerator));
-	max = (int32_t)(cfg.family_size_mean + cfg.family_size_stddev*4.0);
+	r = (int32_t)(cfg.family_size_dist->generate() + 0.5);
 	
 	if (unlikely(r < 1))
 		r = 1;
-	else if (unlikely(r > max))
-		r = max;
 
 	if (unlikely((filled+r) > region->get_npopulation()))
 		r = region->get_npopulation() - filled;
@@ -71,8 +82,6 @@ void region_t::create_families ()
 	edge_data.probability = 0.0;
 	edge_data.relation = RELATION_FAMILY;
 
-	distribution = new std::normal_distribution<double>(cfg.family_size_mean, cfg.family_size_stddev);
-
 	for (n=0; n<this->get_npopulation(); n+=family_size) {
 		family_size = calc_family_size(this, n);
 
@@ -84,6 +93,9 @@ void region_t::create_families ()
 			}
 		}
 	}
+}
 
-	delete distribution;
+void region_t::create_random_connections ()
+{
+
 }

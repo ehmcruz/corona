@@ -4,6 +4,12 @@
 
 cfg_t::cfg_t ()
 {
+	#define CORONA_CFG(TYPE, PRINT, STAT) this->STAT = 0;
+	#define CORONA_CFG_OBJ(TYPE, STAT) this->STAT = nullptr;
+	#include <cfg.h>
+	#undef CORONA_CFG
+	#undef CORONA_CFG_OBJ
+
 	this->set_defaults();
 	this->scenery_setup();
 	this->load_derived();
@@ -31,9 +37,9 @@ void cfg_t::set_defaults ()
 	this->death_rate_severe_outside_hospital = 0.5;
 	this->death_rate_critical_outside_hospital = 0.99;
 
-	this->family_size_mean = 3.0;
-	this->family_size_stddev = 1.0;
-	
+	this->family_size_dist = new normal_double_dist_t(3.0, 1.0, 1.0, 10.0);
+	this->number_random_connections_dist = new normal_double_dist_t(20.0, 5.0, 5.0, 100.0);
+
 	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
@@ -87,7 +93,9 @@ void cfg_t::load_derived ()
 void cfg_t::dump ()
 {
 	#define CORONA_CFG(TYPE, PRINT, STAT) cprintf(#STAT ": " PRINT "\n", this->STAT);
+	#define CORONA_CFG_OBJ(TYPE, STAT) cprintf(#STAT ": "); this->STAT->print_params(stdout); cprintf("\n");
 	#include <cfg.h>
 	#undef CORONA_CFG
+	#undef CORONA_CFG_OBJ
 //exit(1);
 }

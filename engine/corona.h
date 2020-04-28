@@ -55,19 +55,6 @@ char* infected_state_str (int32_t i);
 
 char* critical_per_age_str (int32_t age_group);
 
-class cfg_t {
-public:
-	#define CORONA_CFG(TYPE, PRINT, STAT) TYPE STAT;
-	#include <cfg.h>
-	#undef CORONA_CFG
-
-	cfg_t();
-	void set_defaults ();
-	void scenery_setup (); // coded in scenery
-	void load_derived();
-	void dump ();
-};
-
 class stats_t {
 private:
 	uint32_t n;
@@ -192,6 +179,7 @@ public:
 	
 	void add_to_population_graph ();
 	void create_families ();
+	void create_random_connections ();
 
 	void cycle();
 
@@ -217,6 +205,21 @@ public:
 void start_population_graph ();
 
 #include <probability.h>
+
+class cfg_t {
+public:
+	#define CORONA_CFG(TYPE, PRINT, STAT) TYPE STAT;
+	#define CORONA_CFG_OBJ(TYPE, STAT) TYPE *STAT;
+	#include <cfg.h>
+	#undef CORONA_CFG
+	#undef CORONA_CFG_OBJ
+
+	cfg_t();
+	void set_defaults ();
+	void scenery_setup (); // coded in scenery
+	void load_derived();
+	void dump ();
+};
 
 extern cfg_t cfg;
 extern stats_t *cycle_stats;

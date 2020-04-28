@@ -18,8 +18,8 @@ CORONA_CFG(double, "%.4f", death_rate_critical_in_hospital)
 CORONA_CFG(double, "%.4f", death_rate_severe_outside_hospital)
 CORONA_CFG(double, "%.4f", death_rate_critical_outside_hospital)
 
-CORONA_CFG(double, "%.4f", family_size_mean)
-CORONA_CFG(double, "%.4f", family_size_stddev)
+CORONA_CFG_OBJ(dist_double_t, family_size_dist)
+CORONA_CFG_OBJ(dist_double_t, number_random_connections_dist)
 
 CORONA_CFG(double, "%.4f", probability_asymptomatic)
 CORONA_CFG(double, "%.4f", probability_mild)
