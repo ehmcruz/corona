@@ -6,9 +6,11 @@ cfg_t::cfg_t ()
 {
 	#define CORONA_CFG(TYPE, PRINT, STAT) this->STAT = 0;
 	#define CORONA_CFG_OBJ(TYPE, STAT) this->STAT = nullptr;
+	#define CORONA_CFG_VECTOR(TYPE, PRINT, LIST, STAT, N) for (uint32_t i=0; i<N; i++) { this->STAT[i] = 0; }
 	#include <cfg.h>
 	#undef CORONA_CFG
 	#undef CORONA_CFG_OBJ
+	#undef CORONA_CFG_VECTOR
 
 	this->set_defaults();
 	this->scenery_setup();
@@ -45,6 +47,11 @@ void cfg_t::set_defaults ()
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
 	this->r0_asymptomatic_factor = 1.0;
+
+	this->relation_type_weights[RELATION_FAMILY] = 4;
+	this->relation_type_weights[RELATION_BUDDY] = 3;
+	this->relation_type_weights[RELATION_UNKNOWN] = 1;
+	this->relation_type_weights[RELATION_OTHERS] = 1;
 }
 
 /*
@@ -94,8 +101,10 @@ void cfg_t::dump ()
 {
 	#define CORONA_CFG(TYPE, PRINT, STAT) cprintf(#STAT ": " PRINT "\n", this->STAT);
 	#define CORONA_CFG_OBJ(TYPE, STAT) cprintf(#STAT ": "); this->STAT->print_params(stdout); cprintf("\n");
+	#define CORONA_CFG_VECTOR(TYPE, PRINT, LIST, STAT, N) for (uint32_t i=0; i<N; i++) { cprintf(#STAT ".%s: " PRINT "\n", LIST##_str(i), this->STAT[i]); }
 	#include <cfg.h>
 	#undef CORONA_CFG
 	#undef CORONA_CFG_OBJ
+	#undef CORONA_CFG_VECTOR
 //exit(1);
 }

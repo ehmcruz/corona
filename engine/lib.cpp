@@ -113,3 +113,22 @@ neighbor_list_t::iterator_t& neighbor_list_fully_connected_t::iterator_fully_con
 
 	return *this;
 }
+
+// -----------------------------------------------------------------------
+#if 0
+neighbor_list_t::iterator_t neighbor_list_fully_connected_t::begin ()
+{
+	iterator_fully_connected_t it;
+
+	if (likely(population.size() > 0)) {
+		it.prob = (cfg.probability_infect_per_cycle * cfg.global_r0_factor
+		        * r0_factor_per_group[ this->get_person()->get_infected_state() ]);
+		
+		it.calc();
+	}
+	else
+		it.current = nullptr;
+
+	return it;
+}
+#endif

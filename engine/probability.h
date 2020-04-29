@@ -70,7 +70,7 @@ public:
 };
 
 template <typename Tweight, typename Tvalue, unsigned N>
-static void adjust_weights_to_fit_mean (Tweight *orig_weights_, Tvalue *values, double mean, double *adj_weights)
+static void adjust_weights_to_fit_mean (Tweight *orig_weights, Tvalue *values, double mean, double *adj_weights)
 {
 	/*
 		(k * (sum orig_weight*values) = mean
@@ -78,34 +78,39 @@ static void adjust_weights_to_fit_mean (Tweight *orig_weights_, Tvalue *values, 
 		k = mean * / (sum orig_weight*values)
 	*/
 
-	double orig_weights[N];
 	double sum, k;
+	uint32_t i;
+	
+	sum = 0.0;
+	for (i=0; i<N; i++)
+		sum += (double)orig_weights[i] * (double)values[i];
+
+	k = mean / sum;
+
+//dprintf("sum:%.4f k:%.4f\n", sum, k);
+
+	for (i=0; i<N; i++)
+		adj_weights[i] = (double)orig_weights[i] * k;
+}
+
+template <typename Tweight, typename Tvalue, unsigned N>
+static void adjust_biased_weights_to_fit_mean (Tweight *orig_weights_, Tvalue *values, double mean, double *adj_weights)
+{
+	double orig_weights[N];
 	uint32_t i;
 
 	for (i=0; i<N; i++) {
 		if (values[i] == 0)
 			orig_weights[i] = 0.0;
 		else
-			orig_weights[i] = (double)orig_weights_[i];
-	}
-	
-	sum = 0.0;
-	for (i=0; i<N; i++) {
-		if (values[i] != 0)
-			adj_weights[i] = orig_weights[i] / (double)values[i];
-		else
-			adj_weights[i] = 0.0;
-		
-		//sum += (double)adj_weights[i] * (double)values[i];
-		sum += (double)orig_weights[i];
+			orig_weights[i] = (double)orig_weights_[i] / (double)values[i];
 	}
 
-	k = mean / sum;
-
-//	dprintf("sum:%.4f k:%.4f\n", sum, k);
-
-	for (i=0; i<N; i++)
-		adj_weights[i] *= k;
+	adjust_weights_to_fit_mean<double, Tvalue, N>(
+		orig_weights,
+		values,
+		mean, 
+		adj_weights);
 }
 
 #endif

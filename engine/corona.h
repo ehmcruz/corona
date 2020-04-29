@@ -100,6 +100,7 @@ struct pop_vertex_data_t {
 
 struct pop_edge_data_t {
 	relation_type_t type;
+	int32_t foo;
 };
 
 typedef boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS, pop_vertex_data_t, pop_edge_data_t> pop_graph_t;
@@ -214,7 +215,8 @@ public:
 
 // network.cpp
 
-void start_population_graph ();
+void network_start_population_graph ();
+void network_after_all_connetions ();
 
 #include <probability.h>
 
@@ -222,9 +224,11 @@ class cfg_t {
 public:
 	#define CORONA_CFG(TYPE, PRINT, STAT) TYPE STAT;
 	#define CORONA_CFG_OBJ(TYPE, STAT) TYPE *STAT;
+	#define CORONA_CFG_VECTOR(TYPE, PRINT, LIST, STAT, N) TYPE STAT[N];
 	#include <cfg.h>
 	#undef CORONA_CFG
 	#undef CORONA_CFG_OBJ
+	#undef CORONA_CFG_VECTOR
 
 	cfg_t();
 	void set_defaults ();

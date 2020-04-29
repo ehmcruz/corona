@@ -153,7 +153,7 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 		people_per_age[ get_age_cat(p->get_age()) ]++;
 	}
 
-	adjust_weights_to_fit_mean<uint32_t, uint64_t, AGE_CATS_N> (
+	adjust_biased_weights_to_fit_mean<uint32_t, uint64_t, AGE_CATS_N> (
 		reported_deaths_per_age,
 		people_per_age,
 		cfg.probability_critical * (double)this->get_npopulation(),
@@ -638,10 +638,6 @@ static void load_region()
 
 	region = new region_t();
 
-	start_population_graph();
-
-	region->add_to_population_graph();
-
 	total = region->get_npopulation();
 	population.reserve(total);
 
@@ -650,9 +646,13 @@ static void load_region()
 
 	C_ASSERT(population.size() == total)
 
-	for (auto it = region->get_person(0)->get_neighbor_list()->begin(); *it != nullptr; ++it) {
+	network_start_population_graph();
+	region->add_to_population_graph();
+	network_after_all_connetions();
+
+/*	for (auto it = region->get_person(0)->get_neighbor_list()->begin(); *it != nullptr; ++it) {
 		cprintf("person id %u\n", (*it)->get_id());
-	}
+	}*/
 
 //exit(0);
 }
@@ -677,8 +677,6 @@ int main (int argc, char **argv)
 		exit(1);
 	}
 
-	cfg.dump();
-
 	start_dice_engine();
 
 	load_stats_engine();
@@ -686,6 +684,8 @@ int main (int argc, char **argv)
 	load_gdistribution_incubation(cfg.cycles_incubation_mean, cfg.cycles_incubation_stddev);
 
 	load_region();
+
+	cfg.dump();
 
 	simulate();
 
