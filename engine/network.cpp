@@ -246,7 +246,7 @@ static void calibrate_rate_per_type ()
 		C_ASSERT( edesc(*ei).foo == 0 )
 		edesc(*ei).foo = 1;
 
-		cfg.relation_type_number[ edesc(*ei).type ] += 2; // we add to to count for both
+		cfg.relation_type_number[ edesc(*ei).type ] += 2; // we add two to count for both
 	}
 
 #ifdef SANITY_CHECK
@@ -298,4 +298,180 @@ void network_after_all_connetions ()
 	cprintf("end\n");
 //	exit(0);
 #endif
+}
+
+static inline pop_vertex_t get_neighbor (pop_vertex_t v, pop_edge_t e)
+{
+	pop_vertex_t s = boost::source(e, *pop_graph);
+	pop_vertex_t t = boost::target(e, *pop_graph);
+	pop_vertex_t r;
+
+	if (v == s)
+		r = t;
+	else if (v == t)
+		r = s;
+	else {
+		C_ASSERT(0)
+		r = s; // whatever, just to avoid warning
+	}
+
+	return r;
+}
+
+static inline person_t* get_neighbor (person_t *p, pop_edge_t e)
+{
+	return vdesc(get_neighbor(p->vertex, e)).p;
+}
+
+
+// -----------------------------------------------------------------------
+
+//double blah = 0.0;
+
+neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
+{
+	neighbor_list_network_t::iterator_network_t it;
+	boost::graph_traits<pop_graph_t>::out_edge_iterator ei, ei_end;
+	relation_type_t type;
+	int32_t i;
+
+	//C_ASSERT(this->get_person()->get_state() == ST_INFECTED)
+
+	it.list = this;
+
+	this->nconnected = get_number_of_neighbors( this->get_person() );
+
+	if (this->connected.size() < this->nconnected) {
+		this->connected.reserve(this->nconnected);
+
+		for (i=this->connected.size(); this->connected.size() < this->nconnected; i++) {
+			neighbor_list_t::pair_t pair(0.0, nullptr);
+			this->connected.push_back( pair );
+		}
+	}
+
+	it.prob = 0.0;
+
+	i = 0;
+	for (boost::tie(ei, ei_end) = out_edges(this->get_person()->vertex, *pop_graph); ei != ei_end; ++ei) {
+		C_ASSERT(i < this->nconnected)
+
+		neighbor_list_t::pair_t& pair = this->connected[i];
+
+		type = edesc(*ei).type;
+		it.prob += cfg.relation_type_transmit_rate[type];
+
+		pair.first = it.prob;
+		pair.second = get_neighbor(this->get_person(), *ei);
+
+		i++;
+	}
+
+	C_ASSERT(i == this->nconnected)
+
+	for (i=0; i < this->nconnected; i++) {
+		neighbor_list_t::pair_t& pair = this->connected[i];
+		pair.first /= it.prob;
+
+//		cprintf("%.4f(%u) ", pair.first, pair.second->get_id());
+	}
+//blah += it.prob; cprintf(" (total %.4f)\n", it.prob); //exit(1);
+
+	it.prob *= cfg.global_r0_factor;
+	it.prob *= r0_factor_per_group[ this->get_person()->get_infected_state() ];
+
+	if (likely(it.prob > 0.0))
+		it.calc();
+	else
+		it.current = nullptr;
+
+	return it;
+}
+
+neighbor_list_network_t::iterator_network_t::iterator_network_t ()
+{
+	static_assert(sizeof(neighbor_list_network_t::iterator_network_t) == sizeof(neighbor_list_t::iterator_t));
+
+	this->ptr_check_probability = (prob_func_t) &neighbor_list_network_t::iterator_network_t::check_probability_;
+	this->ptr_get_person = (person_func_t) &neighbor_list_network_t::iterator_network_t::get_person_;
+	this->ptr_next = (next_func_t) &neighbor_list_network_t::iterator_network_t::next_;
+
+	this->current = nullptr;
+}
+
+void neighbor_list_network_t::iterator_network_t::calc ()
+{
+	if (this->prob > 0.0) {
+		double p;
+		bool end = false;
+
+		do {
+			if (this->prob <= 1.0) {
+				p = this->prob;
+				this->prob = 0.0;
+			}
+			else {
+				p = 1.0;
+				this->prob -= 1.0;
+			}
+
+			if (roll_dice(p)) { // ok, I will infect someone, let's find someone
+				person_t *p = this->list->pick_random_person();
+
+				if (p->get_state() == ST_HEALTHY) {
+					this->current = p;
+					end = true;
+				}
+				else if (this->prob == 0.0) { // The person is not suscetible, so I won't infect, and I'm out of probability to try again
+					this->current = nullptr;
+					end = true;
+				}
+			}
+			else if (this->prob == 0.0) { // I won't infect and I'm out of probability to try again
+				this->current = nullptr;
+				end = true;
+			}
+		} while (!end);
+	}
+	else
+		this->current = nullptr;
+}
+
+bool neighbor_list_network_t::iterator_network_t::check_probability_ ()
+{
+	return (this->current != nullptr);
+}
+
+person_t* neighbor_list_network_t::iterator_network_t::get_person_ ()
+{
+	return this->current;
+}
+
+neighbor_list_t::iterator_t& neighbor_list_network_t::iterator_network_t::next_ ()
+{
+	this->calc();
+
+	return *this;
+}
+
+person_t* neighbor_list_network_t::pick_random_person ()
+{
+	double dice, test;
+	uint32_t i;
+	person_t *chosen = nullptr;
+
+	dice = generate_random_between_0_and_1();
+
+	for (i=0; i<this->nconnected; i++) {
+		neighbor_list_t::pair_t& pair = this->connected[i];
+
+		chosen = pair.second;
+
+		if (dice <= pair.first)
+			break;
+	}
+
+	C_ASSERT(chosen != nullptr)
+
+	return chosen;
 }

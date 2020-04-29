@@ -68,13 +68,17 @@
 	}
 
 class person_t;
+class neighbor_list_network_t;
 
 class neighbor_list_t
 {
 public:
+	typedef std::pair<double, person_t*> pair_t;
+
 	class iterator_t {
 		friend class neighbor_list_t;
 		friend class neighbor_list_fully_connected_t;
+		friend class neighbor_list_network_t;
 	private:
 		bool check_probability_ ();
 		person_t* get_person_ ();
@@ -82,6 +86,7 @@ public:
 	protected:
 		person_t *current;
 		double prob;
+		neighbor_list_network_t *list;
 
 		typedef bool (neighbor_list_t::iterator_t::*prob_func_t)();
 		typedef person_t* (neighbor_list_t::iterator_t::*person_func_t)();
@@ -130,6 +135,32 @@ public:
 	public:
 		iterator_fully_connected_t ();
 	};
+
+public:
+	using neighbor_list_t::neighbor_list_t;
+	iterator_t begin () override;
+};
+
+class neighbor_list_network_t: public neighbor_list_t
+{
+public:
+	class iterator_network_t: public neighbor_list_t::iterator_t {
+		friend class neighbor_list_network_t;
+	private:
+		bool check_probability_ ();
+		person_t* get_person_ ();
+		iterator_t& next_ ();
+
+		void calc ();
+	public:
+		iterator_network_t ();
+	};
+
+private:
+	std::vector< pair_t > connected;
+	uint32_t nconnected;
+
+	person_t* pick_random_person ();
 
 public:
 	using neighbor_list_t::neighbor_list_t;

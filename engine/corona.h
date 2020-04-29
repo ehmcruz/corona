@@ -220,6 +220,11 @@ void network_after_all_connetions ();
 
 #include <probability.h>
 
+enum {
+	NETWORK_TYPE_FULLY_CONNECTED,
+	NETWORK_TYPE_NETWORK
+};
+
 class cfg_t {
 public:
 	#define CORONA_CFG(TYPE, PRINT, STAT) TYPE STAT;

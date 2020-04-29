@@ -11,6 +11,9 @@ static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
 
 void cfg_t::scenery_setup ()
 {
+	this->network_type = NETWORK_TYPE_NETWORK;
+	//this->r0 = 10.0;
+
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
 	csv->dump();
 }

@@ -52,6 +52,8 @@ void cfg_t::set_defaults ()
 	this->relation_type_weights[RELATION_BUDDY] = 3;
 	this->relation_type_weights[RELATION_UNKNOWN] = 1;
 	this->relation_type_weights[RELATION_OTHERS] = 1;
+
+	this->network_type = NETWORK_TYPE_FULLY_CONNECTED;
 }
 
 /*

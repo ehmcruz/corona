@@ -29,6 +29,8 @@ CORONA_CFG(double, "%.4f", r0_asymptomatic_factor)
 
 CORONA_CFG_VECTOR(uint32_t, "%u", relation_type, relation_type_weights, NUMBER_OF_RELATIONS)
 
+CORONA_CFG(uint32_t, "%u", network_type)
+
 /***********************************************/
 
 // derived cfg

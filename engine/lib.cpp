@@ -34,12 +34,18 @@ neighbor_list_t::iterator_t& neighbor_list_t::iterator_t::next_ ()
 
 neighbor_list_t::iterator_t neighbor_list_fully_connected_t::begin ()
 {
-	iterator_fully_connected_t it;
+	neighbor_list_fully_connected_t::iterator_fully_connected_t it;
+
+	C_ASSERT(this->get_person()->get_state() == ST_INFECTED)
 
 	if (likely(population.size() > 0)) {
-		it.prob = (cfg.probability_infect_per_cycle * cfg.global_r0_factor
-		        * r0_factor_per_group[ this->get_person()->get_infected_state() ]);
+		it.prob = cfg.probability_infect_per_cycle;
+
+//cprintf("total %.4f\n", it.prob);
 		
+		it.prob *= cfg.global_r0_factor;
+		it.prob *= r0_factor_per_group[ this->get_person()->get_infected_state() ];
+
 		it.calc();
 	}
 	else
@@ -113,22 +119,3 @@ neighbor_list_t::iterator_t& neighbor_list_fully_connected_t::iterator_fully_con
 
 	return *this;
 }
-
-// -----------------------------------------------------------------------
-#if 0
-neighbor_list_t::iterator_t neighbor_list_fully_connected_t::begin ()
-{
-	iterator_fully_connected_t it;
-
-	if (likely(population.size() > 0)) {
-		it.prob = (cfg.probability_infect_per_cycle * cfg.global_r0_factor
-		        * r0_factor_per_group[ this->get_person()->get_infected_state() ]);
-		
-		it.calc();
-	}
-	else
-		it.current = nullptr;
-
-	return it;
-}
-#endif

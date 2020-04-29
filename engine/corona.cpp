@@ -358,7 +358,13 @@ person_t::person_t ()
 
 	this->health_unit = nullptr;
 
-	this->neighbor_list = new neighbor_list_fully_connected_t(this);
+	if (cfg.network_type == NETWORK_TYPE_FULLY_CONNECTED)
+		this->neighbor_list = new neighbor_list_fully_connected_t(this);
+	else if (cfg.network_type == NETWORK_TYPE_NETWORK)
+		this->neighbor_list = new neighbor_list_network_t(this);
+	else {
+		C_ASSERT(0)
+	}
 }
 
 person_t::~person_t ()
@@ -649,6 +655,16 @@ static void load_region()
 	network_start_population_graph();
 	region->add_to_population_graph();
 	network_after_all_connetions();
+
+#if 0
+{
+	extern double blah;
+	for (person_t *p: population) {
+		auto it = p->get_neighbor_list()->begin();
+	}
+cprintf("blah %.2f\n", blah / (double)population.size()); exit(1);
+}
+#endif
 
 /*	for (auto it = region->get_person(0)->get_neighbor_list()->begin(); *it != nullptr; ++it) {
 		cprintf("person id %u\n", (*it)->get_id());
