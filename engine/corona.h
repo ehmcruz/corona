@@ -11,6 +11,7 @@
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
+#include <boost/graph/adjacency_list.hpp>
 
 #include <lib.h>
 
@@ -80,22 +81,30 @@ class region_t;
 class person_t;
 
 enum relation_type_t {
+	// Important !!!
+	// change relation_type_str in case of changes
+
 	RELATION_FAMILY,
-	RELATION_FRIENDS,
-	RELATION_OTHERS
+	RELATION_BUDDY,
+	RELATION_UNKNOWN,
+	RELATION_OTHERS,
+
+	NUMBER_OF_RELATIONS
 };
+
+char* relation_type_str (int32_t i);
 
 struct pop_vertex_data_t {
 	person_t *p;
 };
 
 struct pop_edge_data_t {
-	double probability;
-	relation_type_t relation;
+	relation_type_t type;
 };
 
-typedef boost::undirected_graph<pop_vertex_data_t, pop_edge_data_t> pop_graph_t;
+typedef boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS, pop_vertex_data_t, pop_edge_data_t> pop_graph_t;
 typedef boost::graph_traits<pop_graph_t>::vertex_descriptor pop_vertex_t;
+typedef boost::graph_traits<pop_graph_t>::edge_descriptor pop_edge_t;
 
 class health_unit_t;
 
@@ -176,6 +185,9 @@ public:
 	}
 
 	health_unit_t* enter_health_unit (person_t *p);
+
+	person_t* pick_random_person ();
+	person_t* pick_random_person_not_neighbor (person_t *p);
 	
 	void add_to_population_graph ();
 	void create_families ();

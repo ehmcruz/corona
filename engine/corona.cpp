@@ -75,6 +75,20 @@ char* critical_per_age_str (int32_t age_group)
 	return (char*)list[age_group];
 }
 
+char* relation_type_str (int32_t i)
+{
+	static const char *list[] = {
+		"F",
+		"B",
+		"U",
+		"O"
+	};
+
+	C_ASSERT(i < NUMBER_OF_RELATIONS)
+
+	return (char*)list[i];
+}
+
 /****************************************************************/
 
 region_t::region_t ()
@@ -115,6 +129,13 @@ void region_t::set_population_number (uint64_t npopulation)
 {
 	this->npopulation = npopulation;
 	this->people.reserve(npopulation);
+}
+
+person_t* region_t::pick_random_person ()
+{
+	std::uniform_int_distribution<uint64_t> distribution(0, this->people.size()-1);
+
+	return this->people[ distribution(rgenerator) ];
 }
 
 void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age)

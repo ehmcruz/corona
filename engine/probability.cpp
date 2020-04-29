@@ -112,6 +112,7 @@ normal_double_dist_t::normal_double_dist_t (double mean, double stddev, double m
 
 double normal_double_dist_t::generate_ ()
 {
+//this->print_params(stdout); for (int i=0; i<100; i++) cprintf(" %.2f", this->distribution(rgenerator)); cprintf("\n"); exit(1);
 	return this->distribution(rgenerator);
 }
 

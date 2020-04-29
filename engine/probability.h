@@ -58,7 +58,7 @@ class normal_double_dist_t: public dist_double_t
 	OO_ENCAPSULATE(double, stddev)
 
 private:
-	std::uniform_real_distribution<double> distribution;
+	std::normal_distribution<double> distribution;
 
 protected:
 	double generate_ () override;
