@@ -87,6 +87,7 @@ enum relation_type_t {
 	RELATION_FAMILY,
 	RELATION_BUDDY,
 	RELATION_UNKNOWN,
+	RELATION_TRAVEL,
 	RELATION_OTHERS,
 
 	NUMBER_OF_RELATIONS
@@ -147,6 +148,11 @@ public:
 	void infect ();
 	void pre_infect ();
 
+	inline void force_infect () {
+		this->pre_infect();
+		this->infect();
+	}
+
 	void setup_infection_probabilities (double pmild, double psevere, double pcritical);
 
 	inline void setup_infection_countdown (double cycles) {
@@ -170,6 +176,7 @@ public:
 class region_t
 {
 	OO_ENCAPSULATE_RO(uint64_t, npopulation)
+	OO_ENCAPSULATE_RO(uint32_t, id)
 	OO_ENCAPSULATE_REFERENCE(std::string, name)
 
 private:
@@ -177,7 +184,7 @@ private:
 	std::list<health_unit_t*> health_units;
 
 public:
-	region_t();
+	region_t (uint32_t id);
 
 	// coded in scenery
 	void setup_population ();
@@ -193,11 +200,8 @@ public:
 	person_t* pick_random_person ();
 	person_t* pick_random_person_not_neighbor (person_t *p);
 	
-	void add_to_population_graph ();
 	void create_families ();
 	void create_random_connections ();
-
-	void cycle();
 
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);
@@ -209,17 +213,17 @@ public:
 		return this->people[i];
 	}
 
-	void summon ();
-
-	void callback_before_cycle (uint32_t cycle); // coded in scenery
-	void callback_after_cycle (uint32_t cycle); // coded in scenery
-	void callback_end (); // coded in scenery
+	void callback_before_cycle (double cycle); // coded in scenery
+	void callback_after_cycle (double cycle); // coded in scenery
 };
+
+bool try_to_summon ();
 
 // network.cpp
 
 void network_start_population_graph ();
 void network_after_all_connetions ();
+void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n);
 
 #include <probability.h>
 
@@ -245,11 +249,15 @@ public:
 	void dump ();
 };
 
+// coded in scenery
+void setup_inter_region_relations ();
+void callback_end ();
+
 extern cfg_t cfg;
 extern stats_t *cycle_stats;
 extern double current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
-extern region_t *region;
 extern std::vector<person_t*> population;
+extern std::vector<region_t*> regions;
 
 #endif

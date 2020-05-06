@@ -1,6 +1,8 @@
 #ifndef __corona_lib_h__
 #define __corona_lib_h__
 
+#include <stdlib.h>
+
 #define SANITY_CHECK
 #define DEBUG
 
@@ -58,6 +60,14 @@
 		return this->VAR; \
 	}
 
+#define OO_ENCAPSULATE_REFERENCE_RO(TYPE, VAR) \
+	private: \
+	TYPE VAR; \
+	public: \
+	inline TYPE& get_##VAR () { \
+		return this->VAR; \
+	}
+
 // read-only
 #define OO_ENCAPSULATE_RO(TYPE, VAR) \
 	private: \
@@ -66,6 +76,30 @@
 	inline TYPE get_##VAR () { \
 		return this->VAR; \
 	}
+
+template <typename T>
+T** matrix_malloc (uint32_t nrows, uint32_t ncols)
+{
+	T **p;
+	uint32_t i;
+	
+	p = (T**)calloc(nrows, sizeof(T*));
+	C_ASSERT(p != NULL);
+
+	p[0] = (T*)calloc(nrows*ncols, sizeof(T));
+	C_ASSERT(p[0] != NULL);
+	for (i=1; i<nrows; i++)
+		p[i] = p[0] + i*ncols;
+	
+	return p;
+}
+
+template <typename T>
+void matrix_free (T **m)
+{
+	free(m[0]);
+	free(m);
+}
 
 class person_t;
 class neighbor_list_network_t;

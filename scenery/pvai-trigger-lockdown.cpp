@@ -72,11 +72,19 @@ void region_t::setup_relations ()
 
 }
 
-void region_t::callback_before_cycle (uint32_t cycle)
+void setup_inter_region_relations ()
+{
+
+}
+
+void region_t::callback_before_cycle (double cycle)
 {
 	static int32_t locked = 0, lock_start_cycle;
 
-	if (cycle < (18*30)) {
+	if (cycle == 0.0) {
+		this->pick_random_person()->force_infect();
+	}
+	else if (cycle < (18*30)) {
 		if (locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 3) {
 			locked = 1;
 			cfg.global_r0_factor = 0.35;
@@ -94,12 +102,12 @@ void region_t::callback_before_cycle (uint32_t cycle)
 		cfg.global_r0_factor = 1.0;
 }
 
-void region_t::callback_after_cycle (uint32_t cycle)
+void region_t::callback_after_cycle (double cycle)
 {
 
 }
 
-void region_t::callback_end ()
+void callback_end ()
 {
 	cprintf("quarentine avg cycles: %.2f\n", mean(acc_quarentine));
 	cprintf("quarentine std dev cycles: %.2f\n", sqrt(variance(acc_quarentine)) );

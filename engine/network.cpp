@@ -11,11 +11,6 @@
 
 static pop_graph_t *pop_graph;
 
-void network_start_population_graph ()
-{
-	pop_graph = new pop_graph_t( region->get_npopulation() );
-}
-
 static inline pop_vertex_data_t& vdesc (pop_vertex_t vertex)
 {
 	return (*pop_graph)[vertex];
@@ -24,6 +19,31 @@ static inline pop_vertex_data_t& vdesc (pop_vertex_t vertex)
 static inline pop_edge_data_t& edesc (pop_edge_t edge)
 {
 	return (*pop_graph)[edge];
+}
+
+void network_start_population_graph ()
+{
+	int32_t i;
+	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
+
+	pop_graph = new pop_graph_t( population.size() );
+
+// code isnt ready yet
+//return;
+
+	cprintf("nvertex: %u\n", (uint32_t)num_vertices(*pop_graph));
+
+	for (boost::tie(vi,vend) = vertices(*pop_graph), i=0; vi != vend; ++vi, i++) {
+		vdesc(*vi).p = population[i];
+		population[i]->vertex = *vi;
+	}
+//exit(1);
+#if 0
+	for (i=0; i<this->npopulation; i++) {
+		cprintf("pid: %u %p\n", (*pop_graph)[this->get_person(i)->vertex].p->get_id(), this->get_person(i)->vertex);
+	}
+	exit(1);
+#endif
 }
 
 static uint32_t get_number_of_neighbors (pop_vertex_t vertex)
@@ -105,29 +125,6 @@ static inline bool check_if_people_are_neighbors (person_t *p1, person_t *p2)
 	return check_if_people_are_neighbors(p1->vertex, p2->vertex);
 }
 
-void region_t::add_to_population_graph ()
-{
-	int32_t i;
-	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
-
-// code isnt ready yet
-//return;
-
-	cprintf("nvertex: %u\n", (uint32_t)num_vertices(*pop_graph));
-
-	for (boost::tie(vi,vend) = vertices(*pop_graph), i=0; vi != vend; ++vi, i++) {
-		vdesc(*vi).p = this->get_person(i);
-		this->people[i]->vertex = *vi;
-	}
-//exit(1);
-#if 0
-	for (i=0; i<this->npopulation; i++) {
-		cprintf("pid: %u %p\n", (*pop_graph)[this->get_person(i)->vertex].p->get_id(), this->get_person(i)->vertex);
-	}
-	exit(1);
-#endif
-}
-
 static pop_edge_t create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)
 {
 	pop_edge_t e;
@@ -151,8 +148,10 @@ static pop_edge_t create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_e
 	return e;
 }
 
-static inline pop_edge_t create_edge (person_t *p1, person_t *p2, pop_edge_data_t& edge_data)
+static inline pop_edge_t create_edge (person_t *p1, person_t *p2, relation_type_t type)
 {
+	pop_edge_data_t edge_data;
+	edge_data.type = type;
 	return create_edge(p1->vertex, p2->vertex, edge_data);
 }
 
@@ -174,9 +173,6 @@ static uint32_t calc_family_size (region_t *region, uint32_t filled)
 void region_t::create_families ()
 {
 	uint32_t n, family_size, i, j;
-	pop_edge_data_t edge_data;
-
-	edge_data.type = RELATION_FAMILY;
 
 	for (n=0; n<this->get_npopulation(); n+=family_size) {
 		family_size = calc_family_size(this, n);
@@ -185,7 +181,7 @@ void region_t::create_families ()
 
 		for (i=n; i<(n+family_size); i++) {
 			for (j=i+1; j<(n+family_size); j++) {
-				create_edge(this->get_person(i), this->get_person(j), edge_data);
+				create_edge(this->get_person(i), this->get_person(j), RELATION_FAMILY);
 			}
 		}
 	}
@@ -206,9 +202,6 @@ void region_t::create_random_connections ()
 {
 	person_t *neighbor;
 	int32_t i, n;
-	pop_edge_data_t edge_data;
-
-	edge_data.type = RELATION_UNKNOWN;
 
 	for (person_t *p: this->people) {
 		n = (int32_t)(cfg.number_random_connections_dist->generate() + 0.5);
@@ -221,7 +214,7 @@ void region_t::create_random_connections ()
 
 		for (i=0; i<n; i++) {
 			neighbor = this->pick_random_person_not_neighbor(p);
-			create_edge(p, neighbor, edge_data);
+			create_edge(p, neighbor, RELATION_UNKNOWN);
 		}
 	}
 }
@@ -283,6 +276,24 @@ static void calibrate_rate_per_type ()
 		cfg.probability_infect_per_cycle * (double)population.size(),
 		cfg.relation_type_transmit_rate
 		);
+}
+
+void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n)
+{
+	uint64_t i;
+	person_t *sp, *tp;
+
+	i = 0;
+	
+	while (i < n) {
+		sp = s->pick_random_person();
+		tp = t->pick_random_person();
+
+		if ( check_if_people_are_neighbors(sp, tp) == false ) {
+			create_edge(sp, tp, RELATION_TRAVEL);
+			i++;
+		}
+	}
 }
 
 void network_after_all_connetions ()

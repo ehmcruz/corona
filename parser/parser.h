@@ -6,6 +6,7 @@
 #include <string>
 
 #include <lex.h>
+#include <lib.h>
 #include <corona.h>
 
 class csv_t
@@ -33,15 +34,17 @@ class csv_ages_t: public csv_t
 {
 	OO_ENCAPSULATE_RO(uint32_t, first_age)
 	OO_ENCAPSULATE_RO(uint32_t, last_age)
+	OO_ENCAPSULATE_RO(uint32_t, ncities)
 private:
 	uint32_t nages;
-	uint32_t ncities;
 	uint32_t **matrix;
 
 public:
 	csv_ages_t (char *fname);
 	uint32_t get_population_per_age (char *city_name, uint32_t age);
 	uint32_t get_population (char *city_name);
+	int32_t get_city_row (char *city_name);
+	char* get_city_name (uint32_t row);
 
 	inline uint32_t get_population_per_age (std::string& city_name, uint32_t age) {
 		return this->get_population_per_age((char*)city_name.c_str(), age);
@@ -55,8 +58,6 @@ private:
 	void validate ();
 	void validate_again ();
 	void expand ();
-
-	int32_t get_city_row (char *city_name);
 };
 
 #endif

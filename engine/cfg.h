@@ -31,6 +31,8 @@ CORONA_CFG_VECTOR(uint32_t, "%u", relation_type, relation_type_weights, NUMBER_O
 
 CORONA_CFG(uint32_t, "%u", network_type)
 
+CORONA_CFG(uint32_t, "%u", n_regions)
+
 /***********************************************/
 
 // derived cfg

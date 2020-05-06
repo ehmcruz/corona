@@ -59,24 +59,6 @@ void region_t::setup_population ()
 	//exit(1);
 
 	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
-
-	this->add_health_unit( &santa_casa_uti );
-	this->add_health_unit( &santa_casa_enfermaria );
-}
-
-void region_t::callback_before_cycle (uint32_t cycle)
-{
-	static int32_t has_already_locked = 0, lock_start_cycle;
-
-	if (has_already_locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 3) {
-		has_already_locked = 1;
-		cfg.global_r0_factor = 0.35;
-
-		lock_start_cycle = cycle;
-	}
-	else if (has_already_locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
-		cfg.global_r0_factor = 1.0;
-	}
 }
 
 void region_t::setup_health_units ()
@@ -90,12 +72,35 @@ void region_t::setup_relations ()
 
 }
 
-void region_t::callback_after_cycle (uint32_t cycle)
+void setup_inter_region_relations ()
 {
 
 }
 
-void region_t::callback_end ()
+void region_t::callback_before_cycle (double cycle)
+{
+	static int32_t has_already_locked = 0, lock_start_cycle;
+
+	if (cycle == 0.0) {
+		this->pick_random_person()->force_infect();
+	}
+	else if (has_already_locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 3) {
+		has_already_locked = 1;
+		cfg.global_r0_factor = 0.35;
+
+		lock_start_cycle = cycle;
+	}
+	else if (has_already_locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
+		cfg.global_r0_factor = 1.0;
+	}
+}
+
+void region_t::callback_after_cycle (double cycle)
+{
+
+}
+
+void callback_end ()
 {
 	
 }

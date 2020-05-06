@@ -6,16 +6,22 @@
 
 static csv_ages_t *csv;
 
-static health_unit_t santa_casa_uti(10, ST_CRITICAL);
-static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
+static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
+static health_unit_t santa_casa_enfermaria(20000000, ST_SEVERE);
 
 void cfg_t::scenery_setup ()
 {
-	//this->network_type = NETWORK_TYPE_NETWORK;
+	int32_t i;
+
+	this->network_type = NETWORK_TYPE_NETWORK;
 	//this->r0 = 10.0;
 
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
 	csv->dump();
+
+	this->n_regions = csv->get_ncities();
+
+	cprintf("number of cities: %u\n", this->n_regions);
 }
 
 void region_t::setup_population ()
@@ -38,7 +44,7 @@ void region_t::setup_population ()
 
 	std::string name;
 
-	name = "Paranavai";
+	name = csv->get_city_name( this->get_id() );
 
 	this->set_name(name);
 
@@ -48,7 +54,7 @@ void region_t::setup_population ()
 
 	for (i=csv->get_first_age(); i<=csv->get_last_age(); i++) {
 		n = csv->get_population_per_age(this->get_name(), i);
-		cprintf("%s habitantes idade %i -> %i\n", this->get_name().c_str(), i, n);
+		//cprintf("%s habitantes idade %i -> %i\n", this->get_name().c_str(), i, n);
 		this->add_people(n, i);
 	}
 	//exit(1);
@@ -72,12 +78,33 @@ void region_t::setup_relations ()
 
 void setup_inter_region_relations ()
 {
+	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+		for (auto it=regions.begin(); it!=regions.end(); ++it) {
+			for (auto jt=it+1; jt!=regions.end(); ++jt) {
+				region_t *s, *t;
+				uint64_t sn, tn;
 
+				s = *it;
+				t = *jt;
+
+				sn = (uint64_t)((double)s->get_npopulation() * 0.05);
+				tn = (uint64_t)((double)t->get_npopulation() * 0.05);
+
+				if (tn < sn)
+					sn = tn;
+
+				cprintf("%s-%s " PU64 "\n", s->get_name().c_str(), t->get_name().c_str(), sn);
+				
+				network_create_inter_city_relation(s, t, sn);
+			}
+		}
+	}
+//exit(1);
 }
 
 void region_t::callback_before_cycle (double cycle)
 {
-	if (cycle == 0.0) {
+	if (cycle == 0.0 && this->get_name() == "Paranavai") {
 		this->pick_random_person()->force_infect();
 	}
 }

@@ -15,7 +15,7 @@ cfg_t cfg;
 stats_t *cycle_stats = nullptr;
 static stats_t *prev_cycle_stats = nullptr;
 static std::list<stats_t> all_cycle_stats;
-region_t *region = nullptr;
+std::vector<region_t*> regions;
 double current_cycle;
 
 std::vector<person_t*> population;
@@ -91,9 +91,116 @@ char* relation_type_str (int32_t i)
 
 /****************************************************************/
 
-region_t::region_t ()
+bool try_to_summon ()
+{
+	bool r = false;
+
+	if (roll_dice(cfg.probability_summon_per_cycle)) {
+		person_t *p;
+
+		p = pick_random_person();
+
+		if (p->get_state() == ST_HEALTHY) {
+			to_infect_in_cycle.push_back(p);
+			r = true;
+		}
+	}
+
+	return r;
+}
+
+static void cycle ()
 {
 	uint64_t i;
+
+#ifdef SANITY_CHECK
+	uint64_t sanity_check = 0, sanity_check2 = 0, sanity_critical = 0;
+#endif
+
+#ifdef SANITY_CHECK
+	sanity_check = 0;
+	for (i=0; i<NUMBER_OF_STATES; i++)
+		sanity_check += cycle_stats->ac_state[i];
+	SANITY_ASSERT(population.size() == sanity_check)
+	sanity_check = 0;
+#endif
+
+#ifdef SANITY_CHECK
+	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
+		sanity_check2 += cycle_stats->ac_infected_state[i];
+
+	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
+
+	sanity_check2 = 0;
+#endif
+
+	for (person_t *p: population) {
+	#ifdef SANITY_CHECK
+		sanity_check += (p->get_state() == ST_INFECTED);
+	#endif
+
+		p->cycle();
+
+	#ifdef SANITY_CHECK
+		sanity_critical += (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_CRITICAL);
+	#endif
+	}
+
+	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_state[ST_INFECTED])
+
+	try_to_summon();
+
+	dprintf("must_infect_in_cycle: " PU64 "\n", (uint64_t)to_infect_in_cycle.size());
+
+	for (person_t *p: to_infect_in_cycle) {
+		C_ASSERT(p->get_state() == ST_HEALTHY || (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_INCUBATION && p->get_infected_cycle() == current_cycle))
+
+		if (p->get_state() == ST_HEALTHY)
+			p->pre_infect();
+	}
+
+	to_infect_in_cycle.clear();
+
+	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
+		if (cycle_stats->ac_infected_state[i] > cycle_stats->peak[i])
+			cycle_stats->peak[i] = cycle_stats->ac_infected_state[i];
+		
+		#ifdef SANITY_CHECK
+			sanity_check2 += cycle_stats->ac_infected_state[i];
+		#endif
+	}
+
+	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
+
+#ifdef SANITY_CHECK
+	sanity_check = 0;
+	for (i=0; i<NUMBER_OF_STATES; i++)
+		sanity_check += cycle_stats->ac_state[i];
+	SANITY_ASSERT(population.size() == sanity_check)
+#endif
+
+#ifdef SANITY_CHECK
+{
+	uint64_t sanity_check = 0;
+	for (i=0; i<AGE_CATS_N; i++)
+		sanity_check += cycle_stats->ac_critical_per_age[i];
+	SANITY_ASSERT( sanity_critical == sanity_check )
+}
+#endif
+	
+	for (i=0; i<AGE_CATS_N; i++) {
+		if (cycle_stats->ac_critical_per_age[i] > cycle_stats->peak_critical_per_age[i])
+			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
+	}
+}
+
+/****************************************************************/
+
+region_t::region_t (uint32_t id)
+{
+	uint64_t i;
+
+	this->id = id;
 
 	this->npopulation = 0;
 
@@ -188,103 +295,6 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 		pmild = pcritical * (cfg.probability_mild / cfg.probability_critical);
 
 		p->setup_infection_probabilities(pmild, psevere, pcritical);
-	}
-}
-
-void region_t::summon ()
-{
-	if (roll_dice(cfg.probability_summon_per_cycle)) {
-		person_t *p;
-
-		p = pick_random_person();
-
-		if (p->get_state() == ST_HEALTHY)
-			to_infect_in_cycle.push_back(p);
-	}
-}
-
-void region_t::cycle ()
-{
-	uint64_t i;
-
-#ifdef SANITY_CHECK
-	uint64_t sanity_check = 0, sanity_check2 = 0, sanity_critical = 0;
-#endif
-
-#ifdef SANITY_CHECK
-	sanity_check = 0;
-	for (i=0; i<NUMBER_OF_STATES; i++)
-		sanity_check += cycle_stats->ac_state[i];
-	SANITY_ASSERT(population.size() == sanity_check)
-	sanity_check = 0;
-#endif
-
-#ifdef SANITY_CHECK
-	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
-		sanity_check2 += cycle_stats->ac_infected_state[i];
-
-	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
-
-	sanity_check2 = 0;
-#endif
-
-	for (person_t* p: this->people) {
-	#ifdef SANITY_CHECK
-		sanity_check += (p->get_state() == ST_INFECTED);
-	#endif
-
-		p->cycle();
-
-	#ifdef SANITY_CHECK
-		sanity_critical += (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_CRITICAL);
-	#endif
-	}
-
-	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_state[ST_INFECTED])
-
-	this->summon();
-
-	dprintf("must_infect_in_cycle: " PU64 "\n", (uint64_t)to_infect_in_cycle.size());
-
-	for (person_t *p: to_infect_in_cycle) {
-		C_ASSERT(p->get_state() == ST_HEALTHY || (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_INCUBATION && p->get_infected_cycle() == current_cycle))
-
-		if (p->get_state() == ST_HEALTHY)
-			p->pre_infect();
-	}
-
-	to_infect_in_cycle.clear();
-
-	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
-		if (cycle_stats->ac_infected_state[i] > cycle_stats->peak[i])
-			cycle_stats->peak[i] = cycle_stats->ac_infected_state[i];
-		
-		#ifdef SANITY_CHECK
-			sanity_check2 += cycle_stats->ac_infected_state[i];
-		#endif
-	}
-
-	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
-
-#ifdef SANITY_CHECK
-	sanity_check = 0;
-	for (i=0; i<NUMBER_OF_STATES; i++)
-		sanity_check += cycle_stats->ac_state[i];
-	SANITY_ASSERT(population.size() == sanity_check)
-#endif
-
-#ifdef SANITY_CHECK
-{
-	uint64_t sanity_check = 0;
-	for (i=0; i<AGE_CATS_N; i++)
-		sanity_check += cycle_stats->ac_critical_per_age[i];
-	SANITY_ASSERT( sanity_critical == sanity_check )
-}
-#endif
-	
-	for (i=0; i<AGE_CATS_N; i++) {
-		if (cycle_stats->ac_critical_per_age[i] > cycle_stats->peak_critical_per_age[i])
-			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
 	}
 }
 
@@ -602,10 +612,11 @@ void person_t::cycle ()
 static void simulate ()
 {
 	current_cycle = 0.0;
-	region->callback_before_cycle(current_cycle);
-	region->get_person(0)->pre_infect();
-	region->get_person(0)->infect();
-	region->callback_after_cycle(current_cycle);
+
+	for (region_t *region: regions) {
+		region->callback_before_cycle(current_cycle);
+		region->callback_after_cycle(current_cycle);
+	}
 
 	for (current_cycle=1.0; current_cycle<cfg.cycles_to_simulate; current_cycle+=1.0) {
 		cprintf("Cycle %.2f\n", current_cycle);
@@ -618,30 +629,45 @@ static void simulate ()
 
 		cycle_stats->copy_ac(prev_cycle_stats);
 
-		region->callback_before_cycle(current_cycle);
-		region->cycle();
-		region->callback_after_cycle(current_cycle);
+		for (region_t *region: regions)
+			region->callback_before_cycle(current_cycle);
+
+		cycle();
+		
+		for (region_t *region: regions)
+			region->callback_after_cycle(current_cycle);
 
 		cycle_stats->dump();
 		cprintf("\n");
 	}
 
-	region->callback_end();
+	callback_end();
 }
 
 /****************************************************************/
 
-static void load_region()
+static void load_regions ()
 {
 	uint64_t i, total;
 
-	region = new region_t();
+	regions.reserve( cfg.n_regions );
 
-	total = region->get_npopulation();
+	for (i=0; i<cfg.n_regions; i++)
+		regions.push_back( new region_t(i) );
+
+	total = 0;
+	for (region_t *region: regions)
+		total += region->get_npopulation();
+
+	dprintf("total population size is " PU64 "\n", total);
+//exit(1);
+
 	population.reserve(total);
 
-	for (i=0; i<total; i++)
-		population.push_back(region->get_person(i));
+	for (region_t *region: regions) {
+		for (i=0; i<region->get_npopulation(); i++)
+			population.push_back(region->get_person(i));
+	}
 
 	C_ASSERT(population.size() == total)
 
@@ -667,11 +693,16 @@ static void load_region()
 		C_ASSERT(0)
 	}
 
-	region->setup_health_units();
+	for (region_t *region: regions)
+		region->setup_health_units();
 
 	network_start_population_graph();
-	region->add_to_population_graph();
-	region->setup_relations();
+
+	for (region_t *region: regions)
+		region->setup_relations();
+
+	setup_inter_region_relations();
+
 	network_after_all_connetions();
 
 #if 0
@@ -717,7 +748,7 @@ int main (int argc, char **argv)
 
 	load_gdistribution_incubation(cfg.cycles_incubation_mean, cfg.cycles_incubation_stddev);
 
-	load_region();
+	load_regions();
 
 	cfg.dump();
 

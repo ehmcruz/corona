@@ -221,29 +221,6 @@ void csv_ages_t::validate ()
 	}
 }
 
-void* matrix_malloc (uint32_t nrows, uint32_t ncols, uint32_t type_size)
-{
-	void **p;
-	uint32_t i;
-	
-	p = (void**)calloc(nrows, sizeof(void*));
-	C_ASSERT(p != NULL);
-	
-	p[0] = (void*)calloc(nrows*ncols, type_size);
-	C_ASSERT(p[0] != NULL);
-	for (i=1; i<nrows; i++)
-		p[i] = p[0] + i*ncols*type_size;
-	
-	return (void*)p;
-}
-
-void matrix_free (void *m)
-{
-	void **p = (void**)m;
-	free(p[0]);
-	free(p);
-}
-
 void csv_ages_t::expand ()
 {
 	uint32_t i, j, k, row, col, total, age, prev_age, diff, backup;
@@ -260,7 +237,7 @@ void csv_ages_t::expand ()
 	this->nages = (this->last_age - this->first_age) + 1;
 	this->ncities = this->get_nrows() - 2; // first row is header, last row is TOTAL
 
-	this->matrix = (uint32_t**)matrix_malloc(this->ncities, this->nages, sizeof(uint32_t));
+	this->matrix = matrix_malloc<uint32_t>(this->ncities, this->nages);
 
 	col = 2;
 	for (i=0, row=1; i<this->ncities; i++, row++) {
@@ -373,4 +350,15 @@ uint32_t csv_ages_t::get_population (char *city_name)
 		total += this->matrix[i][j];
 
 	return total;
+}
+
+char* csv_ages_t::get_city_name (uint32_t row)
+{
+	lex_token_t *token;
+
+	C_ASSERT(row < this->ncities)
+
+	token = this->get_cell(row+1, 1);
+
+	return token->data.label;
 }

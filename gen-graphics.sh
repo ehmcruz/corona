@@ -8,8 +8,9 @@
 gsize="8"
 
 #sceneries="pvai-do-nothing pvai-2-waves"
-sceneries="pvai-2-waves"
+#sceneries="pvai-2-waves"
 #sceneries="pvai-do-nothing"
+sceneries="14reg-do-nothing"
 #sceneries="palmas-do-nothing palmas-2-waves"
 #sceneries="palmas-do-nothing"
 
