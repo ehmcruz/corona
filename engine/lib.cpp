@@ -1,8 +1,8 @@
 #include <corona.h>
 
-neighbor_list_t::neighbor_list_t (person_t *p)
+neighbor_list_t::neighbor_list_t ()
 {
-	this->person = p;
+	this->person = nullptr;
 }
 
 neighbor_list_t::iterator_t::iterator_t ()

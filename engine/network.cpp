@@ -126,8 +126,6 @@ void region_t::add_to_population_graph ()
 	}
 	exit(1);
 #endif
-	this->create_families();
-	this->create_random_connections();
 }
 
 static pop_edge_t create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)

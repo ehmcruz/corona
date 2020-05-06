@@ -97,7 +97,7 @@ region_t::region_t ()
 
 	this->npopulation = 0;
 
-	this->setup_region();
+	this->setup_population();
 
 	std::shuffle(this->people.begin(), this->people.end(), rgenerator);
 
@@ -357,19 +357,12 @@ person_t::person_t ()
 	this->setup_infection_probabilities(cfg.probability_mild, cfg.probability_severe, cfg.probability_critical);
 
 	this->health_unit = nullptr;
-
-	if (cfg.network_type == NETWORK_TYPE_FULLY_CONNECTED)
-		this->neighbor_list = new neighbor_list_fully_connected_t(this);
-	else if (cfg.network_type == NETWORK_TYPE_NETWORK)
-		this->neighbor_list = new neighbor_list_network_t(this);
-	else {
-		C_ASSERT(0)
-	}
+	this->neighbor_list = nullptr;
 }
 
 person_t::~person_t ()
 {
-	delete this->neighbor_list;
+	this->neighbor_list = nullptr;
 }
 
 void person_t::setup_infection_probabilities (double pmild, double psevere, double pcritical)
@@ -652,8 +645,33 @@ static void load_region()
 
 	C_ASSERT(population.size() == total)
 
+	if (cfg.network_type == NETWORK_TYPE_FULLY_CONNECTED) {
+		neighbor_list_fully_connected_t *v;
+		v = new neighbor_list_fully_connected_t[ population.size() ];
+
+		for (i=0; i<population.size(); i++) {
+			v[i].set_person( population[i] );
+			population[i]->set_neighbor_list( v+i );
+		}
+	}
+	else if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+		neighbor_list_network_t *v;
+		v = new neighbor_list_network_t[ population.size() ];
+
+		for (i=0; i<population.size(); i++) {
+			v[i].set_person( population[i] );
+			population[i]->set_neighbor_list( v+i );
+		}
+	}
+	else {
+		C_ASSERT(0)
+	}
+
+	region->setup_health_units();
+
 	network_start_population_graph();
 	region->add_to_population_graph();
+	region->setup_relations();
 	network_after_all_connetions();
 
 #if 0

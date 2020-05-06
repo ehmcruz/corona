@@ -12,6 +12,9 @@ static accumulator_set<double, features<tag::mean, tag::median, tag::variance, t
 
 static csv_ages_t *csv;
 
+static health_unit_t santa_casa_uti(10, ST_CRITICAL);
+static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
+
 void cfg_t::scenery_setup ()
 {
 	this->cycles_to_simulate = 720;
@@ -20,7 +23,7 @@ void cfg_t::scenery_setup ()
 	csv->dump();
 }
 
-void region_t::setup_region ()
+void region_t::setup_population ()
 {
 	uint32_t i, n;
 
@@ -56,6 +59,17 @@ void region_t::setup_region ()
 	//exit(1);
 
 	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
+}
+
+void region_t::setup_health_units ()
+{
+	this->add_health_unit( &santa_casa_uti );
+	this->add_health_unit( &santa_casa_enfermaria );
+}
+
+void region_t::setup_relations ()
+{
+
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)

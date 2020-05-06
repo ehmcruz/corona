@@ -10,15 +10,20 @@ using namespace boost::accumulators;
 
 //static accumulator_set<double, features<tag::mean, tag::median, tag::variance, tag::count, tag::sum> > acc_quarentine;
 
+static health_unit_t santa_casa_uti(10, ST_CRITICAL);
+static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
+
 static csv_ages_t *csv;
 
 void cfg_t::scenery_setup ()
 {
+	//this->network_type = NETWORK_TYPE_NETWORK;
+
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
 	csv->dump();
 }
 
-void region_t::setup_region ()
+void region_t::setup_population ()
 {
 	uint32_t i, n;
 
@@ -54,6 +59,9 @@ void region_t::setup_region ()
 	//exit(1);
 
 	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
+
+	this->add_health_unit( &santa_casa_uti );
+	this->add_health_unit( &santa_casa_enfermaria );
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)
@@ -69,6 +77,17 @@ void region_t::callback_before_cycle (uint32_t cycle)
 	else if (has_already_locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
 		cfg.global_r0_factor = 1.0;
 	}
+}
+
+void region_t::setup_health_units ()
+{
+	this->add_health_unit( &santa_casa_uti );
+	this->add_health_unit( &santa_casa_enfermaria );
+}
+
+void region_t::setup_relations ()
+{
+
 }
 
 void region_t::callback_after_cycle (uint32_t cycle)

@@ -18,7 +18,7 @@ void cfg_t::scenery_setup ()
 	csv->dump();
 }
 
-void region_t::setup_region ()
+void region_t::setup_population ()
 {
 	uint32_t i, n;
 
@@ -54,9 +54,18 @@ void region_t::setup_region ()
 	//exit(1);
 
 	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
+}
 
+void region_t::setup_health_units ()
+{
 	this->add_health_unit( &santa_casa_uti );
 	this->add_health_unit( &santa_casa_enfermaria );
+}
+
+void region_t::setup_relations ()
+{
+	this->create_families();
+	this->create_random_connections();
 }
 
 void region_t::callback_before_cycle (uint32_t cycle)

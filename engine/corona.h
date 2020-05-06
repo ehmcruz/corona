@@ -121,7 +121,7 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
 	OO_ENCAPSULATE_RO(double, infected_cycle);
-	OO_ENCAPSULATE_RO(neighbor_list_t*, neighbor_list)
+	OO_ENCAPSULATE(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
 	OO_ENCAPSULATE(state_t, state)
 	OO_ENCAPSULATE(infected_state_t, infected_state)
@@ -179,7 +179,10 @@ private:
 public:
 	region_t();
 
-	void setup_region (); // coded in scenery
+	// coded in scenery
+	void setup_population ();
+	void setup_health_units ();
+	void setup_relations ();
 
 	inline void add_health_unit (health_unit_t *hu) {
 		this->health_units.push_back(hu);

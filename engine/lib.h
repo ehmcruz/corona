@@ -113,10 +113,10 @@ public:
 	};
 
 private:
-	OO_ENCAPSULATE_RO(person_t*, person)
+	OO_ENCAPSULATE(person_t*, person)
 
 public:
-	neighbor_list_t (person_t *p);
+	neighbor_list_t ();
 
 	virtual iterator_t begin () = 0;
 };
