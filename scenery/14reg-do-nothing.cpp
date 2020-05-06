@@ -11,8 +11,6 @@ static health_unit_t santa_casa_enfermaria(20000000, ST_SEVERE);
 
 void cfg_t::scenery_setup ()
 {
-	int32_t i;
-
 	this->network_type = NETWORK_TYPE_NETWORK;
 	//this->r0 = 10.0;
 
@@ -40,7 +38,6 @@ void region_t::setup_population ()
 		176,       // 80-89
 		48         // 90+
 	};
-
 
 	std::string name;
 
@@ -87,8 +84,8 @@ void setup_inter_region_relations ()
 				s = *it;
 				t = *jt;
 
-				sn = (uint64_t)((double)s->get_npopulation() * 0.05);
-				tn = (uint64_t)((double)t->get_npopulation() * 0.05);
+				sn = (uint64_t)((double)s->get_npopulation() * 0.01);
+				tn = (uint64_t)((double)t->get_npopulation() * 0.01);
 
 				if (tn < sn)
 					sn = tn;
