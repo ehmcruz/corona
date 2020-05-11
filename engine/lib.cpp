@@ -1,5 +1,19 @@
 #include <corona.h>
 
+void report_progress_t::check_report (uint64_t inc)
+{
+	uint64_t before, after;
+	double done;
+	
+	before = this->i / this->step;
+	this->i += inc;
+	after = this->i / this->step;
+	done = ((double)this->i / (double)this->n) * 100.0;
+
+	if (unlikely(before != after))
+		cprintf("%s " PU64 " of " PU64 " - %.2f%%\n", this->msg, this->i, this->n, done);
+}
+
 neighbor_list_t::neighbor_list_t ()
 {
 	this->person = nullptr;

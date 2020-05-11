@@ -170,7 +170,7 @@ static uint32_t calc_family_size (region_t *region, uint32_t filled)
 	return r;
 }
 
-void region_t::create_families ()
+void region_t::create_families (report_progress_t *report)
 {
 	uint32_t n, family_size, i, j;
 
@@ -184,6 +184,9 @@ void region_t::create_families ()
 				create_edge(this->get_person(i), this->get_person(j), RELATION_FAMILY);
 			}
 		}
+
+		if (report != nullptr)
+			report->check_report(family_size);
 	}
 }
 
@@ -198,7 +201,7 @@ person_t* region_t::pick_random_person_not_neighbor (person_t *p)
 	return neighbor;
 }
 
-void region_t::create_random_connections ()
+void region_t::create_random_connections (report_progress_t *report)
 {
 	person_t *neighbor;
 	int32_t i, n;
@@ -216,6 +219,9 @@ void region_t::create_random_connections ()
 			neighbor = this->pick_random_person_not_neighbor(p);
 			create_edge(p, neighbor, RELATION_UNKNOWN);
 		}
+
+		if (report != nullptr)
+			report->check_report(1);
 	}
 }
 

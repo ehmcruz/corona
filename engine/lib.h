@@ -101,6 +101,36 @@ void matrix_free (T **m)
 	free(m);
 }
 
+class report_progress_t
+{
+private:
+	uint64_t i;
+	uint64_t n;
+	uint64_t step;
+	const char *msg;
+public:
+	inline report_progress_t (const char *msg, uint64_t n, uint64_t step, uint64_t ini = 0) {
+		this->setup(msg, n, step, ini);
+	}
+
+	inline report_progress_t (const char *msg) {
+		this->setup(msg, 0, 0);
+	}
+
+	inline void setup (const char *msg, uint64_t n, uint64_t step, uint64_t ini = 0) {
+		this->msg = msg;
+		this->setup(n, step, ini);
+	}
+
+	inline void setup (uint64_t n, uint64_t step, uint64_t ini = 0) {
+		this->i = ini;
+		this->n = n;
+		this->step = step;
+	}
+
+	void check_report (uint64_t inc);
+};
+
 class person_t;
 class neighbor_list_network_t;
 

@@ -200,8 +200,8 @@ public:
 	person_t* pick_random_person ();
 	person_t* pick_random_person_not_neighbor (person_t *p);
 	
-	void create_families ();
-	void create_random_connections ();
+	void create_families (report_progress_t *report = nullptr);
+	void create_random_connections (report_progress_t *report = nullptr);
 
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);
