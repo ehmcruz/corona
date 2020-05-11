@@ -213,8 +213,17 @@ public:
 		return this->people[i];
 	}
 
-	void callback_before_cycle (double cycle); // coded in scenery
-	void callback_after_cycle (double cycle); // coded in scenery
+	static region_t* get (std::string& name);
+
+	static inline region_t* get (char *name) {
+		std::string n(name);
+		return get(n);
+	}
+
+	static inline region_t* get (const char *name) {
+		std::string n(name);
+		return get(n);
+	}
 };
 
 bool try_to_summon ();
@@ -251,6 +260,8 @@ public:
 
 // coded in scenery
 void setup_inter_region_relations ();
+void callback_before_cycle (double cycle);
+void callback_after_cycle (double cycle);
 void callback_end ();
 
 extern cfg_t cfg;

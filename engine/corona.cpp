@@ -8,6 +8,7 @@
 
 #include <random>
 #include <algorithm>
+#include <chrono>
 
 #include <corona.h>
 
@@ -313,6 +314,16 @@ health_unit_t* region_t::enter_health_unit (person_t *p)
 	return nullptr;
 }
 
+region_t* region_t::get (std::string& name)
+{
+	auto it = std::find_if(regions.begin(), regions.end(), [name] (region_t *r) -> bool { return (r->get_name() == name); } );
+
+	C_ASSERT(it != regions.end())
+	//C_ASSERT((*it)->get_name() == name)
+
+	return *it;
+}
+
 /****************************************************************/
 
 health_unit_t::health_unit_t (uint32_t n_units, infected_state_t type)
@@ -613,10 +624,8 @@ static void simulate ()
 {
 	current_cycle = 0.0;
 
-	for (region_t *region: regions) {
-		region->callback_before_cycle(current_cycle);
-		region->callback_after_cycle(current_cycle);
-	}
+	callback_before_cycle(current_cycle);
+	callback_after_cycle(current_cycle);
 
 	for (current_cycle=1.0; current_cycle<cfg.cycles_to_simulate; current_cycle+=1.0) {
 		cprintf("Cycle %.2f\n", current_cycle);
@@ -629,13 +638,11 @@ static void simulate ()
 
 		cycle_stats->copy_ac(prev_cycle_stats);
 
-		for (region_t *region: regions)
-			region->callback_before_cycle(current_cycle);
+		callback_before_cycle(current_cycle);
 
 		cycle();
 		
-		for (region_t *region: regions)
-			region->callback_after_cycle(current_cycle);
+		callback_after_cycle(current_cycle);
 
 		cycle_stats->dump();
 		cprintf("\n");
@@ -732,6 +739,7 @@ static void load_stats_engine ()
 int main (int argc, char **argv)
 {
 	FILE *fp;
+	std::chrono::steady_clock::time_point tbegin, tbefore_sim, tend;
 
 	if (argc == 1)
 		results_file = (char*)default_results_file;
@@ -741,6 +749,8 @@ int main (int argc, char **argv)
 		cprintf("Usage: %s <results_file>\n", argv[0]);
 		exit(1);
 	}
+
+	tbegin = std::chrono::steady_clock::now();
 
 	start_dice_engine();
 
@@ -752,7 +762,11 @@ int main (int argc, char **argv)
 
 	cfg.dump();
 
+	tbefore_sim = std::chrono::steady_clock::now();
+
 	simulate();
+
+	tend = std::chrono::steady_clock::now();
 
 	fp = fopen(results_file, "w");
 	C_ASSERT(fp != NULL)
@@ -762,6 +776,12 @@ int main (int argc, char **argv)
 		it->dump_csv(fp);
 
 	fclose(fp);
+
+	std::chrono::duration<double> time_load = std::chrono::duration_cast<std::chrono::duration<double>>(tbefore_sim - tbegin);
+	std::chrono::duration<double> time_sim = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbefore_sim);
+
+	cprintf("load time: %.2fs\n", time_load.count());
+	cprintf("simulation time: %.2fs\n", time_sim.count());
 
 	return 0;
 }

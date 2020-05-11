@@ -15,6 +15,8 @@ static csv_ages_t *csv;
 static health_unit_t santa_casa_uti(10, ST_CRITICAL);
 static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
 
+std::string name("Paranavai");
+
 void cfg_t::scenery_setup ()
 {
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
@@ -38,12 +40,7 @@ void region_t::setup_population ()
 		48         // 90+
 	};
 
-
-	std::string name;
-
-	name = "Paranavai";
-
-	this->set_name(name);
+	this->set_name(::name);
 
 	this->set_population_number( csv->get_population(this->get_name()) );
 
@@ -75,12 +72,12 @@ void setup_inter_region_relations ()
 
 }
 
-void region_t::callback_before_cycle (double cycle)
+void callback_before_cycle (double cycle)
 {
 	static int32_t has_already_locked = 0, lock_start_cycle;
 
 	if (cycle == 0.0) {
-		this->pick_random_person()->force_infect();
+		region_t::get(name)->pick_random_person()->force_infect();
 	}
 	else if (has_already_locked == 0 && cycle_stats->ac_state[ST_INFECTED] >= 2) {
 		has_already_locked = 1;
@@ -93,7 +90,7 @@ void region_t::callback_before_cycle (double cycle)
 	}
 }
 
-void region_t::callback_after_cycle (double cycle)
+void callback_after_cycle (double cycle)
 {
 
 }

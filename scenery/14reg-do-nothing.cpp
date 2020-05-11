@@ -99,14 +99,14 @@ void setup_inter_region_relations ()
 //exit(1);
 }
 
-void region_t::callback_before_cycle (double cycle)
+void callback_before_cycle (double cycle)
 {
-	if (cycle == 0.0 && this->get_name() == "Paranavai") {
-		this->pick_random_person()->force_infect();
+	if (cycle == 0.0) {
+		region_t::get("Paranavai")->pick_random_person()->force_infect();
 	}
 }
 
-void region_t::callback_after_cycle (double cycle)
+void callback_after_cycle (double cycle)
 {
 
 }
