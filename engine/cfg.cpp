@@ -32,7 +32,7 @@ void cfg_t::set_defaults ()
 	this->cycles_critical_in_icu = 8.0;
 	this->cycles_before_hospitalization = 5.0;
 	this->global_r0_factor = 1.0;
-	this->probability_summon_per_cycle = 0.0;
+	this->probability_summon_per_cycle = 0.05;
 
 	this->death_rate_severe_in_hospital = 0.15;
 	this->death_rate_critical_in_hospital = 0.36;
