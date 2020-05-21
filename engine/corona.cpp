@@ -19,6 +19,8 @@ static std::list<stats_t> all_cycle_stats;
 std::vector<region_t*> regions;
 double current_cycle;
 
+uint64_t people_per_age[AGES_N];
+
 std::vector<person_t*> population;
 static std::deque<person_t*> to_infect_in_cycle;
 
@@ -205,6 +207,9 @@ region_t::region_t (uint32_t id)
 
 	this->npopulation = 0;
 
+	for (i=0; i<AGES_N; i++)
+		this->region_people_per_age[i] = 0;
+
 	this->setup_population();
 
 	std::shuffle(this->people.begin(), this->people.end(), rgenerator);
@@ -221,6 +226,9 @@ void region_t::add_people (uint64_t n, uint32_t age)
 	uint64_t i;
 	person_t *p;
 
+	if (unlikely(age >= AGES_N))
+		age = AGES_N - 1;
+
 	C_ASSERT( (this->people.size() + n) <= this->npopulation )
 
 	p = new person_t[n];
@@ -229,6 +237,9 @@ void region_t::add_people (uint64_t n, uint32_t age)
 		p[i].set_age(age);
 		this->people.push_back( p+i );
 	}
+
+	people_per_age[age] += n;
+	this->region_people_per_age[age] += n;
 
 	cycle_stats->ac_state[ST_HEALTHY] += n;
 }
@@ -560,7 +571,7 @@ void person_t::pre_infect ()
 	cycle_stats->ac_state[ST_HEALTHY]--;
 	cycle_stats->ac_state[ST_INFECTED]++;
 
-	this->setup_infection_countdown( calculate_incubation_cycles() );
+	this->setup_infection_countdown( cfg.cycles_incubation->generate() );
 }
 
 void person_t::infect ()
@@ -740,6 +751,7 @@ int main (int argc, char **argv)
 {
 	FILE *fp;
 	std::chrono::steady_clock::time_point tbegin, tbefore_sim, tend;
+	int64_t i;
 
 	if (argc == 1)
 		results_file = (char*)default_results_file;
@@ -750,13 +762,14 @@ int main (int argc, char **argv)
 		exit(1);
 	}
 
+	for (i=0; i<AGES_N; i++)
+		people_per_age[i] = 0;
+
 	tbegin = std::chrono::steady_clock::now();
 
 	start_dice_engine();
 
 	load_stats_engine();
-
-	load_gdistribution_incubation(cfg.cycles_incubation_mean, cfg.cycles_incubation_stddev);
 
 	load_regions();
 

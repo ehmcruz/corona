@@ -302,6 +302,43 @@ void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n)
 	}
 }
 
+void network_create_school_relation (std::vector<region_n_pair_t>& regions, uint32_t age_ini, uint32_t age_end, dist_double_t& dist)
+{
+	uint32_t age;
+	uint64_t class_size, i, total, students;
+	std::list<person_t*> student_list;
+
+	struct stc_calc_students_t {
+		double weight;
+		uint64_t value;
+	};
+
+	std::vector<stc_calc_students_t> v;
+
+	v.resize( regions.size() );
+
+	for (age=age_ini; age<=age_end; age++) {
+		total = 0;
+
+		for (i=0; i<regions.size(); i++)
+			total += (uint64_t)((double)regions[i].region->get_region_people_per_age(age) * regions[i].ratio);
+
+		for (i=0; i<regions.size(); i++)
+			v[i].weight = ((double)regions[i].region->get_region_people_per_age(age) * regions[i].ratio) / (double)total;
+
+		for (students=0; students<total; students+=class_size) {
+			class_size = (uint64_t)dist.generate();
+			adjust_values_to_fit_mean<stc_calc_students_t> (v, class_size);
+
+			student_list.clear();
+
+			for (i=0; i<regions.size(); i++) {
+				
+			}
+		}
+	}
+}
+
 void network_after_all_connetions ()
 {
 	calibrate_rate_per_type();

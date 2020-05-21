@@ -4,8 +4,7 @@ CORONA_CFG(double, "%.4f", r0)
 CORONA_CFG(double, "%.4f", cycles_contagious)
 CORONA_CFG(double, "%.4f", cycles_to_simulate)
 
-CORONA_CFG(double, "%.4f", cycles_incubation_mean)
-CORONA_CFG(double, "%.4f", cycles_incubation_stddev)
+CORONA_CFG_OBJ(dist_double_t, cycles_incubation)
 
 CORONA_CFG(double, "%.4f", cycles_severe_in_hospital)
 CORONA_CFG(double, "%.4f", cycles_critical_in_icu)

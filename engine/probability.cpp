@@ -6,45 +6,11 @@ std::mt19937_64 rgenerator;
 
 static std::uniform_real_distribution<double> rdistribution(0.0, 1.0);
 
-static std::gamma_distribution<double> *gdistribution_incubation;
-
 void start_dice_engine ()
 {
 	std::random_device rd;
 
 	rgenerator.seed( rd() );
-}
-
-static double gamma_calculate_alpha (double mean, double stddev)
-{
-	return ( (mean*mean) / (stddev*stddev) );
-}
-
-static double gamma_calculate_betha (double mean, double stddev)
-{
-	return ( (stddev*stddev) / mean );
-}
-
-void load_gdistribution_incubation (double mean, double stddev)
-{
-	double alpha, betha;
-
-	alpha = gamma_calculate_alpha(mean, stddev);
-	betha = gamma_calculate_betha(mean, stddev);
-
-	dprintf("gamma distribution (incubation) mean:%.2f stddev:%.2f alpha:%.2f betha:%.2f\n", mean, stddev, alpha, betha);
-
-	gdistribution_incubation = new std::gamma_distribution<double> (alpha, betha);
-}
-
-double calculate_incubation_cycles ()
-{
-	double c;
-
-	c = (*gdistribution_incubation)(rgenerator);
-	//dprintf("gamma distribution (incubation) cycles: %.2f\n", c);
-	
-	return c;
 }
 
 double generate_random_between_0_and_1 ()
@@ -102,11 +68,12 @@ person_t* pick_random_person (state_t state)
 	return p;
 }
 
+/**************************************************/
+
 normal_double_dist_t::normal_double_dist_t (double mean, double stddev, double min, double max)
-	: dist_double_t(min, max),
+	: dist_double_t(mean, min, max),
 	  distribution(mean, stddev)
 {
-	this->mean = mean;
 	this->stddev = stddev;
 }
 
@@ -118,5 +85,25 @@ double normal_double_dist_t::generate_ ()
 
 void normal_double_dist_t::print_params (FILE *fp)
 {
-	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->mean, this->stddev);
+	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->get_mean(), this->stddev);
+}
+
+/**************************************************/
+
+gamma_double_dist_t::gamma_double_dist_t (double mean, double stddev, double min, double max)
+	: dist_double_t(mean, min, max),
+	  distribution(calc_alpha(mean, stddev), calc_betha(mean, stddev))
+{
+	this->stddev = stddev;
+}
+
+double gamma_double_dist_t::generate_ ()
+{
+//this->print_params(stdout); for (int i=0; i<100; i++) cprintf(" %.2f", this->distribution(rgenerator)); cprintf("\n"); exit(1);
+	return this->distribution(rgenerator);
+}
+
+void gamma_double_dist_t::print_params (FILE *fp)
+{
+	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->get_mean(), this->stddev);
 }

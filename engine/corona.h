@@ -22,6 +22,8 @@ inline int32_t get_age_cat (int32_t age)
 	return (age < 90) ? (age / 10) : 9;
 }
 
+#define AGES_N 100
+
 enum state_t {
 	// Important !!!
 	// whenever this list is modified, modify also state_str()
@@ -182,6 +184,7 @@ class region_t
 private:
 	std::vector<person_t*> people;
 	std::list<health_unit_t*> health_units;
+	uint64_t region_people_per_age[AGES_N];
 
 public:
 	region_t (uint32_t id);
@@ -193,6 +196,10 @@ public:
 
 	inline void add_health_unit (health_unit_t *hu) {
 		this->health_units.push_back(hu);
+	}
+
+	inline uint64_t get_region_people_per_age (uint64_t age) {
+		return this->region_people_per_age[age];
 	}
 
 	health_unit_t* enter_health_unit (person_t *p);
@@ -263,6 +270,11 @@ void setup_inter_region_relations ();
 void callback_before_cycle (double cycle);
 void callback_after_cycle (double cycle);
 void callback_end ();
+
+struct region_n_pair_t {
+	region_t *region;
+	double ratio;
+};
 
 extern cfg_t cfg;
 extern stats_t *cycle_stats;

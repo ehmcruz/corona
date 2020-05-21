@@ -25,8 +25,7 @@ void cfg_t::set_defaults ()
 	this->cycles_contagious = 4.0;
 	this->cycles_to_simulate = 180;
 
-	this->cycles_incubation_mean = 4.58;
-	this->cycles_incubation_stddev = 3.24;
+	this->cycles_incubation = new gamma_double_dist_t(4.58, 3.24, 1.0, 14.0);
 
 	this->cycles_severe_in_hospital = 8.0;
 	this->cycles_critical_in_icu = 8.0;
