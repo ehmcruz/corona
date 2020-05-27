@@ -100,25 +100,24 @@ struct adjust_values_to_fit_mean_t {
 };
 
 template <typename T>
-static void adjust_values_to_fit_mean (std::vector<T>& v, double mean)
+static void adjust_values_to_fit_mean (T& v, double mean)
 {
 	/*
 		(sum weights*values) = mean
 	*/
 
 	double sum, k;
-	uint32_t i;
 	
 	sum = 0.0;
-	for (i=0; i<v.size(); i++)
-		sum += (double)v[i].weight;
+	for (auto& e: v)
+		sum += (double)e.weight;
 
 	k = mean / sum;
 
 //dprintf("sum:%.4f k:%.4f\n", sum, k);
 
-	for (i=0; i<v.size(); i++)
-		v[i].value = ((double)v[i].weight * k);
+	for (auto& e: v)
+		e.value = ((double)e.weight * k);
 }
 
 template <typename Tweight, typename Tvalue>

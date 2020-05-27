@@ -108,7 +108,7 @@ static void print_population_graph ()
 	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) print_vertex_neighbors(*vi);
 }
 
-static bool check_if_people_are_neighbors (pop_vertex_t vertex1, pop_vertex_t vertex2)
+bool network_check_if_people_are_neighbors (pop_vertex_t vertex1, pop_vertex_t vertex2)
 {
 	boost::graph_traits<pop_graph_t>::adjacency_iterator vi, vi_end;
 
@@ -120,21 +120,16 @@ static bool check_if_people_are_neighbors (pop_vertex_t vertex1, pop_vertex_t ve
 	return false;
 }
 
-static inline bool check_if_people_are_neighbors (person_t *p1, person_t *p2)
-{
-	return check_if_people_are_neighbors(p1->vertex, p2->vertex);
-}
-
-static pop_edge_t create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)
+pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)
 {
 	pop_edge_t e;
 	bool r;
 
-	SANITY_ASSERT( check_if_people_are_neighbors(vertex1, vertex2) == false )
-	SANITY_ASSERT( check_if_people_are_neighbors(vertex2, vertex1) == false )
+	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex1, vertex2) == false )
+	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex2, vertex1) == false )
 	boost::tie(e, r) = add_edge(vertex1, vertex2, edge_data, *pop_graph);
-	SANITY_ASSERT( check_if_people_are_neighbors(vertex1, vertex2) == true )
-	SANITY_ASSERT( check_if_people_are_neighbors(vertex2, vertex1) == true )
+	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex1, vertex2) == true )
+	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex2, vertex1) == true )
 
 	C_ASSERT(r == true)
 
@@ -146,13 +141,6 @@ static pop_edge_t create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_e
 #endif
 
 	return e;
-}
-
-static inline pop_edge_t create_edge (person_t *p1, person_t *p2, relation_type_t type)
-{
-	pop_edge_data_t edge_data;
-	edge_data.type = type;
-	return create_edge(p1->vertex, p2->vertex, edge_data);
 }
 
 static uint32_t calc_family_size (region_t *region, uint32_t filled)
@@ -181,7 +169,7 @@ void region_t::create_families (report_progress_t *report)
 
 		for (i=n; i<(n+family_size); i++) {
 			for (j=i+1; j<(n+family_size); j++) {
-				create_edge(this->get_person(i), this->get_person(j), RELATION_FAMILY);
+				network_create_edge(this->get_person(i), this->get_person(j), RELATION_FAMILY);
 			}
 		}
 
@@ -196,7 +184,7 @@ person_t* region_t::pick_random_person_not_neighbor (person_t *p)
 
 	do {
 		neighbor = this->pick_random_person();
-	} while (check_if_people_are_neighbors(p, neighbor) == true);
+	} while (network_check_if_people_are_neighbors(p, neighbor) == true);
 
 	return neighbor;
 }
@@ -217,7 +205,7 @@ void region_t::create_random_connections (report_progress_t *report)
 
 		for (i=0; i<n; i++) {
 			neighbor = this->pick_random_person_not_neighbor(p);
-			create_edge(p, neighbor, RELATION_UNKNOWN);
+			network_create_edge(p, neighbor, RELATION_UNKNOWN);
 		}
 
 		if (report != nullptr)
@@ -295,48 +283,149 @@ void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n)
 		sp = s->pick_random_person();
 		tp = t->pick_random_person();
 
-		if ( check_if_people_are_neighbors(sp, tp) == false ) {
-			create_edge(sp, tp, RELATION_TRAVEL);
+		if (network_check_if_people_are_neighbors(sp, tp) == false) {
+			network_create_edge(sp, tp, RELATION_TRAVEL);
 			i++;
 		}
 	}
 }
 
-void network_create_school_relation (std::vector<region_n_pair_t>& regions, uint32_t age_ini, uint32_t age_end, dist_double_t& dist)
+void network_create_school_relation (std::vector<region_double_pair_t>& regions, uint32_t age_ini, uint32_t age_end, dist_double_t& dist)
 {
-	uint32_t age;
-	uint64_t class_size, i, total, students;
-	std::list<person_t*> student_list;
+	struct region_int_pair_t {
+		region_t *region;
+		int64_t n;
+	};
 
-	struct stc_calc_students_t {
+	struct class_room_t {
+		std::vector<region_int_pair_t> n_per_region;
+		std::vector<region_int_pair_t> has_per_region;
+		std::list<person_t*> students;
+		uint64_t size;
+	};
+
+	struct class_per_age_t {
+		std::list<class_room_t> rooms;
+		std::list<class_room_t>::iterator next_room_it;
+	};
+
+	class_per_age_t class_per_age[AGES_N];
+	uint64_t total_per_age[AGES_N];
+	uint64_t ri, i, students;
+	uint32_t age;
+
+	struct stc_calc_students_t: public region_double_pair_t {
 		double weight;
-		uint64_t value;
+		int64_t value;
 	};
 
 	std::vector<stc_calc_students_t> v;
 
 	v.resize( regions.size() );
 
+	for (i=0; i<regions.size(); i++) {
+		v[i].region = regions[i].region;
+		v[i].ratio = regions[i].ratio;
+	}
+
 	for (age=age_ini; age<=age_end; age++) {
-		total = 0;
+		total_per_age[age] = 0;
 
-		for (i=0; i<regions.size(); i++)
-			total += (uint64_t)((double)regions[i].region->get_region_people_per_age(age) * regions[i].ratio);
+		for (auto& r: v)
+			total_per_age[age] += (uint64_t)((double)r.region->get_region_people_per_age(age) * r.ratio);
 
-		for (i=0; i<regions.size(); i++)
-			v[i].weight = ((double)regions[i].region->get_region_people_per_age(age) * regions[i].ratio) / (double)total;
+		for (auto& r: v)
+			r.weight = ((double)r.region->get_region_people_per_age(age) * r.ratio) / (double)total_per_age[age];
 
-		for (students=0; students<total; students+=class_size) {
-			class_size = (uint64_t)dist.generate();
-			adjust_values_to_fit_mean<stc_calc_students_t> (v, class_size);
+		students = 0;
 
-			student_list.clear();
+		while (students < total_per_age[age]) {
+			class_per_age[age].rooms.emplace_back();
+			class_room_t& room = class_per_age[age].rooms.back();
 
-			for (i=0; i<regions.size(); i++) {
-				
+			room.size = (uint64_t)dist.generate();
+			adjust_values_to_fit_mean(v, room.size);
+
+			for (auto& r: v) {
+				if (r.value == 0) {
+					r.value = 1;
+					room.size++;
+				}
+			}
+
+			room.n_per_region.reserve( regions.size() );
+			room.has_per_region.reserve( regions.size() );
+
+			for (auto& r: v) {
+				room.n_per_region.push_back( {r.region, r.value} );
+				room.has_per_region.push_back( {r.region, 0} );
+			}
+
+			students += room.size;
+		}
+	}
+
+	for (age=age_ini; age<=age_end; age++) {
+		dprintf("total_per_age[%u]: " PU64 "\n", age, total_per_age[age]);
+
+		for (auto& room: class_per_age[age].rooms) {
+			dprintf("class_size: " PU64 " age %u\n", room.size, age);
+
+			for (auto& r: room.n_per_region) {
+				dprintf("\tregion %s students " PU64 "\n", r.region->get_name().c_str(), r.n);
 			}
 		}
 	}
+
+	ri = 0;
+	for (auto& r: regions) {
+		for (age=age_ini; age<=age_end; age++)
+			class_per_age[age].next_room_it = class_per_age[age].rooms.begin();
+
+		for (person_t *p: r.region->get_people()) {
+			age = p->get_age();
+
+			if (age >= age_ini && age <= age_end) {
+				do {
+					if (class_per_age[age].next_room_it == class_per_age[age].rooms.end())
+						break;
+
+					class_room_t& room = *class_per_age[age].next_room_it;
+
+					C_ASSERT(room.has_per_region[ri].region == p->get_region())
+					C_ASSERT(room.has_per_region[ri].region == r.region)
+					C_ASSERT(room.n_per_region[ri].region == p->get_region())
+					C_ASSERT(room.n_per_region[ri].region == r.region)
+
+					C_ASSERT(room.has_per_region[ri].n <= room.n_per_region[ri].n)
+
+					if (room.has_per_region[ri].n == room.n_per_region[ri].n)
+						++class_per_age[age].next_room_it;
+					else
+						break;
+				} while (true);
+
+				if (class_per_age[age].next_room_it != class_per_age[age].rooms.end()) {
+					class_room_t& room = *class_per_age[age].next_room_it;
+
+					C_ASSERT(room.has_per_region[ri].n < room.n_per_region[ri].n)
+
+					room.has_per_region[ri].n++;
+					room.students.push_back(p);
+				}
+			}
+		}
+
+		ri++;
+	}
+
+	for (age=age_ini; age<=age_end; age++) {
+		for (auto& room: class_per_age[age].rooms) {
+			network_create_connection_between_people(room.students, RELATION_SCHOOL);
+		}
+	}
+
+//	print_population_graph();
 }
 
 void network_after_all_connetions ()

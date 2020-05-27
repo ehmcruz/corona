@@ -89,6 +89,7 @@ enum relation_type_t {
 	RELATION_FAMILY,
 	RELATION_BUDDY,
 	RELATION_UNKNOWN,
+	RELATION_SCHOOL,
 	RELATION_TRAVEL,
 	RELATION_OTHERS,
 
@@ -180,9 +181,9 @@ class region_t
 	OO_ENCAPSULATE_RO(uint64_t, npopulation)
 	OO_ENCAPSULATE_RO(uint32_t, id)
 	OO_ENCAPSULATE_REFERENCE(std::string, name)
+	OO_ENCAPSULATE_REFERENCE(std::vector<person_t*>, people)
 
 private:
-	std::vector<person_t*> people;
 	std::list<health_unit_t*> health_units;
 	uint64_t region_people_per_age[AGES_N];
 
@@ -235,18 +236,14 @@ public:
 
 bool try_to_summon ();
 
-// network.cpp
-
-void network_start_population_graph ();
-void network_after_all_connetions ();
-void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n);
-
 #include <probability.h>
 
-enum {
-	NETWORK_TYPE_FULLY_CONNECTED,
-	NETWORK_TYPE_NETWORK
+struct region_double_pair_t {
+	region_t *region;
+	double ratio;
 };
+
+#include <network.h>
 
 class cfg_t {
 public:
@@ -270,11 +267,6 @@ void setup_inter_region_relations ();
 void callback_before_cycle (double cycle);
 void callback_after_cycle (double cycle);
 void callback_end ();
-
-struct region_n_pair_t {
-	region_t *region;
-	double ratio;
-};
 
 extern cfg_t cfg;
 extern stats_t *cycle_stats;

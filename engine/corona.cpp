@@ -84,7 +84,9 @@ char* relation_type_str (int32_t i)
 		"F",
 		"B",
 		"U",
-		"O"
+		"S",
+		"T",
+		"O",
 	};
 
 	C_ASSERT(i < NUMBER_OF_RELATIONS)
