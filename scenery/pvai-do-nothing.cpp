@@ -62,8 +62,11 @@ void region_t::setup_health_units ()
 void region_t::setup_relations ()
 {
 	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
-		this->create_families();
-		this->create_random_connections();
+		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
+		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
+
+		this->create_families(dist_family_size);
+		this->create_random_connections(dist_number_random_connections);
 	}
 }
 

@@ -8,6 +8,7 @@
 #include <list>
 #include <random>
 #include <string>
+#include <bitset>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
@@ -82,6 +83,8 @@ public:
 class region_t;
 class person_t;
 
+#include <probability.h>
+
 enum relation_type_t {
 	// Important !!!
 	// change relation_type_str in case of changes
@@ -100,6 +103,7 @@ char* relation_type_str (int32_t i);
 
 struct pop_vertex_data_t {
 	person_t *p;
+	std::bitset<NUMBER_OF_RELATIONS> flags;
 };
 
 struct pop_edge_data_t {
@@ -208,8 +212,8 @@ public:
 	person_t* pick_random_person ();
 	person_t* pick_random_person_not_neighbor (person_t *p);
 	
-	void create_families (report_progress_t *report = nullptr);
-	void create_random_connections (report_progress_t *report = nullptr);
+	void create_families (dist_double_t& dist, report_progress_t *report = nullptr);
+	void create_random_connections (dist_double_t& dist, report_progress_t *report = nullptr);
 
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);
@@ -235,8 +239,6 @@ public:
 };
 
 bool try_to_summon ();
-
-#include <probability.h>
 
 struct region_double_pair_t {
 	region_t *region;

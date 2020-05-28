@@ -5,6 +5,7 @@ void network_start_population_graph ();
 void network_after_all_connetions ();
 void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n);
 void network_create_school_relation (std::vector<region_double_pair_t>& regions, uint32_t age_ini, uint32_t age_end, dist_double_t& dist);
+void network_print_population_graph ();
 
 pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data);
 

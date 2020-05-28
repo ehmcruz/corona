@@ -16,6 +16,11 @@ static inline pop_vertex_data_t& vdesc (pop_vertex_t vertex)
 	return (*pop_graph)[vertex];
 }
 
+static inline pop_vertex_data_t& vdesc (person_t *p)
+{
+	return vdesc(p->vertex);
+}
+
 static inline pop_edge_data_t& edesc (pop_edge_t edge)
 {
 	return (*pop_graph)[edge];
@@ -35,6 +40,7 @@ void network_start_population_graph ()
 
 	for (boost::tie(vi,vend) = vertices(*pop_graph), i=0; vi != vend; ++vi, i++) {
 		vdesc(*vi).p = population[i];
+		vdesc(*vi).flags.reset();
 		population[i]->vertex = *vi;
 	}
 //exit(1);
@@ -79,12 +85,14 @@ static void print_vertex_neighbors (pop_vertex_t v)
 	pop_edge_t e;
 	bool exist;
 
-	cprintf("%u (%u,%u,%u) -> ",
+	cprintf("%u (city %u) (%u,%u,%u) -> ",
 		vdesc(v).p->get_id(),
+		vdesc(v).p->get_region()->get_id(),
 		get_number_of_neighbors(v),
 		get_number_of_neighbors(v, RELATION_FAMILY),
 		get_number_of_neighbors(v, RELATION_UNKNOWN)
 		);
+
 	for (boost::tie(vi, vi_end) = adjacent_vertices(v, *pop_graph); vi != vi_end; ++vi) {
 
 		boost::tie(e, exist) = boost::edge(v, *vi, *pop_graph);
@@ -97,12 +105,12 @@ static void print_vertex_neighbors (pop_vertex_t v)
 		SANITY_ASSERT((source == v && target == *vi) || (source == *vi && target == v))
 	#endif
 
-		cprintf("%u%s,", vdesc(*vi).p->get_id(), relation_type_str(edesc(e).type));
+		cprintf("%u%s%u,", vdesc(*vi).p->get_id(), relation_type_str(edesc(e).type), vdesc(*vi).p->get_region()->get_id());
 	}
 	cprintf("\n");
 }
 
-static void print_population_graph ()
+void network_print_population_graph ()
 {
 	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
 	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) print_vertex_neighbors(*vi);
@@ -140,14 +148,17 @@ pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_
 	SANITY_ASSERT((source == vertex1 && target == vertex2) || (source == vertex2 && target == vertex1))
 #endif
 
+	vdesc(vertex1).flags.set(edge_data.type);
+	vdesc(vertex2).flags.set(edge_data.type);
+
 	return e;
 }
 
-static uint32_t calc_family_size (region_t *region, uint32_t filled)
+static uint32_t calc_family_size (dist_double_t& dist, region_t *region, uint32_t filled)
 {
 	int32_t r;
 
-	r = (int32_t)(cfg.family_size_dist->generate() + 0.5);
+	r = (int32_t)(dist.generate() + 0.5);
 	
 	if (unlikely(r < 1))
 		r = 1;
@@ -158,12 +169,12 @@ static uint32_t calc_family_size (region_t *region, uint32_t filled)
 	return r;
 }
 
-void region_t::create_families (report_progress_t *report)
+void region_t::create_families (dist_double_t& dist, report_progress_t *report)
 {
 	uint32_t n, family_size, i, j;
 
 	for (n=0; n<this->get_npopulation(); n+=family_size) {
-		family_size = calc_family_size(this, n);
+		family_size = calc_family_size(dist, this, n);
 
 		// create a fully connected sub-graph for a family_size
 
@@ -189,13 +200,13 @@ person_t* region_t::pick_random_person_not_neighbor (person_t *p)
 	return neighbor;
 }
 
-void region_t::create_random_connections (report_progress_t *report)
+void region_t::create_random_connections (dist_double_t& dist, report_progress_t *report)
 {
 	person_t *neighbor;
 	int32_t i, n;
 
 	for (person_t *p: this->people) {
-		n = (int32_t)(cfg.number_random_connections_dist->generate() + 0.5);
+		n = (int32_t)(dist.generate() + 0.5);
 
 		// remove the amount of connections that p already have
 		n -= (int32_t)get_number_of_neighbors(p, RELATION_UNKNOWN);
@@ -385,7 +396,7 @@ void network_create_school_relation (std::vector<region_double_pair_t>& regions,
 		for (person_t *p: r.region->get_people()) {
 			age = p->get_age();
 
-			if (age >= age_ini && age <= age_end) {
+			if (age >= age_ini && age <= age_end && vdesc(p).flags.test(RELATION_SCHOOL) == false) {
 				do {
 					if (class_per_age[age].next_room_it == class_per_age[age].rooms.end())
 						break;

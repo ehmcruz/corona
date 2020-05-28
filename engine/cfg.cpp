@@ -38,9 +38,6 @@ void cfg_t::set_defaults ()
 	this->death_rate_severe_outside_hospital = 0.5;
 	this->death_rate_critical_outside_hospital = 0.99;
 
-	this->family_size_dist = new normal_double_dist_t(3.0, 1.0, 1.0, 10.0);
-	this->number_random_connections_dist = new normal_double_dist_t(20.0, 5.0, 5.0, 100.0);
-
 	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
