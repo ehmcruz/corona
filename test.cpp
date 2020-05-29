@@ -69,10 +69,15 @@ void setup_inter_region_relations ()
 	school.push_back( {region_t::get("TestCity0"), 0.8} );
 	school.push_back( {region_t::get("TestCity1"), 0.8} );
 
-	network_create_school_relation(school, 21, 21, dist_school_class_size);
+	network_create_school_relation(school, 20, 21, dist_school_class_size, 0.5, 0.025);
 
-	network_print_population_graph();
+	network_print_population_graph( {RELATION_SCHOOL} );
 	exit(0);
+}
+
+void setup_extra_relations ()
+{
+
 }
 
 void callback_before_cycle (double cycle)

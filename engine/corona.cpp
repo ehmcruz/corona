@@ -376,10 +376,7 @@ void health_unit_t::leave (person_t *p)
 
 person_t::person_t ()
 {
-	static uint32_t id_ = 0;
-
-	this->id = id_++;
-
+	this->id = 0;
 	this->state = ST_HEALTHY;
 	this->infected_state = ST_NULL;
 	this->infection_countdown = 0.0;
@@ -713,6 +710,10 @@ static void load_regions ()
 		C_ASSERT(0)
 	}
 
+	i = 0;
+	for (person_t *p: population)
+		p->set_id(i++);
+
 	for (region_t *region: regions)
 		region->setup_health_units();
 
@@ -723,7 +724,9 @@ static void load_regions ()
 
 	setup_inter_region_relations();
 
-	network_after_all_connetions();
+	network_after_all_regular_connetions();
+
+	setup_extra_relations();
 
 #if 0
 {

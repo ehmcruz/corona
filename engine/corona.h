@@ -9,6 +9,7 @@
 #include <random>
 #include <string>
 #include <bitset>
+#include <initializer_list>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
@@ -120,7 +121,6 @@ class health_unit_t;
 class person_t
 {
 	OO_ENCAPSULATE_RO(double, probability_asymptomatic)
-	OO_ENCAPSULATE_RO(uint32_t, id)
 	OO_ENCAPSULATE_RO(double, probability_mild)
 	OO_ENCAPSULATE_RO(double, probability_severe)
 	OO_ENCAPSULATE_RO(double, probability_critical)
@@ -129,6 +129,7 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
 	OO_ENCAPSULATE_RO(double, infected_cycle);
+	OO_ENCAPSULATE(uint32_t, id)
 	OO_ENCAPSULATE(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
 	OO_ENCAPSULATE(state_t, state)
@@ -266,6 +267,7 @@ public:
 
 // coded in scenery
 void setup_inter_region_relations ();
+void setup_extra_relations ();
 void callback_before_cycle (double cycle);
 void callback_after_cycle (double cycle);
 void callback_end ();

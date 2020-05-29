@@ -74,6 +74,11 @@ void setup_inter_region_relations ()
 
 }
 
+void setup_extra_relations ()
+{
+
+}
+
 void callback_before_cycle (double cycle)
 {
 	static int32_t has_already_locked = 0, lock_start_cycle;

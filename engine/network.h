@@ -2,10 +2,35 @@
 #define __corona_network_h__
 
 void network_start_population_graph ();
-void network_after_all_connetions ();
+void network_after_all_regular_connetions ();
 void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n);
-void network_create_school_relation (std::vector<region_double_pair_t>& regions, uint32_t age_ini, uint32_t age_end, dist_double_t& dist);
-void network_print_population_graph ();
+
+void network_create_school_relation (std::vector<region_double_pair_t>& regions,
+                                     uint32_t age_ini,
+                                     uint32_t age_end,
+                                     dist_double_t& dist,
+                                     double intra_class_ratio=1.0,
+                                     double inter_class_ratio=0.025);
+
+void network_print_population_graph (std::bitset<NUMBER_OF_RELATIONS>& flags);
+
+static void network_print_population_graph (std::initializer_list<relation_type_t> list)
+{
+	std::bitset<NUMBER_OF_RELATIONS> flags;
+
+	for (relation_type_t type: list)
+		flags.set(type);
+	
+	network_print_population_graph(flags);
+}
+
+inline void network_print_population_graph ()
+{
+	std::bitset<NUMBER_OF_RELATIONS> flags;
+
+	flags.set();
+	network_print_population_graph(flags);
+}
 
 pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data);
 
@@ -31,7 +56,7 @@ enum {
 };
 
 template <typename T>
-static void network_create_connection_between_people (T& people, relation_type_t type)
+static void network_create_connection_between_people (T& people, relation_type_t type, double ratio=1.0)
 {
 	for (auto it=people.begin(); it!=people.end(); ) {
 		person_t *pi = *it;
@@ -39,8 +64,20 @@ static void network_create_connection_between_people (T& people, relation_type_t
 		for (auto jt=++it; jt!=people.end(); ++jt) {
 			person_t *pj = *jt;
 
-			if (network_check_if_people_are_neighbors(pi, pj) == false) {
+			if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio) && network_check_if_people_are_neighbors(pi, pj) == false) {
 				network_create_edge(pi, pj, type);
+			}
+		}
+	}
+}
+
+template <typename Ta, typename Tb>
+static void network_create_connection_between_people (Ta& ga, Tb& gb, relation_type_t type, double ratio=1.0)
+{
+	for (person_t *pa: ga) {
+		for (person_t *pb: gb) {
+			if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio) && network_check_if_people_are_neighbors(pa, pb) == false) {
+				network_create_edge(pa, pb, type);
 			}
 		}
 	}

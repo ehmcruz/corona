@@ -75,6 +75,11 @@ void setup_inter_region_relations ()
 
 }
 
+void setup_extra_relations ()
+{
+
+}
+
 void callback_before_cycle (double cycle)
 {
 	if (cycle == 0.0) {

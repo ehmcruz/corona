@@ -9,9 +9,12 @@ static csv_ages_t *csv;
 static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
 static health_unit_t santa_casa_enfermaria(20000000, ST_SEVERE);
 
+static int32_t stages_green = 0;
+
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
+	this->cycles_to_simulate = 540.0;
 	//this->r0 = 10.0;
 
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
@@ -104,13 +107,46 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
+	std::vector<region_double_pair_t> school;
+	uint32_t i;
 
+	for (region_t *r: regions) {
+		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
+
+		school.clear();
+
+		school.push_back( {r, 0.15} );
+		
+		for (i=0; i<6; i++)
+			network_create_school_relation(school, 4, 18, dist_school_class_size, 0.25, 0.02);
+
+		school.clear();
+
+		school.push_back( {r, 0.2} );
+
+		network_create_school_relation(school, 19, 23, dist_school_class_size, 0.25, 0.02);
+	}
 }
 
 void callback_before_cycle (double cycle)
 {
+	static double backup;
+
 	if (cycle == 0.0) {
 		region_t::get("Paranavai")->pick_random_person()->force_infect();
+
+		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+
+		stages_green++;
+	}
+	else if (cycle == 30.0) {
+		cfg.global_r0_factor = 1.1 / cfg.r0;
+		stages_green++;
+	}
+	else if (cycle == 120.0) {
+//		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = backup;
+		stages_green++;
 	}
 }
 
@@ -121,5 +157,5 @@ void callback_after_cycle (double cycle)
 
 void callback_end ()
 {
-
+	C_ASSERT(stages_green == 3)
 }
