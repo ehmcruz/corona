@@ -33,6 +33,9 @@ void network_start_population_graph ()
 
 	pop_graph = new pop_graph_t( population.size() );
 
+	for (i=0; i<NUMBER_OF_RELATIONS; i++)
+		cfg.relation_type_number[i] = 0;
+
 // code isnt ready yet
 //return;
 
@@ -153,6 +156,8 @@ pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_
 	vdesc(vertex1).flags.set(edge_data.type);
 	vdesc(vertex2).flags.set(edge_data.type);
 
+	cfg.relation_type_number[edge_data.type] += 2;
+
 	return e;
 }
 
@@ -226,14 +231,36 @@ void region_t::create_random_connections (dist_double_t& dist, report_progress_t
 	}
 }
 
+uint64_t get_n_population_per_relation_flag (relation_type_t relation)
+{
+	uint64_t n = 0;
+	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
+
+	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) {
+		n += vdesc(*vi).flags.test(relation);
+	}
+
+	return n;
+}
+
+
 static void calibrate_rate_per_type ()
 {
 	uint32_t i;
 	boost::graph_traits<pop_graph_t>::edge_iterator ei, ei_end;
 
+#ifdef SANITY_CHECK
+{
+	uint64_t test[NUMBER_OF_RELATIONS];
+	boost::graph_traits<pop_graph_t>::adjacency_iterator vin, vin_end;
+	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
+	pop_edge_t e;
+	bool exist;
+
+	// now we verify
+
 	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		cfg.relation_type_number[i] = 0;
-		cfg.relation_type_transmit_rate[i] = 0.0;
+		test[i] = 0;
 	}
 
 	for (boost::tie(ei,ei_end) = edges(*pop_graph); ei != ei_end; ++ei) {
@@ -244,18 +271,14 @@ static void calibrate_rate_per_type ()
 		C_ASSERT( edesc(*ei).foo == 0 )
 		edesc(*ei).foo = 1;
 
-		cfg.relation_type_number[ edesc(*ei).type ] += 2; // we add two to count for both
+		test[ edesc(*ei).type ] += 2; // we add two to count for both
 	}
 
-#ifdef SANITY_CHECK
-{
-	uint64_t test[NUMBER_OF_RELATIONS];
-	boost::graph_traits<pop_graph_t>::adjacency_iterator vin, vin_end;
-	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
-	pop_edge_t e;
-	bool exist;
+	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
+		SANITY_ASSERT(test[i] == cfg.relation_type_number[i])
+	}
 	
-	// now we verify
+	// now we verify again
 	// yeah, I'm super concerned about sanity
 	// and I'm not very familiar with boost graph library
 
@@ -511,6 +534,41 @@ static inline person_t* get_neighbor (person_t *p, pop_edge_t e)
 	return vdesc(get_neighbor(p->vertex, e)).p;
 }
 
+double network_get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
+{
+	boost::graph_traits<pop_graph_t>::adjacency_iterator vin, vin_end;
+	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
+	pop_edge_t e;
+	bool exist;
+	double r0, r0_person;
+	uint64_t n;
+
+	r0 = 0.0;
+	n = 0;
+
+	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) {
+		if ((vdesc(*vi).flags & flags).any()) {
+			r0_person = 0.0;
+			n++;
+
+			for (boost::tie(vin, vin_end) = adjacent_vertices(*vi, *pop_graph); vin != vin_end; ++vin) {
+				boost::tie(e, exist) = boost::edge(*vi, *vin, *pop_graph);
+				C_ASSERT(exist)
+
+				r0_person += cfg.relation_type_transmit_rate[ edesc(e).type ];
+			}
+
+			//r0_person *= cfg.global_r0_factor;
+			r0 += r0_person;
+		}
+	}
+
+	r0 *= cfg.global_r0_factor;
+	r0 *= cfg.cycles_contagious;
+	r0 /= (double)n;
+
+	return r0;
+}
 
 // -----------------------------------------------------------------------
 

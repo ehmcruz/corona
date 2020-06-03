@@ -22,7 +22,7 @@ double current_cycle;
 uint64_t people_per_age[AGES_N];
 
 std::vector<person_t*> population;
-static std::deque<person_t*> to_infect_in_cycle;
+static std::deque< std::pair<person_t*, person_t*> > to_infect_in_cycle;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
@@ -106,7 +106,7 @@ bool try_to_summon ()
 		p = pick_random_person();
 
 		if (p->get_state() == ST_HEALTHY) {
-			to_infect_in_cycle.push_back(p);
+			to_infect_in_cycle.push_back( std::make_pair(nullptr, p) );
 			r = true;
 		}
 	}
@@ -157,11 +157,13 @@ static void cycle ()
 
 	dprintf("must_infect_in_cycle: " PU64 "\n", (uint64_t)to_infect_in_cycle.size());
 
-	for (person_t *p: to_infect_in_cycle) {
+	for (auto& infection: to_infect_in_cycle) {
+		person_t *p = infection.second;
+
 		C_ASSERT(p->get_state() == ST_HEALTHY || (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_INCUBATION && p->get_infected_cycle() == current_cycle))
 
 		if (p->get_state() == ST_HEALTHY)
-			p->pre_infect();
+			p->pre_infect(infection.first);
 	}
 
 	to_infect_in_cycle.clear();
@@ -384,6 +386,7 @@ person_t::person_t ()
 	this->region = NULL;
 	this->age = 0;
 	this->infected_cycle = -1.0;
+	this->n_victims = 0;
 
 	this->setup_infection_probabilities(cfg.probability_mild, cfg.probability_severe, cfg.probability_critical);
 
@@ -431,6 +434,8 @@ void person_t::die ()
 		this->health_unit->leave(this);
 		this->health_unit = nullptr;
 	}
+
+	cycle_stats->r.acc(this->n_victims);
 }
 
 void person_t::recover ()
@@ -449,6 +454,8 @@ void person_t::recover ()
 		this->health_unit->leave(this);
 		this->health_unit = nullptr;
 	}
+
+	cycle_stats->r.acc(this->n_victims);
 }
 
 void person_t::cycle_infected ()
@@ -456,7 +463,7 @@ void person_t::cycle_infected ()
 	if (this->infected_state != ST_INCUBATION) {
 		for (auto it = this->get_neighbor_list()->begin(); *it != nullptr; ++it) {
 			if (it.check_probability())
-				to_infect_in_cycle.push_back(*it);
+				to_infect_in_cycle.push_back( std::make_pair(this, *it) );
 		}
 	}
 
@@ -553,9 +560,12 @@ void person_t::cycle_infected ()
 	}
 }
 
-void person_t::pre_infect ()
+void person_t::pre_infect (person_t *from)
 {
 	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL && this->infected_cycle == -1.0)
+
+	if (likely(from != nullptr))
+		from->n_victims++;
 
 	this->infected_cycle = current_cycle;
 
@@ -626,6 +636,29 @@ void person_t::cycle ()
 		default:
 			C_ASSERT(0);
 	}
+}
+
+/****************************************************************/
+
+double get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
+{
+	double r0;
+
+	switch (cfg.network_type) {
+		case NETWORK_TYPE_FULLY_CONNECTED:
+			r0 = cfg.r0 * cfg.global_r0_factor;
+		break;
+
+		case NETWORK_TYPE_NETWORK:
+			r0 = network_get_affective_r0(flags);
+		break;
+
+		default:
+			r0 = 0.0; // avoid warning
+			C_ASSERT(0)
+	}
+
+	return r0;
 }
 
 /****************************************************************/
@@ -798,6 +831,7 @@ int main (int argc, char **argv)
 	std::chrono::duration<double> time_load = std::chrono::duration_cast<std::chrono::duration<double>>(tbefore_sim - tbegin);
 	std::chrono::duration<double> time_sim = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbefore_sim);
 
+	cprintf("\n");
 	cprintf("load time: %.2fs\n", time_load.count());
 	cprintf("simulation time: %.2fs\n", time_sim.count());
 

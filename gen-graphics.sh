@@ -33,6 +33,6 @@ do
 #	exit
 
 	./log/calc-mean-stddev.r log/results/processed-$test log/results/results-$test
-	
+		
 	./log/plot-with-interval.r log/results/results-$test-mean.csv log/results/results-$test-se.csv log/results/results-$test
 done

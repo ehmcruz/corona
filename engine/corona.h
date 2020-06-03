@@ -10,6 +10,7 @@
 #include <string>
 #include <bitset>
 #include <initializer_list>
+#include <utility>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
@@ -60,15 +61,35 @@ char* infected_state_str (int32_t i);
 
 char* critical_per_age_str (int32_t age_group);
 
+class stats_obj_mean_t
+{
+private:
+	double sum;
+	uint32_t n;
+
+public:
+	stats_obj_mean_t ();
+	void reset ();
+	void print (FILE *fp);
+
+	template <typename T>
+	inline void acc (T v) {
+		this->sum += (double)v;
+		this->n++;
+	}
+};
+
 class stats_t {
 private:
 	uint32_t n;
 
 public:
 	#define CORONA_STAT(TYPE, PRINT, STAT, AC) TYPE STAT;
+	#define CORONA_STAT_OBJ(TYPE, STAT) TYPE STAT;
 	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) TYPE STAT[N];
 	#include <stats.h>
 	#undef CORONA_STAT
+	#undef CORONA_STAT_OBJ
 	#undef CORONA_STAT_VECTOR
 
 	double cycle;
@@ -129,6 +150,7 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
 	OO_ENCAPSULATE_RO(double, infected_cycle);
+	OO_ENCAPSULATE_RO(uint32_t, n_victims);
 	OO_ENCAPSULATE(uint32_t, id)
 	OO_ENCAPSULATE(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
@@ -154,10 +176,10 @@ public:
 	void die ();
 	void recover ();
 	void infect ();
-	void pre_infect ();
+	void pre_infect (person_t *from);
 
 	inline void force_infect () {
-		this->pre_infect();
+		this->pre_infect(nullptr);
 		this->infect();
 	}
 
@@ -241,6 +263,27 @@ public:
 
 bool try_to_summon ();
 
+double get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags);
+
+static double get_affective_r0 ()
+{
+	std::bitset<NUMBER_OF_RELATIONS> flags;
+
+	flags.set();
+
+	return get_affective_r0(flags);
+}
+
+static double get_affective_r0 (std::initializer_list<relation_type_t> list)
+{
+	std::bitset<NUMBER_OF_RELATIONS> flags;
+
+	for (relation_type_t type: list)
+		flags.set(type);
+
+	return get_affective_r0(flags);
+}
+
 struct region_double_pair_t {
 	region_t *region;
 	double ratio;
@@ -278,5 +321,6 @@ extern double current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern std::vector<person_t*> population;
 extern std::vector<region_t*> regions;
+extern uint64_t people_per_age[AGES_N];
 
 #endif

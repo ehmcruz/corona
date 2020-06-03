@@ -38,6 +38,12 @@
 #define NON_AC_STAT   0
 #define AC_STAT       1
 
+#define CREATE_PAIR_STC(NAME, TYPE_A, NAME_A, TYPE_B, NAME_B) \
+	struct NAME { \
+		TYPE_A NAME_A; \
+		TYPE_B NAME_B; \
+	};
+
 #define OO_ENCAPSULATE(TYPE, VAR) \
 	private: \
 	TYPE VAR; \

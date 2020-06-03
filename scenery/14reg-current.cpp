@@ -15,6 +15,7 @@ void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 540.0;
+	this->relation_type_weights[RELATION_SCHOOL] = 3;
 	//this->r0 = 10.0;
 
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
@@ -76,6 +77,40 @@ void region_t::setup_relations ()
 
 		this->create_families(dist_family_size);
 		this->create_random_connections(dist_number_random_connections);
+
+		std::vector<region_double_pair_t> school;
+		uint32_t i, n_schools, age;
+		uint64_t n_students, school_max_students = 2000;
+		double school_ratio;
+
+		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
+
+		school_ratio = 0.9;
+		n_students = 0;
+		for (age=4; age<=18; age++) {
+			n_students += (uint64_t)((double)this->get_region_people_per_age(age) * school_ratio);
+		}
+
+		n_schools = n_students / school_max_students;
+
+		n_schools++;
+
+		school.push_back( {this, school_ratio / (double)n_schools} );
+
+		printf("%s n_schools:%u school_ratio_per_school:%.2f students_per_school:" PU64 "\n",
+		       this->get_name().c_str(),
+		       n_schools,
+		       school_ratio / (double)n_schools,
+		       (uint64_t)((school_ratio / (double)n_schools)*(double)n_students));
+
+		for (i=0; i<n_schools; i++)
+			network_create_school_relation(school, 4, 18, dist_school_class_size, 0.2, 0.001);
+
+		school.clear();
+
+		school.push_back( {this, 0.2} );
+
+		network_create_school_relation(school, 19, 23, dist_school_class_size, 0.2, 0.002);
 	}
 }
 
@@ -107,25 +142,7 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
-	std::vector<region_double_pair_t> school;
-	uint32_t i;
 
-	for (region_t *r: regions) {
-		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
-
-		school.clear();
-
-		school.push_back( {r, 0.15} );
-		
-		for (i=0; i<6; i++)
-			network_create_school_relation(school, 4, 18, dist_school_class_size, 0.25, 0.02);
-
-		school.clear();
-
-		school.push_back( {r, 0.2} );
-
-		network_create_school_relation(school, 19, 23, dist_school_class_size, 0.25, 0.02);
-	}
 }
 
 void callback_before_cycle (double cycle)
@@ -134,18 +151,24 @@ void callback_before_cycle (double cycle)
 
 	if (cycle == 0.0) {
 		region_t::get("Paranavai")->pick_random_person()->force_infect();
-
-		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
-
+printf("r0 cycle 0: %.2f\n", get_affective_r0());
+printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 	else if (cycle == 30.0) {
-		cfg.global_r0_factor = 1.1 / cfg.r0;
+		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+
+		cfg.global_r0_factor = 1.45 / cfg.r0;
+printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 120.0) {
-//		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = backup;
+printf("r0 cycle 120: %.2f\n", get_affective_r0());
+printf("r0 cycle 120-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
+		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = backup;
+printf("r0 cycle 120: %.2f\n", get_affective_r0());
+printf("r0 cycle 120-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 }
@@ -157,5 +180,18 @@ void callback_after_cycle (double cycle)
 
 void callback_end ()
 {
+	uint32_t i;
+	uint64_t n_students;
+
 	C_ASSERT(stages_green == 3)
+
+	n_students = get_n_population_per_relation_flag(RELATION_SCHOOL);
+
+	cprintf("amount of students: " PU64 "\n", n_students);
+
+	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
+		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg.relation_type_number[i]);
+	}
+
+	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }

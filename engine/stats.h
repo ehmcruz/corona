@@ -8,3 +8,5 @@ CORONA_STAT_VECTOR(uint64_t, PU64, critical_per_age, ac_critical_per_age, AGE_CA
 
 CORONA_STAT_VECTOR(uint64_t, PU64, critical_per_age, peak_critical_per_age, AGE_CATS_N, AC_STAT)
 CORONA_STAT_VECTOR(uint64_t, PU64, infected_state, peak, NUMBER_OF_INFECTED_STATES, AC_STAT)
+
+CORONA_STAT_OBJ(stats_obj_mean_t, r)
