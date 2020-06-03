@@ -25,10 +25,10 @@ void stats_obj_mean_t::print (FILE *fp)
 
 /****************************************************/
 
-stats_t::stats_t (double cycle)
+stats_t::stats_t ()
 {
 	this->reset();
-	this->cycle = cycle;
+	this->cycle = current_cycle;
 }
 
 void stats_t::reset ()

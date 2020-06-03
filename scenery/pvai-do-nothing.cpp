@@ -6,8 +6,8 @@
 
 static csv_ages_t *csv;
 
-static health_unit_t santa_casa_uti(10, ST_CRITICAL);
-static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
+static health_unit_t santa_casa_uti(1000, ST_CRITICAL);
+static health_unit_t santa_casa_enfermaria(200000, ST_SEVERE);
 
 static std::string name("Paranavai");
 

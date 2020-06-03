@@ -17,7 +17,7 @@ stats_t *cycle_stats = nullptr;
 static stats_t *prev_cycle_stats = nullptr;
 static std::list<stats_t> all_cycle_stats;
 std::vector<region_t*> regions;
-double current_cycle;
+double current_cycle = 0.0;
 
 uint64_t people_per_age[AGES_N];
 
@@ -434,7 +434,7 @@ void person_t::die ()
 		this->health_unit->leave(this);
 		this->health_unit = nullptr;
 	}
-
+//cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
 	cycle_stats->r.acc(this->n_victims);
 }
 
@@ -454,7 +454,7 @@ void person_t::recover ()
 		this->health_unit->leave(this);
 		this->health_unit = nullptr;
 	}
-
+//cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
 	cycle_stats->r.acc(this->n_victims);
 }
 
@@ -675,7 +675,7 @@ static void simulate ()
 
 		prev_cycle_stats = cycle_stats;
 
-		all_cycle_stats.push_back(stats_t(current_cycle));
+		all_cycle_stats.emplace_back();
 		cycle_stats = &all_cycle_stats.back();
 		C_ASSERT(cycle_stats->cycle == current_cycle)
 
@@ -780,7 +780,7 @@ cprintf("blah %.2f\n", blah / (double)population.size()); exit(1);
 
 static void load_stats_engine ()
 {
-	all_cycle_stats.push_back(stats_t(0.0));
+	all_cycle_stats.emplace_back();
 	cycle_stats = &all_cycle_stats.back();
 	C_ASSERT(cycle_stats->cycle == 0.0)
 }

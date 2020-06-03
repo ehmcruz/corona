@@ -94,7 +94,7 @@ public:
 
 	double cycle;
 
-	stats_t (double cycle);
+	stats_t ();
 	void reset();
 	void dump();
 	void copy_ac (stats_t *from);
