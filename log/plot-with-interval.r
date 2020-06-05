@@ -52,7 +52,12 @@ for (counter in counters) {
 	# h + geom_ribbon(aes(ymin = level - 1, ymax = level + 1), fill = "grey70") + geom_line(aes(y = level))
 
 	#png(file=paste0(output_base, "-", counter, ".png"))
-	pdf(file=paste0(output_base, "-", counter, ".pdf"))
+
+	png(filename = paste0(output_base, "-", counter, ".png"),
+	    width = 1024, height = 480, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
+
+#	pdf(file=paste0(output_base, "-", counter, ".pdf"))
 
 	print(p <- ggplot(data, aes(x =cycle))
 		+

@@ -77,7 +77,7 @@ void region_t::setup_relations ()
 
 		this->create_families(dist_family_size);
 		this->create_random_connections(dist_number_random_connections);
-
+return;
 		std::vector<region_double_pair_t> school;
 		uint32_t i, n_schools, age;
 		uint64_t n_students, school_max_students = 2000;
@@ -159,8 +159,18 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 
-		cfg.global_r0_factor = 1.45 / cfg.r0;
+		//cfg.global_r0_factor = 1.45 / cfg.r0;
+		cfg.global_r0_factor = 0.9 / cfg.r0;
 printf("r0 cycle 30: %.2f\n", get_affective_r0());
+		stages_green++;
+	}
+	else if (cycle == 51.0) {
+		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+
+		//cfg.global_r0_factor = 1.45 / cfg.r0;
+		cfg.global_r0_factor = 1.16 / cfg.r0;
+printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 120.0) {
@@ -183,7 +193,7 @@ void callback_end ()
 	uint32_t i;
 	uint64_t n_students;
 
-	C_ASSERT(stages_green == 3)
+	C_ASSERT(stages_green == 4)
 
 	n_students = get_n_population_per_relation_flag(RELATION_SCHOOL);
 
