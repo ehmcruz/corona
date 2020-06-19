@@ -12,11 +12,11 @@
 #define C_ASSERT(V) C_ASSERT_PRINTF(V, "bye!\n")
 
 #define C_ASSERT_PRINTF(V, ...) \
-	if (unlikely(!(V))) { \
+	{ if (unlikely(!(V))) { \
 		cprintf("sanity error!\nfile %s at line %u assertion failed!\n%s\n", __FILE__, __LINE__, #V); \
 		cprintf(__VA_ARGS__); \
 		exit(1); \
-	}
+	} }
 
 #ifdef SANITY_CHECK
 	#define SANITY_ASSERT(V) C_ASSERT(V)

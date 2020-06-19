@@ -10,29 +10,34 @@ gsize="8"
 #sceneries="pvai-do-nothing pvai-2-waves"
 #sceneries="pvai-2-waves"
 #sceneries="pvai-do-nothing"
-#sceneries="14reg-do-nothing"
+sceneries="14reg-do-nothing"
 #sceneries="parana-do-nothing-simple"
 #sceneries="parana-current"
-sceneries="14reg-current"
+#sceneries="14reg-current"
 #sceneries="palmas-do-nothing palmas-2-waves"
 #sceneries="palmas-do-nothing"
 
+subpop="global Paranavai"
+
 for test in $sceneries
 do
-	rm -rf log/results/processed-$test
-	mkdir log/results/processed-$test
-
-	for f in `ls log/results/results-$test`
+	for s in $subpop
 	do
-		fin="log/results/results-$test/$f"
-		fout="log/results/processed-$test/$f"
-		echo "$fin -> $fout"
-		./log/calculate-stuff.r $fin $fout $gsize
+		rm -rf log/results/processed-$test-$s
+		mkdir log/results/processed-$test-$s
+
+		for f in `ls log/results/results-$test-$s`
+		do
+			fin="log/results/results-$test-$s/$f"
+			fout="log/results/processed-$test-$s/$f"
+			echo "$fin -> $fout"
+			./log/calculate-stuff.r $fin $fout $gsize
+		done
+
+	#	exit
+
+		./log/calc-mean-stddev.r log/results/processed-$test-$s log/results/results-$test-$s
+
+		./log/plot-with-interval.r log/results/results-$test-$s-mean.csv log/results/results-$test-$s-se.csv log/results/results-$test-$s
 	done
-
-#	exit
-
-	./log/calc-mean-stddev.r log/results/processed-$test log/results/results-$test
-		
-	./log/plot-with-interval.r log/results/results-$test-mean.csv log/results/results-$test-se.csv log/results/results-$test
 done

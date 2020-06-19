@@ -46,6 +46,8 @@ void stats_t::reset ()
 
 void stats_t::copy_ac (stats_t *from)
 {
+	this->zone = from->zone;
+
 	#define CORONA_STAT(TYPE, PRINT, STAT, AC) if (AC == AC_STAT) this->STAT = from->STAT;
 	#define CORONA_STAT_OBJ(TYPE, STAT)
 	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) if (AC == AC_STAT) { int32_t i; for (i=0; i<N; i++) this->STAT[i] = from->STAT[i]; }
@@ -100,4 +102,20 @@ void stats_t::dump_csv (FILE *fp)
 	#undef CORONA_STAT_VECTOR
 
 	fprintf(fp, "\n");
+}
+
+stats_zone_t::stats_zone_t ()
+{
+	static uint32_t number_of_stats = 0;
+
+	this->sid = number_of_stats++;
+	this->population_size = 0;
+}
+
+void stats_zone_t::add_person (person_t *p)
+{
+	SANITY_ASSERT(p->get_state() == ST_HEALTHY)
+
+	this->population_size++;
+	p->add_sid(this->sid);
 }

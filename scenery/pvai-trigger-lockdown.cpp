@@ -87,13 +87,13 @@ void callback_before_cycle (double cycle)
 		region_t::get(name)->pick_random_person()->force_infect();
 	}
 	else if (cycle < (18*30)) {
-		if (locked == 0 && cycle_stats->ac_infected_state[ST_CRITICAL] >= 3) {
+		if (locked == 0 && global_cycle_stats().ac_infected_state[ST_CRITICAL] >= 3) {
 			locked = 1;
 			cfg.global_r0_factor = 0.35;
 
 			lock_start_cycle = cycle;
 		}
-		else if (locked == 1 && cycle_stats->ac_infected_state[ST_CRITICAL] == 0) {
+		else if (locked == 1 && global_cycle_stats().ac_infected_state[ST_CRITICAL] == 0) {
 			locked = 0;
 			cfg.global_r0_factor = 1.0;
 

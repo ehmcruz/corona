@@ -57,6 +57,9 @@ void region_t::setup_population ()
 	//exit(1);
 
 	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
+
+	if (this->get_name() == "Paranavai")
+		this->track_stats();
 }
 
 void region_t::setup_health_units ()

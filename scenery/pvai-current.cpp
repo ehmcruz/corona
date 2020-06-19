@@ -84,7 +84,7 @@ void callback_before_cycle (double cycle)
 	if (cycle == 0.0) {
 		region_t::get(name)->pick_random_person()->force_infect();
 	}
-	else if (has_already_locked == 0 && cycle_stats->ac_state[ST_INFECTED] >= 2) {
+	else if (has_already_locked == 0 && global_cycle_stats().ac_state[ST_INFECTED] >= 2) {
 		has_already_locked = 1;
 		cfg.global_r0_factor = 0.35;
 

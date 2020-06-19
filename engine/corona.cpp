@@ -13,9 +13,14 @@
 #include <corona.h>
 
 cfg_t cfg;
-stats_t *cycle_stats = nullptr;
-static stats_t *prev_cycle_stats = nullptr;
-static std::list<stats_t> all_cycle_stats;
+
+std::vector<stats_t> *cycle_stats_ptr = nullptr;
+static std::vector<stats_t> *prev_cycle_stats_ptr = nullptr;
+static std::list< std::vector<stats_t> > all_cycles_stats;
+static std::vector<stats_zone_t> stats_zone_list;
+
+#define prev_cycle_stats (*prev_cycle_stats_ptr)
+
 std::vector<region_t*> regions;
 double current_cycle = 0.0;
 
@@ -26,7 +31,7 @@ static std::deque< std::pair<person_t*, person_t*> > to_infect_in_cycle;
 
 double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 
-static const char default_results_file[] = "results-cycles.csv";
+static const char default_results_file[] = "results-cycles";
 static char *results_file;
 
 char* state_str (int32_t i)
@@ -119,29 +124,48 @@ static void cycle ()
 	uint64_t i;
 
 #ifdef SANITY_CHECK
-	uint64_t sanity_check = 0, sanity_check2 = 0, sanity_critical = 0;
+	uint64_t sanity_check_infected, sanity_critical;
 #endif
 
 #ifdef SANITY_CHECK
-	sanity_check = 0;
-	for (i=0; i<NUMBER_OF_STATES; i++)
-		sanity_check += cycle_stats->ac_state[i];
-	SANITY_ASSERT(population.size() == sanity_check)
-	sanity_check = 0;
+{
+	uint64_t sanity_check;
+
+	for (stats_t& stats: cycle_stats) {
+		sanity_check = 0;
+
+		for (i=0; i<NUMBER_OF_STATES; i++)
+			sanity_check += stats.ac_state[i];
+		
+		SANITY_ASSERT(stats.zone->get_population_size() == sanity_check)
+	}
+}
 #endif
 
 #ifdef SANITY_CHECK
-	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
-		sanity_check2 += cycle_stats->ac_infected_state[i];
+{
+	uint64_t sanity_check;
 
-	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
+	for (stats_t& stats: cycle_stats) {
+		sanity_check = 0;
 
-	sanity_check2 = 0;
+		for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
+			sanity_check += stats.ac_infected_state[i];
+
+		SANITY_ASSERT(stats.ac_state[ST_INFECTED] == sanity_check)
+	}
+}
+#endif
+
+
+#ifdef SANITY_CHECK
+	sanity_check_infected = 0;
+	sanity_critical = 0;
 #endif
 
 	for (person_t *p: population) {
 	#ifdef SANITY_CHECK
-		sanity_check += (p->get_state() == ST_INFECTED);
+		sanity_check_infected += (p->get_state() == ST_INFECTED);
 	#endif
 
 		p->cycle();
@@ -151,7 +175,7 @@ static void cycle ()
 	#endif
 	}
 
-	SANITY_ASSERT(sanity_check == prev_cycle_stats->ac_state[ST_INFECTED])
+	SANITY_ASSERT(sanity_check_infected == prev_cycle_stats[GLOBAL_STATS].ac_state[ST_INFECTED])
 
 	try_to_summon();
 
@@ -168,36 +192,52 @@ static void cycle ()
 
 	to_infect_in_cycle.clear();
 
-	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
-		if (cycle_stats->ac_infected_state[i] > cycle_stats->peak[i])
-			cycle_stats->peak[i] = cycle_stats->ac_infected_state[i];
-		
-		#ifdef SANITY_CHECK
-			sanity_check2 += cycle_stats->ac_infected_state[i];
-		#endif
+	for (stats_t& stats: cycle_stats) {
+	#ifdef SANITY_CHECK
+		sanity_check_infected = 0;
+	#endif
+
+		for (i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
+			if (stats.ac_infected_state[i] > stats.peak[i])
+				stats.peak[i] = stats.ac_infected_state[i];
+			
+			#ifdef SANITY_CHECK
+				sanity_check_infected += stats.ac_infected_state[i];
+			#endif
+		}
+
+		SANITY_ASSERT(stats.ac_state[ST_INFECTED] == sanity_check_infected)
 	}
 
-	SANITY_ASSERT(cycle_stats->ac_state[ST_INFECTED] == sanity_check2)
-
 #ifdef SANITY_CHECK
-	sanity_check = 0;
-	for (i=0; i<NUMBER_OF_STATES; i++)
-		sanity_check += cycle_stats->ac_state[i];
-	SANITY_ASSERT(population.size() == sanity_check)
+{
+	uint64_t sanity_check;
+
+	for (stats_t& stats: cycle_stats) {
+		sanity_check = 0;
+
+		for (i=0; i<NUMBER_OF_STATES; i++)
+			sanity_check += stats.ac_state[i];
+		
+		SANITY_ASSERT(stats.zone->get_population_size() == sanity_check)
+	}
+}
 #endif
 
 #ifdef SANITY_CHECK
 {
 	uint64_t sanity_check = 0;
+	
 	for (i=0; i<AGE_CATS_N; i++)
-		sanity_check += cycle_stats->ac_critical_per_age[i];
+		sanity_check += cycle_stats[GLOBAL_STATS].ac_critical_per_age[i];
+	
 	SANITY_ASSERT( sanity_critical == sanity_check )
 }
 #endif
 	
 	for (i=0; i<AGE_CATS_N; i++) {
-		if (cycle_stats->ac_critical_per_age[i] > cycle_stats->peak_critical_per_age[i])
-			cycle_stats->peak_critical_per_age[i] = cycle_stats->ac_critical_per_age[i];
+		if (cycle_stats[GLOBAL_STATS].ac_critical_per_age[i] > cycle_stats[GLOBAL_STATS].peak_critical_per_age[i])
+			cycle_stats[GLOBAL_STATS].peak_critical_per_age[i] = cycle_stats[GLOBAL_STATS].ac_critical_per_age[i];
 	}
 }
 
@@ -244,8 +284,6 @@ void region_t::add_people (uint64_t n, uint32_t age)
 
 	people_per_age[age] += n;
 	this->region_people_per_age[age] += n;
-
-	cycle_stats->ac_state[ST_HEALTHY] += n;
 }
 
 void region_t::set_population_number (uint64_t npopulation)
@@ -339,6 +377,18 @@ region_t* region_t::get (std::string& name)
 	return *it;
 }
 
+void region_t::track_stats ()
+{
+	stats_zone_list.emplace_back();
+	stats_zone_t& zone = stats_zone_list.back();
+
+	zone.get_name() = this->get_name();
+
+	for (person_t *p: this->people) {
+		zone.add_person(p);
+	}
+}
+
 /****************************************************************/
 
 health_unit_t::health_unit_t (uint32_t n_units, infected_state_t type)
@@ -388,6 +438,9 @@ person_t::person_t ()
 	this->infected_cycle = -1.0;
 	this->n_victims = 0;
 
+	for (int32_t& sid: this->sids)
+		sid = -1;
+
 	this->setup_infection_probabilities(cfg.probability_mild, cfg.probability_severe, cfg.probability_critical);
 
 	this->health_unit = nullptr;
@@ -397,6 +450,19 @@ person_t::person_t ()
 person_t::~person_t ()
 {
 	this->neighbor_list = nullptr;
+}
+
+void person_t::add_sid (int32_t sid)
+{
+	uint32_t i = 0;
+
+	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+		C_ASSERT(*it != sid)
+		i++;
+	}
+
+	C_ASSERT(i < this->sids.size())
+	this->sids[i] = sid;
 }
 
 void person_t::setup_infection_probabilities (double pmild, double psevere, double pcritical)
@@ -419,43 +485,55 @@ void person_t::die ()
 {
 	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_SEVERE || this->infected_state == ST_CRITICAL))
 
-	if (this->infected_state == ST_CRITICAL)
-		cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]--;
+	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+		stats_t& stats = cycle_stats[*it];
+
+		if (this->infected_state == ST_CRITICAL)
+			stats.ac_critical_per_age[ get_age_cat(this->age) ]--;
+
+		stats.state[ST_DEAD]++;
+	
+		stats.ac_state[ST_INFECTED]--;
+		stats.ac_state[ST_DEAD]++;
+	
+		stats.ac_infected_state[ this->infected_state ]--;
+	
+		stats.r.acc(this->n_victims);
+	}
 
 	this->state = ST_DEAD;
-	cycle_stats->state[ST_DEAD]++;
-
-	cycle_stats->ac_state[ST_INFECTED]--;
-	cycle_stats->ac_state[ST_DEAD]++;
-
-	cycle_stats->ac_infected_state[ this->infected_state ]--;
 
 	if (this->health_unit != nullptr) {
 		this->health_unit->leave(this);
 		this->health_unit = nullptr;
 	}
 //cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
-	cycle_stats->r.acc(this->n_victims);
 }
 
 void person_t::recover ()
 {
 	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_ASYMPTOMATIC || this->infected_state == ST_MILD || this->infected_state == ST_SEVERE))
 
-	this->state = ST_IMMUNE;
-	cycle_stats->state[ST_IMMUNE]++;
+	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+		stats_t& stats = cycle_stats[*it];
 
-	cycle_stats->ac_state[ST_INFECTED]--;
-	cycle_stats->ac_state[ST_IMMUNE]++;
-	
-	cycle_stats->ac_infected_state[ this->infected_state ]--;
+		stats.state[ST_IMMUNE]++;
+
+		stats.ac_state[ST_INFECTED]--;
+		stats.ac_state[ST_IMMUNE]++;
+		
+		stats.ac_infected_state[ this->infected_state ]--;
+
+		stats.r.acc(this->n_victims);
+	}
+
+	this->state = ST_IMMUNE;
 
 	if (this->health_unit != nullptr) {
 		this->health_unit->leave(this);
 		this->health_unit = nullptr;
 	}
 //cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
-	cycle_stats->r.acc(this->n_victims);
 }
 
 void person_t::cycle_infected ()
@@ -494,8 +572,12 @@ void person_t::cycle_infected ()
 					break;
 
 					case ST_SEVERE:
-						cycle_stats->ac_infected_state[ST_MILD]--;
-						cycle_stats->ac_infected_state[ST_SEVERE]++;
+						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+							stats_t& stats = cycle_stats[*it];
+
+							stats.ac_infected_state[ST_MILD]--;
+							stats.ac_infected_state[ST_SEVERE]++;
+						}
 
 						this->infected_state = ST_SEVERE;
 
@@ -505,10 +587,14 @@ void person_t::cycle_infected ()
 					break;
 
 					case ST_CRITICAL:
-						cycle_stats->ac_infected_state[ST_MILD]--;
-						cycle_stats->ac_infected_state[ST_CRITICAL]++;
+						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+							stats_t& stats = cycle_stats[*it];
 
-						cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]++;
+							stats.ac_infected_state[ST_MILD]--;
+							stats.ac_infected_state[ST_CRITICAL]++;
+
+							stats.ac_critical_per_age[ get_age_cat(this->age) ]++;
+						}
 
 						this->infected_state = ST_CRITICAL;
 
@@ -545,11 +631,15 @@ void person_t::cycle_infected ()
 				this->infected_state = ST_SEVERE;
 
 				this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
-				
-				cycle_stats->ac_infected_state[ ST_CRITICAL ]--;
-				cycle_stats->ac_infected_state[ ST_SEVERE ]++;
-//dprintf("blah %i e %i\n", this->age, get_age_cat(this->age));
-				cycle_stats->ac_critical_per_age[ get_age_cat(this->age) ]--;
+
+				for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+					stats_t& stats = cycle_stats[*it];
+
+					stats.ac_infected_state[ ST_CRITICAL ]--;
+					stats.ac_infected_state[ ST_SEVERE ]++;
+
+					stats.ac_critical_per_age[ get_age_cat(this->age) ]--;
+				}
 			}
 			else if (this->health_unit == nullptr) // yeah, I know I reapeat this condition, but it is easier this way
 				this->health_unit = this->region->enter_health_unit(this);
@@ -568,17 +658,20 @@ void person_t::pre_infect (person_t *from)
 		from->n_victims++;
 
 	this->infected_cycle = current_cycle;
-
 	this->state = ST_INFECTED;
-	cycle_stats->state[ST_INFECTED]++;
-
 	this->infected_state = ST_INCUBATION;
 
-	cycle_stats->infected_state[ ST_INCUBATION ]++;
-	cycle_stats->ac_infected_state[ ST_INCUBATION ]++;
+	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+		stats_t& stats = cycle_stats[*it];
 
-	cycle_stats->ac_state[ST_HEALTHY]--;
-	cycle_stats->ac_state[ST_INFECTED]++;
+		stats.state[ST_INFECTED]++;
+
+		stats.infected_state[ ST_INCUBATION ]++;
+		stats.ac_infected_state[ ST_INCUBATION ]++;
+
+		stats.ac_state[ST_HEALTHY]--;
+		stats.ac_state[ST_INFECTED]++;
+	}
 
 	this->setup_infection_countdown( cfg.cycles_incubation->generate() );
 }
@@ -611,10 +704,14 @@ void person_t::infect ()
 		this->setup_infection_countdown(cfg.cycles_before_hospitalization);
 	}
 
-	cycle_stats->infected_state[ this->infected_state ]++;
+	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+		stats_t& stats = cycle_stats[*it];
 
-	cycle_stats->ac_infected_state[ ST_INCUBATION ]--;
-	cycle_stats->ac_infected_state[ this->infected_state ]++;
+		stats.infected_state[ this->infected_state ]++;
+
+		stats.ac_infected_state[ ST_INCUBATION ]--;
+		stats.ac_infected_state[ this->infected_state ]++;
+	}
 }
 
 void person_t::cycle ()
@@ -665,6 +762,8 @@ double get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
 
 static void simulate ()
 {
+	uint32_t i;
+
 	current_cycle = 0.0;
 
 	callback_before_cycle(current_cycle);
@@ -673,13 +772,21 @@ static void simulate ()
 	for (current_cycle=1.0; current_cycle<cfg.cycles_to_simulate; current_cycle+=1.0) {
 		cprintf("Cycle %.2f\n", current_cycle);
 
-		prev_cycle_stats = cycle_stats;
+		prev_cycle_stats_ptr = cycle_stats_ptr;
 
-		all_cycle_stats.emplace_back();
-		cycle_stats = &all_cycle_stats.back();
-		C_ASSERT(cycle_stats->cycle == current_cycle)
+		all_cycles_stats.emplace_back();
+		cycle_stats_ptr = &all_cycles_stats.back();
 
-		cycle_stats->copy_ac(prev_cycle_stats);
+		i = 0;
+		for (stats_zone_t& zone: stats_zone_list) {
+			cycle_stats.emplace_back();
+			stats_t& stats = cycle_stats.back();
+		
+			C_ASSERT(stats.cycle == current_cycle)
+
+			cycle_stats[i].copy_ac(&prev_cycle_stats[i]);
+			i++;
+		}
 
 		callback_before_cycle(current_cycle);
 
@@ -687,7 +794,7 @@ static void simulate ()
 		
 		callback_after_cycle(current_cycle);
 
-		cycle_stats->dump();
+		cycle_stats[GLOBAL_STATS].dump();
 		cprintf("\n");
 	}
 
@@ -720,6 +827,13 @@ static void load_regions ()
 	}
 
 	C_ASSERT(population.size() == total)
+
+	stats_zone_t& zone = stats_zone_list.front();
+	C_ASSERT( zone.get_sid() == GLOBAL_STATS )
+
+	for (person_t *p: population) {
+		zone.add_person(p);
+	}
 
 	if (cfg.network_type == NETWORK_TYPE_FULLY_CONNECTED) {
 		neighbor_list_fully_connected_t *v;
@@ -778,11 +892,29 @@ cprintf("blah %.2f\n", blah / (double)population.size()); exit(1);
 //exit(0);
 }
 
-static void load_stats_engine ()
+static void load_stats_engine_stage_1 ()
 {
-	all_cycle_stats.emplace_back();
-	cycle_stats = &all_cycle_stats.back();
-	C_ASSERT(cycle_stats->cycle == 0.0)
+	stats_zone_list.emplace_back();
+	stats_zone_t& zone = stats_zone_list.front();
+	zone.get_name() = "global";
+
+	C_ASSERT( zone.get_sid() == GLOBAL_STATS )
+}
+
+static void load_stats_engine_stage_2 ()
+{
+	all_cycles_stats.emplace_back();
+	cycle_stats_ptr = &all_cycles_stats.back();
+
+	for (stats_zone_t& zone: stats_zone_list) {
+		cycle_stats.emplace_back();
+		stats_t& stats = cycle_stats.back();
+
+		stats.zone = &zone;
+		stats.ac_state[ST_HEALTHY] = zone.get_population_size();
+
+		C_ASSERT(stats.cycle == 0.0)
+	}
 }
 
 int main (int argc, char **argv)
@@ -807,9 +939,11 @@ int main (int argc, char **argv)
 
 	start_dice_engine();
 
-	load_stats_engine();
+	load_stats_engine_stage_1();
 
 	load_regions();
+
+	load_stats_engine_stage_2();
 
 	cfg.dump();
 
@@ -819,14 +953,25 @@ int main (int argc, char **argv)
 
 	tend = std::chrono::steady_clock::now();
 
-	fp = fopen(results_file, "w");
-	C_ASSERT(fp != NULL)
+	i = 0;
+	for (stats_zone_t& zone: stats_zone_list) {
+		std::string fname(results_file);
+		fname += '-';
+		fname += zone.get_name();
+		fname += ".csv";
 
-	all_cycle_stats.front().dump_csv_header(fp);
-	for (auto it=all_cycle_stats.begin(); it!=all_cycle_stats.end(); ++it)
-		it->dump_csv(fp);
+		fp = fopen(fname.c_str(), "w");
+		C_ASSERT(fp != NULL)
 
-	fclose(fp);
+		all_cycles_stats.front()[i].dump_csv_header(fp);
+		for (auto& vector: all_cycles_stats) {
+			stats_t& stats = vector[i];
+			stats.dump_csv(fp);
+		}
+
+		fclose(fp);
+		i++;
+	}
 
 	std::chrono::duration<double> time_load = std::chrono::duration_cast<std::chrono::duration<double>>(tbefore_sim - tbegin);
 	std::chrono::duration<double> time_sim = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbefore_sim);

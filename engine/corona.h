@@ -11,6 +11,7 @@
 #include <bitset>
 #include <initializer_list>
 #include <utility>
+#include <array>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
@@ -79,11 +80,27 @@ public:
 	}
 };
 
+#define GLOBAL_STATS 0
+
+class stats_zone_t
+{
+	OO_ENCAPSULATE_RO(uint32_t, sid)
+	OO_ENCAPSULATE_RO(uint64_t, population_size)
+	OO_ENCAPSULATE_REFERENCE_RO(std::string, name)
+
+public:
+	stats_zone_t ();
+
+	void add_person (person_t *p);
+};
+
 class stats_t {
 private:
 	uint32_t n;
 
 public:
+	stats_zone_t *zone;
+
 	#define CORONA_STAT(TYPE, PRINT, STAT, AC) TYPE STAT;
 	#define CORONA_STAT_OBJ(TYPE, STAT) TYPE STAT;
 	#define CORONA_STAT_VECTOR(TYPE, PRINT, LIST, STAT, N, AC) TYPE STAT[N];
@@ -101,6 +118,8 @@ public:
 	void dump_csv_header (FILE *fp);
 	void dump_csv (FILE *fp);
 };
+
+extern uint32_t number_of_stats;
 
 class region_t;
 class person_t;
@@ -139,6 +158,8 @@ typedef boost::graph_traits<pop_graph_t>::edge_descriptor pop_edge_t;
 
 class health_unit_t;
 
+#define MAX_SIDS_PER_PERSON 8
+
 class person_t
 {
 	OO_ENCAPSULATE_RO(double, probability_asymptomatic)
@@ -163,6 +184,7 @@ private:
 	infected_state_t next_infected_state;
 	double infection_cycles;
 	double infection_countdown;
+	std::array<int32_t, MAX_SIDS_PER_PERSON> sids;
 
 public:
 	pop_vertex_t vertex;
@@ -189,6 +211,8 @@ public:
 		this->infection_cycles = cycles;
 		this->infection_countdown = cycles;
 	}
+
+	void add_sid (int32_t sid);
 };
 
 class health_unit_t
@@ -259,6 +283,8 @@ public:
 		std::string n(name);
 		return get(n);
 	}
+
+	void track_stats ();
 };
 
 bool try_to_summon ();
@@ -316,11 +342,18 @@ void callback_after_cycle (double cycle);
 void callback_end ();
 
 extern cfg_t cfg;
-extern stats_t *cycle_stats;
+extern std::vector<stats_t> *cycle_stats_ptr;
 extern double current_cycle;
 extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern std::vector<person_t*> population;
 extern std::vector<region_t*> regions;
 extern uint64_t people_per_age[AGES_N];
+
+#define cycle_stats (*cycle_stats_ptr)
+
+inline stats_t& global_cycle_stats ()
+{
+	return cycle_stats[GLOBAL_STATS];
+}
 
 #endif
