@@ -17,6 +17,8 @@ uint64_t get_n_population_per_relation_flag (relation_type_t relation);
 
 void network_print_population_graph (std::bitset<NUMBER_OF_RELATIONS>& flags);
 
+pop_vertex_data_t& network_vertex_data (person_t *p);
+
 static void network_print_population_graph (std::initializer_list<relation_type_t> list)
 {
 	std::bitset<NUMBER_OF_RELATIONS> flags;

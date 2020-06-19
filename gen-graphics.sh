@@ -10,14 +10,14 @@ gsize="8"
 #sceneries="pvai-do-nothing pvai-2-waves"
 #sceneries="pvai-2-waves"
 #sceneries="pvai-do-nothing"
-sceneries="14reg-do-nothing"
+#sceneries="14reg-do-nothing"
 #sceneries="parana-do-nothing-simple"
 #sceneries="parana-current"
-#sceneries="14reg-current"
+sceneries="14reg-current"
 #sceneries="palmas-do-nothing palmas-2-waves"
 #sceneries="palmas-do-nothing"
 
-subpop="global Paranavai"
+subpop="global Paranavai school"
 
 for test in $sceneries
 do

@@ -61,6 +61,9 @@ void region_t::setup_population ()
 	//exit(1);
 
 	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
+
+	if (this->get_name() == "Paranavai")
+		this->track_stats();
 }
 
 void region_t::setup_health_units ()
@@ -77,7 +80,7 @@ void region_t::setup_relations ()
 
 		this->create_families(dist_family_size);
 		this->create_random_connections(dist_number_random_connections);
-return;
+//return;
 		std::vector<region_double_pair_t> school;
 		uint32_t i, n_schools, age;
 		uint64_t n_students, school_max_students = 2000;
@@ -142,7 +145,15 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
+	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+		stats_zone_t *zone = create_new_stats_zone();
+		zone->get_name() = "school";
 
+		for (person_t *p: population) {
+			if (network_vertex_data(p).flags.test(RELATION_SCHOOL))
+				zone->add_person(p);
+		}
+	}
 }
 
 void callback_before_cycle (double cycle)
@@ -159,17 +170,15 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 
-		//cfg.global_r0_factor = 1.45 / cfg.r0;
-		cfg.global_r0_factor = 0.9 / cfg.r0;
+		cfg.global_r0_factor = 1.1 / cfg.r0;
+		//cfg.global_r0_factor = 0.9 / cfg.r0;
 printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 51.0) {
-		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
-
-		//cfg.global_r0_factor = 1.45 / cfg.r0;
-		cfg.global_r0_factor = 1.16 / cfg.r0;
+		cfg.global_r0_factor = 1.45 / cfg.r0;
+		//cfg.global_r0_factor = 1.16 / cfg.r0;
+		//cfg.global_r0_factor = 1.16 / cfg.r0;
 printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}

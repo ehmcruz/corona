@@ -94,6 +94,8 @@ public:
 	void add_person (person_t *p);
 };
 
+stats_zone_t* create_new_stats_zone ();
+
 class stats_t {
 private:
 	uint32_t n;

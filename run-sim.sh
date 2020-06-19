@@ -6,14 +6,14 @@
 # fi
 
 #sceneries="pvai-2-waves"
-sceneries="14reg-do-nothing"
-#sceneries="14reg-current"
+#sceneries="14reg-do-nothing"
+sceneries="14reg-current"
 #sceneries="pvai-do-nothing pvai-2-waves"
 #sceneries="pvai-do-nothing"
 #sceneries="palmas-do-nothing"
-nruns="5"
+nruns="10"
 
-subpop="global Paranavai"
+subpop="global Paranavai school"
 
 for test in $sceneries
 do

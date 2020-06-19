@@ -21,6 +21,11 @@ static inline pop_vertex_data_t& vdesc (person_t *p)
 	return vdesc(p->vertex);
 }
 
+pop_vertex_data_t& network_vertex_data (person_t *p)
+{
+	return vdesc(p);
+}
+
 static inline pop_edge_data_t& edesc (pop_edge_t edge)
 {
 	return (*pop_graph)[edge];

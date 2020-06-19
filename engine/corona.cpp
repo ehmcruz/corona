@@ -737,6 +737,15 @@ void person_t::cycle ()
 
 /****************************************************************/
 
+stats_zone_t* create_new_stats_zone ()
+{
+	stats_zone_list.emplace_back();
+	stats_zone_t *zone = &stats_zone_list.back();
+	return zone;
+}
+
+/****************************************************************/
+
 double get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
 {
 	double r0;
@@ -894,11 +903,11 @@ cprintf("blah %.2f\n", blah / (double)population.size()); exit(1);
 
 static void load_stats_engine_stage_1 ()
 {
-	stats_zone_list.emplace_back();
-	stats_zone_t& zone = stats_zone_list.front();
-	zone.get_name() = "global";
+	stats_zone_t *zone = create_new_stats_zone();
 
-	C_ASSERT( zone.get_sid() == GLOBAL_STATS )
+	zone->get_name() = "global";
+
+	C_ASSERT( zone->get_sid() == GLOBAL_STATS )
 }
 
 static void load_stats_engine_stage_2 ()
