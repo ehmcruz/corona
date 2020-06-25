@@ -15,7 +15,7 @@ void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 540.0;
-	this->relation_type_weights[RELATION_SCHOOL] = 3;
+	this->relation_type_weights[RELATION_SCHOOL] = 2;
 	//this->r0 = 10.0;
 
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
@@ -158,9 +158,61 @@ void setup_extra_relations ()
 	}
 }
 
+static double backup_school_r0;
+
+static void adjust_r_no_school (double target_r0)
+{
+	double family_r0, unknown_r0, factor;
+
+	backup_school_r0 = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+
+	//target_r0 /= cfg.cycles_contagious;
+	//target_r0 *= (double)population.size();
+
+	/*
+	f*others + family = target
+	f*others = (target-family)
+	*/
+
+	family_r0 = cfg.relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg.relation_type_number[RELATION_FAMILY];
+	family_r0 *= cfg.cycles_contagious;
+	family_r0 /= (double)population.size();
+
+	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
+	unknown_r0 *= cfg.cycles_contagious;
+	unknown_r0 /= (double)population.size();
+
+	printf("r0 cycle %.2f family_r0: %.2f\n", current_cycle, family_r0);
+	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
+	
+	factor = (target_r0 - family_r0) / unknown_r0;
+
+	cfg.relation_type_transmit_rate[RELATION_UNKNOWN] *= factor;
+
+	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
+	unknown_r0 *= cfg.cycles_contagious;
+	unknown_r0 /= (double)population.size();
+
+	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
+
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+}
+
+static void adjust_r_open_schools ()
+{
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+
+	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+}
+
 void callback_before_cycle (double cycle)
 {
-	static double backup;
+//	static double backup;
 
 	if (cycle == 0.0) {
 		region_t::get("Paranavai")->pick_random_person()->force_infect();
@@ -170,27 +222,24 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 	else if (cycle == 30.0) {
-		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
-
-		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
+		adjust_r_no_school(0.9);
+//		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+//		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+//		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 0.9 / cfg.r0;
-printf("r0 cycle 30: %.2f\n", get_affective_r0());
+//printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 51.0) {
-		cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
+		adjust_r_no_school(1.15);
+		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
-printf("r0 cycle 51: %.2f\n", get_affective_r0());
+//printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 180.0) {
-printf("r0 cycle 120: %.2f\n", get_affective_r0());
-printf("r0 cycle 120-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
-		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = backup;
-printf("r0 cycle 120: %.2f\n", get_affective_r0());
-printf("r0 cycle 120-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
+		adjust_r_open_schools();
 		stages_green++;
 	}
 }
