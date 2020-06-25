@@ -106,14 +106,16 @@ void region_t::setup_relations ()
 		       school_ratio / (double)n_schools,
 		       (uint64_t)((school_ratio / (double)n_schools)*(double)n_students));
 
+		normal_double_dist_t dist_school_prof_age(40.0, 10.0, 25.0, 70.0);
+
 		for (i=0; i<n_schools; i++)
-			network_create_school_relation(school, 4, 18, dist_school_class_size, 0.2, 0.001);
+			network_create_school_relation(school, 4, 18, dist_school_class_size, this, dist_school_prof_age, 0.2, 0.001);
 
 		school.clear();
 
 		school.push_back( {this, 0.2} );
 
-		network_create_school_relation(school, 19, 23, dist_school_class_size, 0.2, 0.002);
+		network_create_school_relation(school, 19, 23, dist_school_class_size, this, dist_school_prof_age, 0.2, 0.002);
 	}
 }
 
@@ -163,6 +165,7 @@ void callback_before_cycle (double cycle)
 	if (cycle == 0.0) {
 		region_t::get("Paranavai")->pick_random_person()->force_infect();
 printf("r0 cycle 0: %.2f\n", get_affective_r0());
+
 printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
@@ -170,19 +173,19 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 
-		cfg.global_r0_factor = 1.1 / cfg.r0;
+		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 0.9 / cfg.r0;
 printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 51.0) {
-		cfg.global_r0_factor = 1.45 / cfg.r0;
+		cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 120.0) {
+	else if (cycle == 180.0) {
 printf("r0 cycle 120: %.2f\n", get_affective_r0());
 printf("r0 cycle 120-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = backup;
@@ -200,12 +203,14 @@ void callback_after_cycle (double cycle)
 void callback_end ()
 {
 	uint32_t i;
-	uint64_t n_students;
+	uint64_t n_students, n_profs;
 
 	C_ASSERT(stages_green == 4)
 
-	n_students = get_n_population_per_relation_flag(RELATION_SCHOOL);
+	n_profs = get_n_population_per_relation_flag( {VFLAG_PROFESSOR} );
+	n_students = get_n_population_per_relation_flag( {RELATION_SCHOOL} );
 
+	cprintf("amount of professors: " PU64 "\n", n_profs);
 	cprintf("amount of students: " PU64 "\n", n_students);
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++) {

@@ -54,7 +54,7 @@ for (counter in counters) {
 	#png(file=paste0(output_base, "-", counter, ".png"))
 
 	png(filename = paste0(output_base, "-", counter, ".png"),
-	    width = 1024, height = 480, units = "px", pointsize = 12,
+	    width = 1300, height = 700, units = "px", pointsize = 12,
 	     bg = "white",  res = NA)
 
 #	pdf(file=paste0(output_base, "-", counter, ".pdf"))
@@ -67,6 +67,8 @@ for (counter in counters) {
 	                 colour="grey70", #border line color
 	                 size=1,          #border line size
 	                 fill=colors[i])    #fill color
+	+
+	theme(axis.text=element_text(size=30), axis.title=element_text(size=30,face="bold"))
 	)
 	i <- i + 1
 #p <- ggplot(data, aes(x = Q, y = C, color=Name, group=Name))

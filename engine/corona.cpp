@@ -746,7 +746,7 @@ stats_zone_t* create_new_stats_zone ()
 
 /****************************************************************/
 
-double get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
+double get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	double r0;
 

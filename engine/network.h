@@ -3,25 +3,38 @@
 
 void network_start_population_graph ();
 void network_after_all_regular_connetions ();
-double network_get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags);
+double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags);
+double network_get_affective_r0_fast ();
 void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n);
 
 void network_create_school_relation (std::vector<region_double_pair_t>& regions,
                                      uint32_t age_ini,
                                      uint32_t age_end,
                                      dist_double_t& dist,
+                                     region_t *prof_region,
+                                     dist_double_t& dist_prof_age,
                                      double intra_class_ratio=1.0,
                                      double inter_class_ratio=0.025);
 
-uint64_t get_n_population_per_relation_flag (relation_type_t relation);
+uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags);
 
-void network_print_population_graph (std::bitset<NUMBER_OF_RELATIONS>& flags);
+inline uint64_t get_n_population_per_relation_flag (std::initializer_list<relation_type_t> list)
+{
+	std::bitset<NUMBER_OF_FLAGS> flags;
+
+	for (relation_type_t type: list)
+		flags.set(type);
+	
+	return get_n_population_per_relation_flag(flags);
+}
+
+void network_print_population_graph (std::bitset<NUMBER_OF_FLAGS>& flags);
 
 pop_vertex_data_t& network_vertex_data (person_t *p);
 
 static void network_print_population_graph (std::initializer_list<relation_type_t> list)
 {
-	std::bitset<NUMBER_OF_RELATIONS> flags;
+	std::bitset<NUMBER_OF_FLAGS> flags;
 
 	for (relation_type_t type: list)
 		flags.set(type);
@@ -31,7 +44,7 @@ static void network_print_population_graph (std::initializer_list<relation_type_
 
 inline void network_print_population_graph ()
 {
-	std::bitset<NUMBER_OF_RELATIONS> flags;
+	std::bitset<NUMBER_OF_FLAGS> flags;
 
 	flags.set();
 	network_print_population_graph(flags);
@@ -59,6 +72,18 @@ enum {
 	NETWORK_TYPE_FULLY_CONNECTED,
 	NETWORK_TYPE_NETWORK
 };
+
+template <typename T>
+static void network_create_connection_one_to_all (person_t *spreader, T& people, relation_type_t type, double ratio=1.0)
+{
+	for (auto it=people.begin(); it!=people.end(); ++it) {
+		person_t *pi = *it;
+
+		if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio) && network_check_if_people_are_neighbors(spreader, pi) == false) {
+			network_create_edge(spreader, pi, type);
+		}
+	}
+}
 
 template <typename T>
 static void network_create_connection_between_people (T& people, relation_type_t type, double ratio=1.0)

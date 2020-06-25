@@ -87,7 +87,7 @@ static inline uint32_t get_number_of_neighbors (person_t *p, relation_type_t typ
 	return get_number_of_neighbors(p->vertex, type);
 }
 
-static void print_vertex_neighbors (pop_vertex_t v, std::bitset<NUMBER_OF_RELATIONS>& flags)
+static void print_vertex_neighbors (pop_vertex_t v, std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	boost::graph_traits<pop_graph_t>::adjacency_iterator vi, vi_end;
 	pop_edge_t e;
@@ -120,7 +120,7 @@ static void print_vertex_neighbors (pop_vertex_t v, std::bitset<NUMBER_OF_RELATI
 	cprintf("\n");
 }
 
-void network_print_population_graph (std::bitset<NUMBER_OF_RELATIONS>& flags)
+void network_print_population_graph (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
 	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) print_vertex_neighbors(*vi, flags);
@@ -236,13 +236,13 @@ void region_t::create_random_connections (dist_double_t& dist, report_progress_t
 	}
 }
 
-uint64_t get_n_population_per_relation_flag (relation_type_t relation)
+uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	uint64_t n = 0;
 	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
 
 	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) {
-		n += vdesc(*vi).flags.test(relation);
+		n += ((vdesc(*vi).flags & flags).any() == true);
 	}
 
 	return n;
@@ -335,6 +335,8 @@ void network_create_school_relation (std::vector<region_double_pair_t>& regions,
                                      uint32_t age_ini,
                                      uint32_t age_end,
                                      dist_double_t& dist,
+                                     region_t *prof_region,
+                                     dist_double_t& dist_prof_age,
                                      double intra_class_ratio,
                                      double inter_class_ratio)
 {
@@ -499,6 +501,26 @@ void network_create_school_relation (std::vector<region_double_pair_t>& regions,
 		}
 	}
 
+	// create professor-student relations
+
+	dprintf("school loading stage 4\n");
+
+	for (age=age_ini; age<=age_end; age++) {
+		for (auto& room: class_per_age[age].rooms) {
+			uint32_t prof_age;
+
+			prof_age = dist_prof_age.generate();
+
+			for (person_t *prof: prof_region->get_people()) {
+				if (prof->get_age() == prof_age && vdesc(prof).flags.test(RELATION_SCHOOL) == false) {
+					vdesc(prof).flags.set(VFLAG_PROFESSOR);
+					network_create_connection_one_to_all(prof, room.students, RELATION_SCHOOL);
+					break;
+				}
+			}
+		}
+	}
+
 	dprintf("school loaded\n");
 //	print_population_graph();
 }
@@ -539,7 +561,7 @@ static inline person_t* get_neighbor (person_t *p, pop_edge_t e)
 	return vdesc(get_neighbor(p->vertex, e)).p;
 }
 
-double network_get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
+double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	boost::graph_traits<pop_graph_t>::adjacency_iterator vin, vin_end;
 	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
@@ -571,6 +593,20 @@ double network_get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags)
 	r0 *= cfg.global_r0_factor;
 	r0 *= cfg.cycles_contagious;
 	r0 /= (double)n;
+
+	return r0;
+}
+
+double network_get_affective_r0_fast ()
+{
+	double r0 = 0.0;
+
+	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++)
+		r0 += cfg.relation_type_transmit_rate[i] * (double)cfg.relation_type_number[i];
+
+	r0 *= cfg.global_r0_factor;
+	r0 *= cfg.cycles_contagious;
+	r0 /= (double)population.size();
 
 	return r0;
 }

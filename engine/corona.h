@@ -138,15 +138,17 @@ enum relation_type_t {
 	RELATION_SCHOOL,
 	RELATION_TRAVEL,
 	RELATION_OTHERS,
+	NUMBER_OF_RELATIONS,
 
-	NUMBER_OF_RELATIONS
+	VFLAG_PROFESSOR,
+	NUMBER_OF_FLAGS
 };
 
 char* relation_type_str (int32_t i);
 
 struct pop_vertex_data_t {
 	person_t *p;
-	std::bitset<NUMBER_OF_RELATIONS> flags;
+	std::bitset<NUMBER_OF_FLAGS> flags;
 };
 
 struct pop_edge_data_t {
@@ -291,11 +293,11 @@ public:
 
 bool try_to_summon ();
 
-double get_affective_r0 (std::bitset<NUMBER_OF_RELATIONS>& flags);
+double get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags);
 
 static double get_affective_r0 ()
 {
-	std::bitset<NUMBER_OF_RELATIONS> flags;
+	std::bitset<NUMBER_OF_FLAGS> flags;
 
 	flags.set();
 
@@ -304,7 +306,7 @@ static double get_affective_r0 ()
 
 static double get_affective_r0 (std::initializer_list<relation_type_t> list)
 {
-	std::bitset<NUMBER_OF_RELATIONS> flags;
+	std::bitset<NUMBER_OF_FLAGS> flags;
 
 	for (relation_type_t type: list)
 		flags.set(type);
