@@ -14,16 +14,17 @@ data = read.csv(prefix, header = TRUE)
 
 # -----------------------------------------------------
 
-pdf(file=paste0(prefix, "-cycles.pdf"), width=11)
-
-myylim = 100000
+#pdf(file=paste0(prefix, "-cycles.pdf"), width=11)
+png(filename = paste0(prefix, "-cycles.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
 
 #labels = c("sim-infected", "sim-suscetive", "sir-infected", "sir-suscetive")
 labels = c("sim-infected", "sim-suscetive")
 
-plot(data$cycle, data$ac_state_ST_INFECTED, ylim=c(0,myylim), xlab="Dias desde paciente zero", ylab="Total de pessoas", type="o", col="orange")
+plot(data$cycle, data$ac_state_ST_HEALTHY, type="o", col="green", xlab="Dias desde paciente zero", ylab="Total de pessoas")
 
-lines(data$cycle, data$ac_state_ST_HEALTHY, ylim=c(0,myylim), type="o", col="green")
+lines(data$cycle, data$ac_state_ST_INFECTED, type="o", col="orange")
 
 #lines(data$cycle, data$sir_i, ylim=c(0,myylim), type="o", col="gray")
 #lines(data$cycle, data$sir_s, ylim=c(0,myylim), type="o", col="gray")
@@ -35,7 +36,10 @@ legend(150, 50000, labels, cex=0.8, col=c("orange", "green"), pch=21:22, lty=1:2
 
 # -----------------------------------------------------
 
-pdf(file=paste0(prefix, "-critical.pdf"), width=11)
+#pdf(file=paste0(prefix, "-critical.pdf"), width=11)
+png(filename = paste0(prefix, "-critical.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
 
 labels = c("sim-critical")
 
@@ -47,7 +51,10 @@ legend(150, 10000, labels, cex=0.8, col=c("red"), pch=21:22, lty=1:2);
 
 # -----------------------------------------------------
 
-pdf(file=paste0(prefix, "-severe.pdf"), width=11)
+#pdf(file=paste0(prefix, "-severe.pdf"), width=11)
+png(filename = paste0(prefix, "-severe.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
 
 labels = c("sim-severe")
 
@@ -59,7 +66,10 @@ legend(150, 10000, labels, cex=0.8, col=c("orange"), pch=21:22, lty=1:2);
 
 # -----------------------------------------------------
 
-pdf(file=paste0(prefix, "-mild.pdf"), width=11)
+#pdf(file=paste0(prefix, "-mild.pdf"), width=11)
+png(filename = paste0(prefix, "-mild.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
 
 labels = c("sim-mild")
 
