@@ -5,7 +5,7 @@
 # 	exit
 # fi
 
-gsize="8"
+gsize="9"
 
 #sceneries="pvai-do-nothing pvai-2-waves"
 #sceneries="pvai-2-waves"

@@ -16,6 +16,7 @@ library(ggplot2)
 # https://stackoverflow.com/questions/38470111/how-to-graph-with-geom-ribbon
 
 counters <- list("ac_state_ST_INFECTED", "ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL", "ac_state_ST_DEAD", "ac_state_ST_HEALTHY", "r", "reproductive")
+
 colors <- c("purple", "yellow", "orange", "red", "blue", "green", "cyan", "cyan")
 
 args = commandArgs(trailingOnly=TRUE)
@@ -59,17 +60,27 @@ for (counter in counters) {
 
 #	pdf(file=paste0(output_base, "-", counter, ".pdf"))
 
-	print(p <- ggplot(data, aes(x =cycle))
-		+
+	p <- ggplot(data, aes(x =cycle)) +
 	geom_ribbon(aes(ymin=lower_bound, ymax=upper_bound), 
 	                 #alpha=0.1,       #transparency
 	                 linetype=1,      #solid, dashed or other line types
 	                 colour="grey70", #border line color
 	                 size=1,          #border line size
 	                 fill=colors[i])    #fill color
-	+
-	theme(axis.text=element_text(size=30), axis.title=element_text(size=30,face="bold"))
-	)
+	
+	p <- p + theme(axis.text=element_text(size=30), axis.title=element_text(size=30,face="bold"))
+
+	p <- p + scale_x_continuous(breaks = round(seq(0, max(data$cycle), by = 30),1))
+
+	if (counter == "reproductive") {
+		p <- p + scale_y_continuous(breaks = round(seq(0, max(data$upper_bound), by = 0.5),1))
+		p <- p + geom_hline(yintercept=1, color = "black")
+		p <- p + geom_hline(yintercept=2, color = "black")
+		p <- p + geom_hline(yintercept=3, color = "black")
+	}
+
+	print(p)
+	
 	i <- i + 1
 #p <- ggplot(data, aes(x = Q, y = C, color=Name, group=Name))
 

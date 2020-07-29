@@ -6,8 +6,11 @@
 
 static csv_ages_t *csv;
 
-static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
-static health_unit_t santa_casa_enfermaria(20000000, ST_SEVERE);
+//static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
+//static health_unit_t santa_casa_enfermaria(20000000, ST_SEVERE);
+
+static health_unit_t santa_casa_uti(10, ST_CRITICAL);
+static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
 
 static int32_t stages_green = 0;
 
@@ -222,6 +225,7 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 	else if (cycle == 30.0) {
+		cfg.global_r0_factor = 1.05;
 		adjust_r_no_school(0.9);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
