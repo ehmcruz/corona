@@ -222,7 +222,14 @@ void callback_before_cycle (double cycle)
 //	static double backup;
 
 	if (cycle == 0.0) {
-		region_t::get("SaoPaulo")->pick_random_person()->force_infect();
+		for (uint32_t i=0; i<200; ) {
+			person_t *p = region_t::get("SaoPaulo")->pick_random_person();
+
+			if (p->get_state() == ST_HEALTHY) {
+				p->force_infect();
+				i++;
+			}
+		}
 printf("r0 cycle 0: %.2f\n", get_affective_r0());
 
 //printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));

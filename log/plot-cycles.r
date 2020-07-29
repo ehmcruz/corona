@@ -12,6 +12,25 @@ options(scipen=999)
 
 data = read.csv(prefix, header = TRUE)
 
+total_pop = data[1, "ac_state_ST_HEALTHY"]
+          + data[1, "ac_state_ST_INFECTED"]
+          + data[1, "ac_state_ST_IMMUNE"]
+          + data[1, "ac_state_ST_DEAD"]
+
+print(total_pop)
+
+data$total_infected = data$ac_state_ST_INFECTED + data$ac_state_ST_IMMUNE + data$ac_state_ST_DEAD
+
+col_reported <- numeric(nrow(data))
+
+before = 0
+for (i in 1:length(col_reported)) {
+	col_reported[i] = before + data[i, "infected_state_ST_MILD"]
+	before = col_reported[i]
+}
+
+data$total_reported = col_reported
+
 # -----------------------------------------------------
 
 #pdf(file=paste0(prefix, "-cycles.pdf"), width=11)
@@ -22,7 +41,7 @@ png(filename = paste0(prefix, "-cycles.png"),
 #labels = c("sim-infected", "sim-suscetive", "sir-infected", "sir-suscetive")
 labels = c("sim-infected", "sim-suscetive")
 
-plot(data$cycle, data$ac_state_ST_HEALTHY, type="o", col="green", xlab="Dias desde paciente zero", ylab="Total de pessoas")
+plot(data$cycle, data$ac_state_ST_HEALTHY, ylim=c(0,total_pop), type="o", col="green", xlab="Dias desde paciente zero", ylab="Total de pessoas")
 
 lines(data$cycle, data$ac_state_ST_INFECTED, type="o", col="orange")
 
@@ -78,3 +97,33 @@ plot(data$cycle, data$ac_infected_state_ST_MILD, xlab="Dias desde paciente zero"
 grid(col = "gray", lwd=2)
 
 legend(150, 10000, labels, cex=0.8, col=c("pink"), pch=21:22, lty=1:2);
+
+# -----------------------------------------------------
+
+#pdf(file=paste0(prefix, "-mild.pdf"), width=11)
+png(filename = paste0(prefix, "-total-infected.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
+
+labels = c("sim-infected")
+
+plot(data$cycle, data$total_infected, xlab="Dias desde paciente zero", ylab="Total acumulado de infectados", type="o", col="pink")
+
+grid(col = "gray", lwd=2)
+
+legend(150, 10000, labels, cex=0.8, col=c("purple"), pch=21:22, lty=1:2);
+
+# -----------------------------------------------------
+
+#pdf(file=paste0(prefix, "-mild.pdf"), width=11)
+png(filename = paste0(prefix, "-total-reported.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
+
+labels = c("sim-infected")
+
+plot(data$cycle, data$total_reported, xlab="Dias desde paciente zero", ylab="Total acumulado de infectados reportados", type="o", col="pink")
+
+grid(col = "gray", lwd=2)
+
+legend(150, 10000, labels, cex=0.8, col=c("purple"), pch=21:22, lty=1:2);
