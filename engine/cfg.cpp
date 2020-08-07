@@ -23,6 +23,7 @@ void cfg_t::set_defaults ()
 	
 	this->r0 = 3.0;
 	this->cycles_contagious = 4.0;
+	this->cycles_pre_symptomatic = 1.0;
 	this->cycles_to_simulate = 180;
 
 	this->cycles_incubation = new gamma_double_dist_t(4.58, 3.24, 1.0, 14.0);

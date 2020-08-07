@@ -11,7 +11,7 @@ sceneries="14reg-current"
 #sceneries="pvai-do-nothing pvai-2-waves"
 #sceneries="pvai-do-nothing"
 #sceneries="palmas-do-nothing"
-nruns="10"
+nruns="5"
 
 subpop="global Paranavai school"
 

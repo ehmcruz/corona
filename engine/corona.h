@@ -48,6 +48,7 @@ enum infected_state_t {
 
 	ST_INCUBATION,
 	ST_ASYMPTOMATIC,
+	ST_PRESYMPTOMATIC,
 	ST_MILD,
 	ST_SEVERE,
 	ST_CRITICAL,
@@ -185,7 +186,8 @@ class person_t
 	OO_ENCAPSULATE(health_unit_t*, health_unit)
 
 private:
-	infected_state_t next_infected_state;
+	infected_state_t next_infected_state, final_infected_state;
+	double final_countdown;
 	double infection_cycles;
 	double infection_countdown;
 	std::array<int32_t, MAX_SIDS_PER_PERSON> sids;
@@ -203,6 +205,7 @@ public:
 	void recover ();
 	void infect ();
 	void pre_infect (person_t *from);
+	void symptoms_arise (bool fast_track);
 
 	inline void force_infect () {
 		this->pre_infect(nullptr);

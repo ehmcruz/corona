@@ -53,6 +53,7 @@ char* infected_state_str (int32_t i)
 	static const char *list[] = {
 		"ST_INCUBATION",
 		"ST_ASYMPTOMATIC",
+		"ST_PRESYMPTOMATIC",
 		"ST_MILD",
 		"ST_SEVERE",
 		"ST_CRITICAL"
@@ -562,6 +563,13 @@ void person_t::cycle_infected ()
 			}
 		break;
 
+		case ST_PRESYMPTOMATIC:
+			if (this->infection_countdown <= 0.0) {
+				this->infection_countdown = 0.0;
+				this->symptoms_arise(false);
+			}
+		break;
+
 		case ST_MILD:
 			if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
@@ -676,6 +684,26 @@ void person_t::pre_infect (person_t *from)
 	this->setup_infection_countdown( cfg.cycles_incubation->generate() );
 }
 
+void person_t::symptoms_arise (bool fast_track)
+{
+	SANITY_ASSERT(this->state == ST_INFECTED && this->infected_state == ST_PRESYMPTOMATIC)
+
+	this->infected_state = this->next_infected_state;
+	this->next_infected_state = this->final_infected_state;
+	this->setup_infection_countdown(this->final_countdown);
+
+	if (fast_track == false) {
+		for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+			stats_t& stats = cycle_stats[*it];
+
+			stats.infected_state[ this->infected_state ]++;
+
+			stats.ac_infected_state[ ST_PRESYMPTOMATIC ]--;
+			stats.ac_infected_state[ this->infected_state ]++;
+		}
+	}
+}
+
 void person_t::infect ()
 {
 	double p;
@@ -689,20 +717,35 @@ void person_t::infect ()
 		this->setup_infection_countdown(cfg.cycles_contagious);
 	}
 	else if (p <= this->prob_ac_mild) {
-		this->infected_state = ST_MILD;
-		this->next_infected_state = ST_FAKE_IMMUNE;
-		this->setup_infection_countdown(cfg.cycles_contagious);
+		this->infected_state = ST_PRESYMPTOMATIC;
+		this->next_infected_state = ST_MILD;
+		this->final_infected_state = ST_FAKE_IMMUNE;
+
+		if (likely(cfg.cycles_contagious > cfg.cycles_pre_symptomatic))
+			this->final_countdown = cfg.cycles_contagious - cfg.cycles_pre_symptomatic;
+		else
+			this->final_countdown = 0.0;
+		
+		this->setup_infection_countdown(cfg.cycles_pre_symptomatic);
 	}
 	else if (p <= this->prob_ac_severe) {
-		this->infected_state = ST_MILD;
-		this->next_infected_state = ST_SEVERE;
-		this->setup_infection_countdown(cfg.cycles_before_hospitalization);
+		this->infected_state = ST_PRESYMPTOMATIC;
+		this->next_infected_state = ST_MILD;
+		this->final_infected_state = ST_SEVERE;
+		this->final_countdown = cfg.cycles_before_hospitalization;
+		this->setup_infection_countdown(cfg.cycles_pre_symptomatic);
 	}
 	else {
-		this->infected_state = ST_MILD;
-		this->next_infected_state = ST_CRITICAL;
-		this->setup_infection_countdown(cfg.cycles_before_hospitalization);
+		this->infected_state = ST_PRESYMPTOMATIC;
+		this->next_infected_state = ST_MILD;
+		this->final_infected_state = ST_CRITICAL;
+		this->final_countdown = cfg.cycles_before_hospitalization;
+		this->setup_infection_countdown(cfg.cycles_pre_symptomatic);
 	}
+
+	// if there is no delay to have symptons
+	if (this->infected_state != ST_ASYMPTOMATIC && cfg.cycles_pre_symptomatic == 0.0)
+		this->symptoms_arise(true);
 
 	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 		stats_t& stats = cycle_stats[*it];
