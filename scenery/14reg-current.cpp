@@ -180,11 +180,11 @@ static void adjust_r_no_school (double target_r0)
 	*/
 
 	family_r0 = cfg.relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg.relation_type_number[RELATION_FAMILY];
-	family_r0 *= cfg.cycles_contagious;
+	family_r0 *= cfg.cycles_contagious->get_expected();
 	family_r0 /= (double)population.size();
 
 	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
-	unknown_r0 *= cfg.cycles_contagious;
+	unknown_r0 *= cfg.cycles_contagious->get_expected();
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f family_r0: %.2f\n", current_cycle, family_r0);
@@ -195,7 +195,7 @@ static void adjust_r_no_school (double target_r0)
 	cfg.relation_type_transmit_rate[RELATION_UNKNOWN] *= factor;
 
 	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
-	unknown_r0 *= cfg.cycles_contagious;
+	unknown_r0 *= cfg.cycles_contagious->get_expected();
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);

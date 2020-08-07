@@ -1,7 +1,9 @@
 // primary cfg
 
 CORONA_CFG(double, "%.4f", r0)
-CORONA_CFG(double, "%.4f", cycles_contagious)
+
+CORONA_CFG_OBJ(dist_double_t, cycles_contagious)
+
 CORONA_CFG(double, "%.4f", cycles_pre_symptomatic)
 CORONA_CFG(double, "%.4f", cycles_to_simulate)
 

@@ -22,7 +22,9 @@ void cfg_t::set_defaults ()
 	// defaults following COVID known parameters
 	
 	this->r0 = 3.0;
-	this->cycles_contagious = 4.0;
+
+	this->cycles_contagious = new const_double_dist_t(4.0);
+
 	this->cycles_pre_symptomatic = 1.0;
 	this->cycles_to_simulate = 180;
 
@@ -86,7 +88,7 @@ void cfg_t::load_derived ()
 		r0_factor_per_group[i] = 1.0;
 	r0_factor_per_group[ST_ASYMPTOMATIC] = this->r0_asymptomatic_factor;
 
-	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious;
+	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious->get_expected();
 	this->probability_severe = 1.0 - (this->probability_asymptomatic + this->probability_mild + this->probability_critical);
 
 	this->prob_ac_asymptomatic = this->probability_asymptomatic;

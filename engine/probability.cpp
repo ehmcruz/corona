@@ -70,8 +70,31 @@ person_t* pick_random_person (state_t state)
 
 /**************************************************/
 
+const_double_dist_t::const_double_dist_t (double value)
+{
+	this->value = value;
+}
+
+double const_double_dist_t::generate ()
+{
+	return this->value;
+}
+
+double const_double_dist_t::get_expected ()
+{
+	return this->value;
+}
+
+void const_double_dist_t::print_params (FILE *fp)
+{
+	fprintf(fp, "%.2f", this->value);
+}
+
+
+/**************************************************/
+
 normal_double_dist_t::normal_double_dist_t (double mean, double stddev, double min, double max)
-	: dist_double_t(mean, min, max),
+	: dist_double_mmm_t(mean, min, max),
 	  distribution(mean, stddev)
 {
 	this->stddev = stddev;
@@ -91,7 +114,7 @@ void normal_double_dist_t::print_params (FILE *fp)
 /**************************************************/
 
 gamma_double_dist_t::gamma_double_dist_t (double mean, double stddev, double min, double max)
-	: dist_double_t(mean, min, max),
+	: dist_double_mmm_t(mean, min, max),
 	  distribution(calc_alpha(mean, stddev), calc_betha(mean, stddev))
 {
 	this->stddev = stddev;

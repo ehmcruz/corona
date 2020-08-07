@@ -714,15 +714,17 @@ void person_t::infect ()
 
 	if (p <= this->prob_ac_asymptomatic) {
 		this->infected_state = ST_ASYMPTOMATIC;
-		this->setup_infection_countdown(cfg.cycles_contagious);
+		this->setup_infection_countdown(cfg.cycles_contagious->generate());
 	}
 	else if (p <= this->prob_ac_mild) {
 		this->infected_state = ST_PRESYMPTOMATIC;
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_FAKE_IMMUNE;
 
-		if (likely(cfg.cycles_contagious > cfg.cycles_pre_symptomatic))
-			this->final_countdown = cfg.cycles_contagious - cfg.cycles_pre_symptomatic;
+		double tmp = cfg.cycles_contagious->generate();
+
+		if (likely(tmp > cfg.cycles_pre_symptomatic))
+			this->final_countdown = tmp - cfg.cycles_pre_symptomatic;
 		else
 			this->final_countdown = 0.0;
 		

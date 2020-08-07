@@ -18,6 +18,15 @@ person_t* pick_random_person (state_t state);
 template <typename T>
 class dist_t
 {
+public:
+	virtual void print_params (FILE *fp) = 0;
+	virtual T generate () = 0;
+	virtual T get_expected () = 0;
+};
+
+template <typename T>
+class dist_mmm_t: public dist_t<T>
+{
 	OO_ENCAPSULATE_RO(T, mean)
 	OO_ENCAPSULATE(T, min)
 	OO_ENCAPSULATE(T, max)
@@ -26,16 +35,14 @@ protected:
 	virtual T generate_ () = 0;
 
 public:
-	dist_t (T mean, T min, T max)
+	dist_mmm_t (T mean, T min, T max)
 	{
 		this->mean = mean;
 		this->min = min;
 		this->max = max;
 	}
 
-	virtual void print_params (FILE *fp) = 0;
-
-	inline T generate ()
+	T generate () override
 	{
 		T r;
 
@@ -48,11 +55,33 @@ public:
 
 		return r;
 	}
+
+	T get_expected () override {
+		return this->mean;
+	}
 };
 
 typedef dist_t<double> dist_double_t;
+typedef dist_mmm_t<double> dist_double_mmm_t;
 
-class normal_double_dist_t: public dist_double_t
+/*******************************************/
+
+class const_double_dist_t: public dist_double_t
+{
+private:
+	double value;
+
+public:
+	const_double_dist_t (double value);
+
+	double generate () override;
+	void print_params (FILE *fp) override;
+	double get_expected () override;
+};
+
+/*******************************************/
+
+class normal_double_dist_t: public dist_double_mmm_t
 {
 	OO_ENCAPSULATE_RO(double, stddev)
 
@@ -68,7 +97,9 @@ public:
 	void print_params (FILE *fp) override;
 };
 
-class gamma_double_dist_t: public dist_double_t
+/*******************************************/
+
+class gamma_double_dist_t: public dist_double_mmm_t
 {
 	OO_ENCAPSULATE_RO(double, stddev)
 
@@ -92,6 +123,8 @@ public:
 
 	void print_params (FILE *fp) override;
 };
+
+/*******************************************/
 
 template <typename Tweight, typename Tvalue>
 struct adjust_values_to_fit_mean_t {
