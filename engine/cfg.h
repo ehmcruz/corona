@@ -3,15 +3,16 @@
 CORONA_CFG(double, "%.4f", r0)
 
 CORONA_CFG_OBJ(dist_double_t, cycles_contagious)
+CORONA_CFG_OBJ(dist_double_t, cycles_pre_symptomatic)
 
-CORONA_CFG(double, "%.4f", cycles_pre_symptomatic)
 CORONA_CFG(double, "%.4f", cycles_to_simulate)
 
 CORONA_CFG_OBJ(dist_double_t, cycles_incubation)
 
-CORONA_CFG(double, "%.4f", cycles_severe_in_hospital)
-CORONA_CFG(double, "%.4f", cycles_critical_in_icu)
-CORONA_CFG(double, "%.4f", cycles_before_hospitalization)
+CORONA_CFG_OBJ(dist_double_t, cycles_severe_in_hospital)
+CORONA_CFG_OBJ(dist_double_t, cycles_critical_in_icu)
+CORONA_CFG_OBJ(dist_double_t, cycles_before_hospitalization)
+
 CORONA_CFG(double, "%.4f", global_r0_factor)
 CORONA_CFG(double, "%.4f", probability_summon_per_cycle)
 

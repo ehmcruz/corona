@@ -24,15 +24,16 @@ void cfg_t::set_defaults ()
 	this->r0 = 3.0;
 
 	this->cycles_contagious = new const_double_dist_t(4.0);
+	this->cycles_pre_symptomatic = new const_double_dist_t(1.0);
 
-	this->cycles_pre_symptomatic = 1.0;
 	this->cycles_to_simulate = 180;
 
 	this->cycles_incubation = new gamma_double_dist_t(4.58, 3.24, 1.0, 14.0);
 
-	this->cycles_severe_in_hospital = 8.0;
-	this->cycles_critical_in_icu = 8.0;
-	this->cycles_before_hospitalization = 5.0;
+	this->cycles_severe_in_hospital = new const_double_dist_t(8.0);
+	this->cycles_critical_in_icu = new const_double_dist_t(8.0);
+	this->cycles_before_hospitalization = new const_double_dist_t(5.0);
+
 	this->global_r0_factor = 1.0;
 	this->probability_summon_per_cycle = 0.05;
 
@@ -96,10 +97,10 @@ void cfg_t::load_derived ()
 	this->prob_ac_severe = this->prob_ac_mild + this->probability_severe;
 	this->prob_ac_critical = this->prob_ac_severe + this->probability_critical;
 
-	this->death_rate_severe_in_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_severe_in_hospital, this->cycles_severe_in_hospital);
-	this->death_rate_critical_in_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_critical_in_hospital, this->cycles_critical_in_icu);
-	this->death_rate_severe_outside_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_severe_outside_hospital, this->cycles_severe_in_hospital);
-	this->death_rate_critical_outside_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_critical_outside_hospital, this->cycles_critical_in_icu);
+	this->death_rate_severe_in_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_severe_in_hospital, this->cycles_severe_in_hospital->get_expected());
+	this->death_rate_critical_in_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_critical_in_hospital, this->cycles_critical_in_icu->get_expected());
+	this->death_rate_severe_outside_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_severe_outside_hospital, this->cycles_severe_in_hospital->get_expected());
+	this->death_rate_critical_outside_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_critical_outside_hospital, this->cycles_critical_in_icu->get_expected());
 }
 
 void cfg_t::dump ()

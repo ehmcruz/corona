@@ -591,7 +591,7 @@ void person_t::cycle_infected ()
 
 						this->health_unit = this->region->enter_health_unit(this);
 
-						this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
+						this->setup_infection_countdown(cfg.cycles_severe_in_hospital->generate());
 					break;
 
 					case ST_CRITICAL:
@@ -608,7 +608,7 @@ void person_t::cycle_infected ()
 
 						this->health_unit = this->region->enter_health_unit(this);
 
-						this->setup_infection_countdown(cfg.cycles_critical_in_icu);
+						this->setup_infection_countdown(cfg.cycles_critical_in_icu->generate());
 					break;
 
 					default:
@@ -638,7 +638,7 @@ void person_t::cycle_infected ()
 			else if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;
 
-				this->setup_infection_countdown(cfg.cycles_severe_in_hospital);
+				this->setup_infection_countdown(cfg.cycles_severe_in_hospital->generate());
 
 				for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 					stats_t& stats = cycle_stats[*it];
@@ -721,32 +721,33 @@ void person_t::infect ()
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_FAKE_IMMUNE;
 
-		double tmp = cfg.cycles_contagious->generate();
+		double tmp_contagious = cfg.cycles_contagious->generate();
+		double tmp_pre_symptomatic = cfg.cycles_pre_symptomatic->generate();
 
-		if (likely(tmp > cfg.cycles_pre_symptomatic))
-			this->final_countdown = tmp - cfg.cycles_pre_symptomatic;
+		if (likely(tmp_contagious > tmp_pre_symptomatic))
+			this->final_countdown = tmp_contagious - tmp_pre_symptomatic;
 		else
 			this->final_countdown = 0.0;
 		
-		this->setup_infection_countdown(cfg.cycles_pre_symptomatic);
+		this->setup_infection_countdown(tmp_pre_symptomatic);
 	}
 	else if (p <= this->prob_ac_severe) {
 		this->infected_state = ST_PRESYMPTOMATIC;
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_SEVERE;
-		this->final_countdown = cfg.cycles_before_hospitalization;
-		this->setup_infection_countdown(cfg.cycles_pre_symptomatic);
+		this->final_countdown = cfg.cycles_before_hospitalization->generate();
+		this->setup_infection_countdown(cfg.cycles_pre_symptomatic->generate());
 	}
 	else {
 		this->infected_state = ST_PRESYMPTOMATIC;
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_CRITICAL;
-		this->final_countdown = cfg.cycles_before_hospitalization;
-		this->setup_infection_countdown(cfg.cycles_pre_symptomatic);
+		this->final_countdown = cfg.cycles_before_hospitalization->generate();
+		this->setup_infection_countdown(cfg.cycles_pre_symptomatic->generate());
 	}
 
 	// if there is no delay to have symptons
-	if (this->infected_state != ST_ASYMPTOMATIC && cfg.cycles_pre_symptomatic == 0.0)
+	if (this->infected_state != ST_ASYMPTOMATIC && this->get_infection_countdown() == 0.0)
 		this->symptoms_arise(true);
 
 	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {

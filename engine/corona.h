@@ -177,6 +177,8 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
 	OO_ENCAPSULATE_RO(double, infected_cycle);
 	OO_ENCAPSULATE_RO(uint32_t, n_victims);
+	OO_ENCAPSULATE_RO(double, infection_cycles);
+	OO_ENCAPSULATE_RO(double, infection_countdown);
 	OO_ENCAPSULATE(uint32_t, id)
 	OO_ENCAPSULATE(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
@@ -188,8 +190,6 @@ class person_t
 private:
 	infected_state_t next_infected_state, final_infected_state;
 	double final_countdown;
-	double infection_cycles;
-	double infection_countdown;
 	std::array<int32_t, MAX_SIDS_PER_PERSON> sids;
 
 public:
