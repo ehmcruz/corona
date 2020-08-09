@@ -18,7 +18,7 @@ void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 540.0;
-	this->relation_type_weights[RELATION_SCHOOL] = 2;
+	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
 	this->r0 = 3.0;
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");

@@ -305,7 +305,7 @@ static void calibrate_rate_per_type ()
 }
 #endif
 
-	adjust_weights_to_fit_mean<uint32_t, uint64_t, NUMBER_OF_RELATIONS> (
+	adjust_weights_to_fit_mean<double, uint64_t, NUMBER_OF_RELATIONS> (
 		cfg.relation_type_weights,
 		cfg.relation_type_number,
 		cfg.probability_infect_per_cycle * (double)population.size(),

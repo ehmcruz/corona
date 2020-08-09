@@ -47,13 +47,13 @@ void cfg_t::set_defaults ()
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
 	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++) // set defaults
-		this->relation_type_weights[i] = 1;
-	this->relation_type_weights[RELATION_FAMILY] = 3;
-	this->relation_type_weights[RELATION_BUDDY] = 2;
-	this->relation_type_weights[RELATION_UNKNOWN] = 1;
-	this->relation_type_weights[RELATION_SCHOOL] = 2;
-	this->relation_type_weights[RELATION_TRAVEL] = 1;
-	this->relation_type_weights[RELATION_OTHERS] = 1;
+		this->relation_type_weights[i] = 1.0;
+	this->relation_type_weights[RELATION_FAMILY] = 3.0;
+	this->relation_type_weights[RELATION_BUDDY] = 2.0;
+	this->relation_type_weights[RELATION_UNKNOWN] = 1.0;
+	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
+	this->relation_type_weights[RELATION_TRAVEL] = 1.0;
+	this->relation_type_weights[RELATION_OTHERS] = 1.0;
 
 	for (uint32_t i=0; i<NUMBER_OF_INFECTED_STATES; i++) // set defaults
 		this->r0_factor_per_group[i] = 1.0;
