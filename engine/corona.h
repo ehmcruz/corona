@@ -351,7 +351,6 @@ void callback_end ();
 extern cfg_t cfg;
 extern std::vector<stats_t> *cycle_stats_ptr;
 extern double current_cycle;
-extern double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
 extern std::vector<person_t*> population;
 extern std::vector<region_t*> regions;
 extern uint64_t people_per_age[AGES_N];

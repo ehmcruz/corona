@@ -25,9 +25,9 @@ CORONA_CFG(double, "%.4f", probability_asymptomatic)
 CORONA_CFG(double, "%.4f", probability_mild)
 CORONA_CFG(double, "%.4f", probability_critical)
 
-CORONA_CFG(double, "%.4f", r0_asymptomatic_factor)
-
 CORONA_CFG_VECTOR(uint32_t, "%u", relation_type, relation_type_weights, NUMBER_OF_RELATIONS)
+
+CORONA_CFG_VECTOR(double, "%.4f", infected_state, r0_factor_per_group, NUMBER_OF_INFECTED_STATES)
 
 CORONA_CFG(uint32_t, "%u", network_type)
 

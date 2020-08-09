@@ -46,14 +46,22 @@ void cfg_t::set_defaults ()
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
-	this->r0_asymptomatic_factor = 1.0;
-
+	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++) // set defaults
+		this->relation_type_weights[i] = 1;
 	this->relation_type_weights[RELATION_FAMILY] = 3;
 	this->relation_type_weights[RELATION_BUDDY] = 2;
 	this->relation_type_weights[RELATION_UNKNOWN] = 1;
 	this->relation_type_weights[RELATION_SCHOOL] = 2;
 	this->relation_type_weights[RELATION_TRAVEL] = 1;
 	this->relation_type_weights[RELATION_OTHERS] = 1;
+
+	for (uint32_t i=0; i<NUMBER_OF_INFECTED_STATES; i++) // set defaults
+		this->r0_factor_per_group[i] = 1.0;
+	this->r0_factor_per_group[ST_ASYMPTOMATIC] = 1.0;
+	this->r0_factor_per_group[ST_PRESYMPTOMATIC] = 1.0;
+	this->r0_factor_per_group[ST_MILD] = 1.0;
+	this->r0_factor_per_group[ST_SEVERE] = 0.5;
+	this->r0_factor_per_group[ST_CRITICAL] = 0.5;
 
 	this->network_type = NETWORK_TYPE_FULLY_CONNECTED;
 
@@ -83,12 +91,6 @@ static inline double calc_death_rate_per_cycle (double death_rate, double n_trie
 
 void cfg_t::load_derived ()
 {
-	int32_t i;
-
-	for (i=0; i<NUMBER_OF_INFECTED_STATES; i++)
-		r0_factor_per_group[i] = 1.0;
-	r0_factor_per_group[ST_ASYMPTOMATIC] = this->r0_asymptomatic_factor;
-
 	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious->get_expected();
 	this->probability_severe = 1.0 - (this->probability_asymptomatic + this->probability_mild + this->probability_critical);
 

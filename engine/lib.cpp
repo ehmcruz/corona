@@ -58,7 +58,7 @@ neighbor_list_t::iterator_t neighbor_list_fully_connected_t::begin ()
 //cprintf("total %.4f\n", it.prob);
 		
 		it.prob *= cfg.global_r0_factor;
-		it.prob *= r0_factor_per_group[ this->get_person()->get_infected_state() ];
+		it.prob *= cfg.r0_factor_per_group[ this->get_person()->get_infected_state() ];
 
 		it.calc();
 	}

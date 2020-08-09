@@ -29,8 +29,6 @@ uint64_t people_per_age[AGES_N];
 std::vector<person_t*> population;
 static std::deque< std::pair<person_t*, person_t*> > to_infect_in_cycle;
 
-double r0_factor_per_group[NUMBER_OF_INFECTED_STATES];
-
 static const char default_results_file[] = "results-cycles";
 static char *results_file;
 

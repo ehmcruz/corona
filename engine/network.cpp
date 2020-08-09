@@ -665,7 +665,7 @@ neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 //blah += it.prob; cprintf(" (total %.4f)\n", it.prob); //exit(1);
 
 	it.prob *= cfg.global_r0_factor;
-	it.prob *= r0_factor_per_group[ this->get_person()->get_infected_state() ];
+	it.prob *= cfg.r0_factor_per_group[ this->get_person()->get_infected_state() ];
 
 	if (likely(it.prob > 0.0))
 		it.calc();
