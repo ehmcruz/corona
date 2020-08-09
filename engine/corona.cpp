@@ -301,9 +301,6 @@ person_t* region_t::pick_random_person ()
 void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age)
 {
 	uint64_t people_per_age[AGE_CATS_N];
-	double deaths_weight_per_age[AGE_CATS_N];
-	double predicted_critical_per_age[AGE_CATS_N];
-	double pmild, psevere, pcritical, sum;
 	uint32_t i;
 
 	for (i=0; i<AGE_CATS_N; i++)
@@ -312,6 +309,19 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 	for (person_t *p: this->people) {
 		people_per_age[ get_age_cat(p->get_age()) ]++;
 	}
+
+	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age, people_per_age);
+}
+
+void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age, uint64_t *people_per_age)
+{
+	double deaths_weight_per_age[AGE_CATS_N];
+	double predicted_critical_per_age[AGE_CATS_N];
+	double pmild, psevere, pcritical, sum;
+	uint32_t i;
+
+	for (i=0; i<AGE_CATS_N; i++)
+		dprintf("people_per_age[%s] = " PU64 "\n", critical_per_age_str(i), people_per_age[i]);
 
 	adjust_biased_weights_to_fit_mean<uint32_t, uint64_t, AGE_CATS_N> (
 		reported_deaths_per_age,
@@ -340,7 +350,7 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 	       cfg.probability_critical,
 	       sum / (double)this->get_npopulation()
 	       );
-//exit(1);
+//if (this->name == "Paranavai") exit(1);
 	for (person_t *p: this->people) {
 		pcritical = deaths_weight_per_age[ get_age_cat( p->get_age() ) ];
 		//pcritical = cfg.probability_critical;

@@ -272,8 +272,13 @@ public:
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);
 
-	// number of elements of reported_deaths_per_age_ must be AGE_CATS_N
-	void adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age_);
+	// number of elements of reported_deaths_per_age must be AGE_CATS_N
+	// number of elements of people_per_age must be AGE_CATS_N
+	// if we don't have the actual number of infection cases per age,
+	// we call the first variant, which uses the total number of people in the region
+	// otherwise we use the second variant
+	void adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age);
+	void adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age, uint64_t *people_per_age);
 
 	inline person_t* get_person (uint64_t i) {
 		return this->people[i];
