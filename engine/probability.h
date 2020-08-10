@@ -9,9 +9,9 @@
 
 extern std::mt19937_64 rgenerator;
 
-void start_dice_engine ();
+void generate_entropy ();
 double generate_random_between_0_and_1 ();
-int roll_dice (double probability);
+bool roll_dice (double probability);
 person_t* pick_random_person ();
 person_t* pick_random_person (state_t state);
 

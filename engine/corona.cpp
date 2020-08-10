@@ -104,7 +104,7 @@ bool try_to_summon ()
 {
 	bool r = false;
 
-	if (roll_dice(cfg.probability_summon_per_cycle)) {
+	if (roll_dice(cfg.probability_summon_per_cycle_step)) {
 		person_t *p;
 
 		p = pick_random_person();
@@ -118,7 +118,7 @@ bool try_to_summon ()
 	return r;
 }
 
-static void cycle ()
+static void run_cycle_step ()
 {
 	uint64_t i;
 
@@ -554,7 +554,7 @@ void person_t::cycle_infected ()
 		}
 	}
 
-	this->infection_countdown -= 1.0;
+	this->infection_countdown -= cfg.step;
 
 	switch (this->infected_state) {
 		case ST_INCUBATION:
@@ -626,9 +626,9 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_SEVERE:
-			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_severe_in_hospital_per_cycle))
+			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_severe_in_hospital_per_cycle_step))
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_severe_outside_hospital_per_cycle))
+			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_severe_outside_hospital_per_cycle_step))
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
@@ -639,9 +639,9 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_CRITICAL:
-			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_critical_in_hospital_per_cycle))
+			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_critical_in_hospital_per_cycle_step))
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_critical_outside_hospital_per_cycle))
+			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_critical_outside_hospital_per_cycle_step))
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;
@@ -832,7 +832,9 @@ static void simulate ()
 	callback_before_cycle(current_cycle);
 	callback_after_cycle(current_cycle);
 
-	for (current_cycle=1.0; current_cycle<cfg.cycles_to_simulate; current_cycle+=1.0) {
+	current_cycle += cfg.step;
+
+	for ( ; current_cycle<cfg.cycles_to_simulate; current_cycle+=cfg.step) {
 		cprintf("Cycle %.2f\n", current_cycle);
 
 		prev_cycle_stats_ptr = cycle_stats_ptr;
@@ -853,7 +855,7 @@ static void simulate ()
 
 		callback_before_cycle(current_cycle);
 
-		cycle();
+		run_cycle_step();
 		
 		callback_after_cycle(current_cycle);
 
@@ -1000,7 +1002,7 @@ int main (int argc, char **argv)
 
 	tbegin = std::chrono::steady_clock::now();
 
-	start_dice_engine();
+	generate_entropy();
 
 	load_stats_engine_stage_1();
 
@@ -1009,7 +1011,7 @@ int main (int argc, char **argv)
 	load_stats_engine_stage_2();
 
 	cfg.dump();
-
+//exit(1);
 	tbefore_sim = std::chrono::steady_clock::now();
 
 	simulate();

@@ -26,7 +26,8 @@ void cfg_t::set_defaults ()
 	this->cycles_contagious = new const_double_dist_t(4.0);
 	this->cycles_pre_symptomatic = new const_double_dist_t(1.0);
 
-	this->cycles_to_simulate = 180;
+	this->cycles_to_simulate = 180.0;
+	this->cycle_division = 1.0;
 
 	this->cycles_incubation = new gamma_double_dist_t(4.58, 3.24, 1.0, 14.0);
 
@@ -35,12 +36,12 @@ void cfg_t::set_defaults ()
 	this->cycles_before_hospitalization = new const_double_dist_t(5.0);
 
 	this->global_r0_factor = 1.0;
-	this->probability_summon_per_cycle = 0.05;
+	this->probability_summon_per_cycle_ = 0.05;
 
-	this->death_rate_severe_in_hospital = 0.15;
-	this->death_rate_critical_in_hospital = 0.36;
-	this->death_rate_severe_outside_hospital = 0.5;
-	this->death_rate_critical_outside_hospital = 0.99;
+	this->death_rate_severe_in_hospital_ = 0.15;
+	this->death_rate_critical_in_hospital_ = 0.36;
+	this->death_rate_severe_outside_hospital_ = 0.5;
+	this->death_rate_critical_outside_hospital_ = 0.99;
 
 	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
@@ -84,25 +85,29 @@ probability to die = 1 - (1 - death_rate_condition_in_hospital_per_cycle)^n
 death_rate_condition_in_hospital_per_cycle = 1 - (1 - probability to die)^(1/n)
 */
 
-static inline double calc_death_rate_per_cycle (double death_rate, double n_tries)
+static inline double calc_death_rate_per_step (double death_rate, double n_tries)
 {
 	return (1.0 - pow(1 - death_rate, 1.0 / n_tries));
 }
 
 void cfg_t::load_derived ()
 {
-	this->probability_infect_per_cycle = this->r0 / this->cycles_contagious->get_expected();
+	this->step = 1.0 / this->cycle_division;
+
+	this->probability_infect_per_cycle_step = this->r0 / (this->cycles_contagious->get_expected() * this->cycle_division);
 	this->probability_severe = 1.0 - (this->probability_asymptomatic + this->probability_mild + this->probability_critical);
+
+	this->probability_summon_per_cycle_step = this->probability_summon_per_cycle_ / this->cycle_division;
 
 	this->prob_ac_asymptomatic = this->probability_asymptomatic;
 	this->prob_ac_mild = this->prob_ac_asymptomatic + this->probability_mild;
 	this->prob_ac_severe = this->prob_ac_mild + this->probability_severe;
 	this->prob_ac_critical = this->prob_ac_severe + this->probability_critical;
 
-	this->death_rate_severe_in_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_severe_in_hospital, this->cycles_severe_in_hospital->get_expected());
-	this->death_rate_critical_in_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_critical_in_hospital, this->cycles_critical_in_icu->get_expected());
-	this->death_rate_severe_outside_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_severe_outside_hospital, this->cycles_severe_in_hospital->get_expected());
-	this->death_rate_critical_outside_hospital_per_cycle = calc_death_rate_per_cycle(this->death_rate_critical_outside_hospital, this->cycles_critical_in_icu->get_expected());
+	this->death_rate_severe_in_hospital_per_cycle_step = calc_death_rate_per_step(this->death_rate_severe_in_hospital_, this->cycle_division * this->cycles_severe_in_hospital->get_expected());
+	this->death_rate_critical_in_hospital_per_cycle_step = calc_death_rate_per_step(this->death_rate_critical_in_hospital_, this->cycle_division * this->cycles_critical_in_icu->get_expected());
+	this->death_rate_severe_outside_hospital_per_cycle_step = calc_death_rate_per_step(this->death_rate_severe_outside_hospital_, this->cycle_division * this->cycles_severe_in_hospital->get_expected());
+	this->death_rate_critical_outside_hospital_per_cycle_step = calc_death_rate_per_step(this->death_rate_critical_outside_hospital_, this->cycle_division * this->cycles_critical_in_icu->get_expected());
 }
 
 void cfg_t::dump ()

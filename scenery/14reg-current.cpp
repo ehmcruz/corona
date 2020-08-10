@@ -19,6 +19,7 @@ void cfg_t::scenery_setup ()
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 540.0;
 	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
+	this->cycle_division = 4.0;
 	//this->cycles_pre_symptomatic = 3.0;
 	//this->r0 = 10.0;
 
@@ -162,13 +163,13 @@ void setup_extra_relations ()
 	}
 }
 
-static double backup_school_r0;
+//static double backup_school_r0;
 
 static void adjust_r_no_school (double target_r0)
 {
 	double family_r0, unknown_r0, factor;
 
-	backup_school_r0 = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+	//backup_school_r0 = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 
 	//target_r0 /= cfg.cycles_contagious;
@@ -181,10 +182,12 @@ static void adjust_r_no_school (double target_r0)
 
 	family_r0 = cfg.relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg.relation_type_number[RELATION_FAMILY];
 	family_r0 *= cfg.cycles_contagious->get_expected();
+	family_r0 *= cfg.cycle_division;
 	family_r0 /= (double)population.size();
 
 	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
 	unknown_r0 *= cfg.cycles_contagious->get_expected();
+	unknown_r0 *= cfg.cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f family_r0: %.2f\n", current_cycle, family_r0);
@@ -196,11 +199,13 @@ static void adjust_r_no_school (double target_r0)
 
 	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
 	unknown_r0 *= cfg.cycles_contagious->get_expected();
+	unknown_r0 *= cfg.cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+//exit(1);
 }
 
 static void adjust_r_open_schools ()

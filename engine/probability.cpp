@@ -6,7 +6,7 @@ std::mt19937_64 rgenerator;
 
 static std::uniform_real_distribution<double> rdistribution(0.0, 1.0);
 
-void start_dice_engine ()
+void generate_entropy ()
 {
 	std::random_device rd;
 
@@ -23,7 +23,7 @@ double generate_random_between_0_and_1 ()
 	probability between 0.0 and 1.0
 */
 
-int roll_dice (double probability)
+bool roll_dice (double probability)
 {
 	return (generate_random_between_0_and_1() <= probability);
 }
@@ -128,5 +128,5 @@ double gamma_double_dist_t::generate_ ()
 
 void gamma_double_dist_t::print_params (FILE *fp)
 {
-	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->get_mean(), this->stddev);
+	fprintf(fp, "mean(%.2f) stddev(%.2f) alpha(%.2f) betha(%.2f)", this->get_mean(), this->stddev, this->calc_alpha(this->get_mean(), this->stddev), this->calc_betha(this->get_mean(), stddev));
 }

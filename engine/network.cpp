@@ -308,7 +308,7 @@ static void calibrate_rate_per_type ()
 	adjust_weights_to_fit_mean<double, uint64_t, NUMBER_OF_RELATIONS> (
 		cfg.relation_type_weights,
 		cfg.relation_type_number,
-		cfg.probability_infect_per_cycle * (double)population.size(),
+		cfg.probability_infect_per_cycle_step * (double)population.size(),
 		cfg.relation_type_transmit_rate
 		);
 }
@@ -592,6 +592,7 @@ double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 
 	r0 *= cfg.global_r0_factor;
 	r0 *= cfg.cycles_contagious->get_expected();
+	r0 *= cfg.cycle_division;
 	r0 /= (double)n;
 
 	return r0;
@@ -606,6 +607,7 @@ double network_get_affective_r0_fast ()
 
 	r0 *= cfg.global_r0_factor;
 	r0 *= cfg.cycles_contagious->get_expected();
+	r0 *= cfg.cycle_division;
 	r0 /= (double)population.size();
 
 	return r0;
