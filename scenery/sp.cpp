@@ -83,9 +83,12 @@ void region_t::setup_relations ()
 
 		dprintf("creating families for city %s...\n", this->get_name().c_str());
 		this->create_families(dist_family_size);
+
 		dprintf("creating random connections for city %s...\n", this->get_name().c_str());
 		this->create_random_connections(dist_number_random_connections);
-return;
+
+		dprintf("creating schools for city %s...\n", this->get_name().c_str());
+
 		std::vector<region_double_pair_t> school;
 		uint32_t i, n_schools, age;
 		uint64_t n_students, school_max_students = 2000;
@@ -135,11 +138,23 @@ void setup_inter_region_relations ()
 				s = *it;
 				t = *jt;
 
-				sn = (uint64_t)((double)s->get_npopulation() * 0.1);
-				tn = (uint64_t)((double)t->get_npopulation() * 0.1);
+				if (s->get_name() == "SaoPaulo") {
+					tn = (uint64_t)((double)t->get_npopulation() * 0.05);
+					sn = tn;
+				}
+				else if (t->get_name() == "SaoPaulo") {
+					sn = (uint64_t)((double)s->get_npopulation() * 0.05);
+					tn = sn;
+				}
+				else {
+					sn = (uint64_t)((double)s->get_npopulation() * 0.01);
+					tn = (uint64_t)((double)t->get_npopulation() * 0.01);
+				}
 
 				if (tn < sn)
 					sn = tn;
+				else
+					tn = sn;
 
 				cprintf("creating links between cities %s-%s " PU64 "...\n", s->get_name().c_str(), t->get_name().c_str(), sn);
 				
@@ -184,10 +199,12 @@ static void adjust_r_no_school (double target_r0)
 
 	family_r0 = cfg.relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg.relation_type_number[RELATION_FAMILY];
 	family_r0 *= cfg.cycles_contagious->get_expected();
+	family_r0 *= cfg.cycle_division;
 	family_r0 /= (double)population.size();
 
 	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
 	unknown_r0 *= cfg.cycles_contagious->get_expected();
+	unknown_r0 *= cfg.cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f family_r0: %.2f\n", current_cycle, family_r0);
@@ -199,6 +216,7 @@ static void adjust_r_no_school (double target_r0)
 
 	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
 	unknown_r0 *= cfg.cycles_contagious->get_expected();
+	unknown_r0 *= cfg.cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
@@ -219,11 +237,16 @@ static void adjust_r_open_schools ()
 
 void callback_before_cycle (double cycle)
 {
-//	static double backup;
+	const uint64_t people_warmup = 7300;
+	const double warmup = 47.0;
 
-	if (cycle == 0.0) {
-		for (uint32_t i=0; i<200; ) {
-			person_t *p = region_t::get("SaoPaulo")->pick_random_person();
+	if (cycle < warmup) {
+		static bool test = false;
+
+		uint64_t summon_per_cycle = (uint64_t)((double)people_warmup / (warmup * cfg.cycle_division));
+
+		for (uint32_t i=0; i<summon_per_cycle; ) {
+			person_t *p = pick_random_person();
 
 			if (p->get_state() == ST_HEALTHY) {
 				p->force_infect();
@@ -233,22 +256,25 @@ void callback_before_cycle (double cycle)
 printf("r0 cycle 0: %.2f\n", get_affective_r0());
 
 //printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
-		stages_green++;
+		if (!test) {
+			test = true;
+			stages_green++;
+		}
 	}
-	else if (cycle == 30.0) {
+	else if (cycle == warmup) {
 //		cfg.global_r0_factor = 1.05;
-//		adjust_r_no_school(0.9);
+		adjust_r_no_school(1.2);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 //		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
-		cfg.global_r0_factor = 0.9 / cfg.r0;
+//		cfg.global_r0_factor = 0.9 / cfg.r0;
 //printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 51.0) {
 //		adjust_r_no_school(1.15);
 		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
-		cfg.global_r0_factor = 1.16 / cfg.r0;
+		//cfg.global_r0_factor = 1.16 / cfg.r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
