@@ -1,5 +1,6 @@
 CPP = g++
 CPPFLAGS = -I./engine -I./parser -g -O2
+LDFLAGS = -lpthread
 
 OBJS_ENGINE := $(patsubst %.cpp,%.o,$(wildcard engine/*.cpp))
 OBJS_PARSER := $(patsubst %.cpp,%.o,$(wildcard parser/*.cpp))
@@ -16,7 +17,7 @@ HEADERS = $(wildcard engine/*.h) $(wildcard parser/*.h)
 	$(CPP) $(CPPFLAGS) -c -o $@ $<
 
 %.exec: %.o $(OBJS)
-	$(CPP) $(CPPFLAGS) -o $@ $< $(OBJS)
+	$(CPP) $(CPPFLAGS) -o $@ $< $(OBJS) $(LDFLAGS)
 
 all: $(ALL_OBJS) $(BINARIES)
 	@echo "Everything compiled! yes!"

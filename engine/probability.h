@@ -4,6 +4,11 @@
 #include <stdio.h>
 
 #include <random>
+#include <thread>
+
+//#include <boost/thread/thread.hpp>
+#include <boost/lockfree/queue.hpp>
+#include <boost/atomic.hpp>
 
 #include <lib.h>
 
@@ -227,5 +232,9 @@ static void adjust_biased_weights_to_fit_mean (Tweight *orig_weights_, Tvalue *v
 		mean, 
 		adj_weights);
 }
+
+/****************************************************/
+
+
 
 #endif
