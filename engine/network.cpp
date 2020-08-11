@@ -360,7 +360,8 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
                                      region_t *prof_region,
                                      dist_double_t& dist_prof_age,
                                      double intra_class_ratio,
-                                     double inter_class_ratio)
+                                     double inter_class_ratio,
+                                     report_progress_t *report)
 {
 	std::vector<person_t*> school_students;
 
@@ -391,8 +392,6 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
 		//class_ocupancy[age].second = 0;    // current amount of students
 	}
 
-		report_progress_t progress("school loading ...", students.size(), 10000);
-
 
 	for (person_t *p: students) {
 		uint32_t age = p->get_age();
@@ -404,7 +403,8 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
 		class_students[age].students[ class_students[age].i++ ] = p;
 		school_students[ school_i++ ] = p;
 
-		progress.check_report(1);
+		if (report != nullptr)
+			report->check_report(1);
 
 		if (class_students[age].i == class_students[age].size || school_i == school_size) {
 		#ifdef SANITY_ASSERT

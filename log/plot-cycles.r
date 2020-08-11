@@ -25,11 +25,13 @@ col_reported <- numeric(nrow(data))
 
 before = 0
 for (i in 1:length(col_reported)) {
-	col_reported[i] = before + data[i, "infected_state_ST_MILD"]
+	col_reported[i] = before + data[i, "infected_state_ST_MILD"] # a person always become MILD before SEVERE and CRITICAL
 	before = col_reported[i]
 }
 
 data$total_reported = col_reported
+
+data$reported = data$ac_infected_state_ST_MILD + data$ac_infected_state_ST_SEVERE + data$ac_infected_state_ST_CRITICAL
 
 # -----------------------------------------------------
 
@@ -123,6 +125,21 @@ png(filename = paste0(prefix, "-total-reported.png"),
 labels = c("sim-infected")
 
 plot(data$cycle, data$total_reported, xlab="Dias desde paciente zero", ylab="Total acumulado de infectados reportados", type="o", col="pink")
+
+grid(col = "gray", lwd=2)
+
+legend(150, 10000, labels, cex=0.8, col=c("purple"), pch=21:22, lty=1:2);
+
+# -----------------------------------------------------
+
+#pdf(file=paste0(prefix, "-mild.pdf"), width=11)
+png(filename = paste0(prefix, "-reported.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
+
+labels = c("sim-infected")
+
+plot(data$cycle, data$reported, xlab="Dias desde paciente zero", ylab="Total acumulado de infectados reportados", type="o", col="pink")
 
 grid(col = "gray", lwd=2)
 

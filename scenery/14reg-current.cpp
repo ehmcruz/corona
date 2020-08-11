@@ -83,11 +83,18 @@ void region_t::setup_relations ()
 		dprintf("setting up %s relations...\n", this->get_name().c_str());
 
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
+
+
 		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
 
 		this->create_families(dist_family_size);
-		this->create_random_connections(dist_number_random_connections);
-//return;
+
+		std::string rname(this->get_name());
+		rname += " random loading...";
+		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
+
+		this->create_random_connections(dist_number_random_connections, &progress_random);
+return;
 	#if 0
 		std::vector<region_double_pair_t> school;
 		uint32_t i, n_schools, age;
@@ -163,6 +170,10 @@ void region_t::setup_relations ()
 
 		normal_double_dist_t dist_school_prof_age(40.0, 10.0, 25.0, 70.0);
 
+		rname = this->get_name();
+		rname += " school loading...";
+		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
+
 		network_create_school_relation_v2(students,
 		                                  age_ini,
 		                                  age_end,
@@ -171,7 +182,8 @@ void region_t::setup_relations ()
                                           this,
                                           dist_school_prof_age,
                                           0.2,
-                                          0.003);
+                                          0.003,
+                                          &progress_school);
 	#endif
 	}
 }
@@ -284,7 +296,7 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 	}
 	else if (cycle == 30.0) {
 		cfg.global_r0_factor = 1.05;
-		adjust_r_no_school(0.9);
+		adjust_r_no_school(1.0);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 //		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
@@ -293,7 +305,7 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 	else if (cycle == 51.0) {
-		adjust_r_no_school(1.15);
+		adjust_r_no_school(1.3);
 		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 		//cfg.global_r0_factor = 1.16 / cfg.r0;

@@ -24,7 +24,8 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
                                      region_t *prof_region,
                                      dist_double_t& dist_prof_age,
                                      double intra_class_ratio=1.0,
-                                     double inter_class_ratio=0.025);
+                                     double inter_class_ratio=0.025,
+                                     report_progress_t *report = nullptr);
 
 uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags);
 

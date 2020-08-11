@@ -17,7 +17,7 @@ static int32_t stages_green = 0;
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
-	this->cycles_to_simulate = 540.0;
+	this->cycles_to_simulate = 160.0;
 	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
 	this->r0 = 3.0;
 
@@ -88,9 +88,12 @@ void region_t::setup_relations ()
 
 		dprintf("creating random connections for city %s...\n", this->get_name().c_str());
 
-		report_progress_t progress("random loading ...", this->get_npopulation(), 10000);
-		this->create_random_connections(dist_number_random_connections, &progress);
-return;
+		std::string rname(this->get_name());
+		rname += " random loading...";
+		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
+
+		this->create_random_connections(dist_number_random_connections, &progress_random);
+//return;
 		dprintf("creating schools for city %s...\n", this->get_name().c_str());
 
 		std::vector<person_t*> students;
@@ -131,6 +134,10 @@ return;
 
 		normal_double_dist_t dist_school_prof_age(40.0, 10.0, 25.0, 70.0);
 
+		rname = this->get_name();
+		rname += " school loading...";
+		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
+
 		network_create_school_relation_v2(students,
 		                                  age_ini,
 		                                  age_end,
@@ -139,7 +146,8 @@ return;
                                           this,
                                           dist_school_prof_age,
                                           0.2,
-                                          0.003);
+                                          0.003,
+                                          &progress_school);
 	}
 }
 
@@ -253,8 +261,10 @@ static void adjust_r_open_schools ()
 
 void callback_before_cycle (double cycle)
 {
-	const uint64_t people_warmup = 1000;
+	const uint64_t people_warmup = 80;
 	const double warmup = 47.0;
+
+	// target is 49000 infected after 47 days
 
 	if (cycle < warmup) {
 		static bool test = false;
@@ -281,7 +291,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 	else if (cycle == warmup) {
 //		cfg.global_r0_factor = 1.05;
 		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
-		adjust_r_no_school(1.2);
+		adjust_r_no_school(1.9);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 //		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
@@ -289,8 +299,8 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 51.0) {
-//		adjust_r_no_school(1.15);
+	else if (cycle == 56.0) {
+		adjust_r_no_school(1.4);
 		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -298,7 +308,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 	}
 	else if (cycle == 180.0) {
 		//adjust_r_open_schools();
-		stages_green++;
+//		stages_green++;
 	}
 }
 
@@ -312,7 +322,7 @@ void callback_end ()
 	uint32_t i;
 	uint64_t n_students, n_profs;
 
-	C_ASSERT(stages_green == 4)
+	C_ASSERT(stages_green == 3)
 
 	n_profs = get_n_population_per_relation_flag( {VFLAG_PROFESSOR} );
 	n_students = get_n_population_per_relation_flag( {RELATION_SCHOOL} );
