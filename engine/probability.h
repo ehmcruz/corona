@@ -27,16 +27,17 @@ public:
 	virtual void print_params (FILE *fp) = 0;
 	virtual T generate () = 0;
 	virtual T get_expected () = 0;
+	virtual T get_min () = 0;
+	virtual T get_max () = 0;
 };
 
 template <typename T>
 class dist_mmm_t: public dist_t<T>
 {
-	OO_ENCAPSULATE_RO(T, mean)
-	OO_ENCAPSULATE(T, min)
-	OO_ENCAPSULATE(T, max)
-
 protected:
+	T min;
+	T max;
+	T mean;
 	virtual T generate_ () = 0;
 
 public:
@@ -64,6 +65,14 @@ public:
 	T get_expected () override {
 		return this->mean;
 	}
+
+	T get_min () override {
+		return this->min;
+	}
+	
+	T get_max () override {
+		return this->max;
+	}
 };
 
 typedef dist_t<double> dist_double_t;
@@ -82,6 +91,8 @@ public:
 	double generate () override;
 	void print_params (FILE *fp) override;
 	double get_expected () override;
+	double get_min () override;
+	double get_max () override;
 };
 
 /*******************************************/

@@ -19,6 +19,8 @@ static std::vector<stats_t> *prev_cycle_stats_ptr = nullptr;
 static std::list< std::vector<stats_t> > all_cycles_stats;
 static std::vector<stats_zone_t> stats_zone_list;
 
+static std::chrono::steady_clock::time_point tbegin, tbefore_sim, tend;
+
 #define prev_cycle_stats (*prev_cycle_stats_ptr)
 
 std::vector<region_t*> regions;
@@ -982,124 +984,25 @@ static void load_stats_engine_stage_2 ()
 	}
 }
 
-template <typename T, typename DISTRIB, unsigned BUFFER_SIZE>
-class parallel_random_number_generator_t
+void panic (const char *str)
 {
-	OO_ENCAPSULATE_RO(uint32_t, nt)
-
-private:
-	boost::lockfree::queue<T, boost::lockfree::fixed_sized<true>, boost::lockfree::capacity<BUFFER_SIZE>> queue;
-	std::vector<std::thread*> workers;
-	DISTRIB& distrib_;
-
-public:
-	parallel_random_number_generator_t (DISTRIB& distrib, uint32_t nt)
-		: distrib_(distrib)
-	{
-		std::thread *t;
-
-		this->nt = nt;
-		dprintf("number of threads: %u\n", this->nt);
-
-		if (this->nt <= 1)
-			this->nt = 0;
-
-		for (uint32_t i; i<this->nt; i++) {
-			//C_ASSERT( distrib == this->distrib_worker.back() )
-			//std::cout << this->distrib_worker.back().mean() << " " << this->distrib_worker.back().stddev() << std::endl;
-
-			t = new std::thread( [this, &distrib] {
-				std::mt19937_64 rgenerator_worker;
-				DISTRIB distrib_worker(distrib.param());
-				T v;
-				bool ok = true;
-				std::random_device rd;
-
-				rgenerator_worker.seed( rd() ); // generate entropy
-
-				while (true) {
-					if (ok)
-						v = distrib_worker(rgenerator_worker);					
-
-					//dprintf("%.2f\n", v);
-					ok = this->queue.push(v);
-				}
-			});
-
-		}
-	}
-
-	parallel_random_number_generator_t (DISTRIB& distrib)
-		: parallel_random_number_generator_t(distrib, std::thread::hardware_concurrency() - 1)
-	{
-
-	}
-
-
-	T pop ()
-	{
-		T r;
-
-		if (this->nt > 1) {
-			bool ok;
-
-			do {
-				ok = this->queue.pop(r);
-			} while (ok == false);
-		}
-		else
-			r = this->distrib_(rgenerator);
-
-		return r;
-	}
-};
-
-static void benchmark_random_engine ()
-{
-	const uint32_t max = 10000000;
-	double r = 0.0; // avoid compiler opt
-	std::chrono::steady_clock::time_point tbegin, tend;
-	std::normal_distribution<double> test_dist(5, 1.5);
-
-	cprintf("generating %u random numbers in serial...", max);
-	
-	parallel_random_number_generator_t<double, std::normal_distribution<double>, 20> test_serial(test_dist, 1);
-
-	tbegin = std::chrono::steady_clock::now();
-
-	for (uint32_t i=0; i<max; i++)
-		r += test_serial.pop();
-
 	tend = std::chrono::steady_clock::now();
+	cprintf("%s\n", str);
 
-	std::chrono::duration<double> time_serial = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbegin);
+	std::chrono::duration<double> time_sim = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbegin);
 
-	cprintf("generating %u random numbers in parallel...", max);
-
-	parallel_random_number_generator_t<double, std::normal_distribution<double>, 20> test_parallel(test_dist);
-
-	tbegin = std::chrono::steady_clock::now();
-
-	for (uint32_t i=0; i<max; i++)
-		r += test_parallel.pop();
-
-	tend = std::chrono::steady_clock::now();
-
-	std::chrono::duration<double> time_parallel = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbegin);
-
-	cprintf("r=%.2f\n", r);
-	cprintf("time in serial: %.2fs\n", time_serial.count());
-	cprintf("time in parallel: %.2fs\n", time_parallel.count());
+	cprintf("Execution time %.1fs\n", time_sim.count());
+	cprintf("Corona panic\n");
 
 	exit(1);
 }
 
-
 int main (int argc, char **argv)
 {
 	FILE *fp;
-	std::chrono::steady_clock::time_point tbegin, tbefore_sim, tend;
 	int64_t i;
+
+	tbegin = std::chrono::steady_clock::now();
 
 	if (argc == 1)
 		results_file = (char*)default_results_file;
@@ -1112,8 +1015,6 @@ int main (int argc, char **argv)
 
 	for (i=0; i<AGES_N; i++)
 		people_per_age[i] = 0;
-
-	tbegin = std::chrono::steady_clock::now();
 
 	generate_entropy();
 

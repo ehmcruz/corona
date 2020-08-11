@@ -85,6 +85,16 @@ double const_double_dist_t::get_expected ()
 	return this->value;
 }
 
+double const_double_dist_t::get_min ()
+{
+	return this->value;
+}
+
+double const_double_dist_t::get_max ()
+{
+	return this->value;
+}
+
 void const_double_dist_t::print_params (FILE *fp)
 {
 	fprintf(fp, "%.2f", this->value);
@@ -108,7 +118,7 @@ double normal_double_dist_t::generate_ ()
 
 void normal_double_dist_t::print_params (FILE *fp)
 {
-	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->get_mean(), this->stddev);
+	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->mean, this->stddev);
 }
 
 /**************************************************/
@@ -128,5 +138,5 @@ double gamma_double_dist_t::generate_ ()
 
 void gamma_double_dist_t::print_params (FILE *fp)
 {
-	fprintf(fp, "mean(%.2f) stddev(%.2f) alpha(%.2f) betha(%.2f)", this->get_mean(), this->stddev, this->calc_alpha(this->get_mean(), this->stddev), this->calc_betha(this->get_mean(), stddev));
+	fprintf(fp, "mean(%.2f) stddev(%.2f) alpha(%.2f) betha(%.2f)", this->mean, this->stddev, this->calc_alpha(this->mean, this->stddev), this->calc_betha(this->mean, stddev));
 }

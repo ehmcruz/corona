@@ -24,7 +24,8 @@ void cfg_t::scenery_setup ()
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
 
-	this->n_regions = csv->get_ncities();
+	//this->n_regions = csv->get_ncities();
+	this->n_regions = 1;
 
 	cprintf("number of cities: %u\n", this->n_regions);
 }
@@ -48,7 +49,8 @@ void region_t::setup_population ()
 
 	std::string name;
 
-	name = csv->get_city_name( this->get_id() );
+	//name = csv->get_city_name( this->get_id() );
+	name = "SaoPaulo";
 
 	this->set_name(name);
 
@@ -129,6 +131,8 @@ void region_t::setup_relations ()
 
 void setup_inter_region_relations ()
 {
+	exit(1);
+
 	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
 			for (auto jt=it+1; jt!=regions.end(); ++jt) {

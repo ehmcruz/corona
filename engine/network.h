@@ -16,6 +16,16 @@ void network_create_school_relation (std::vector<region_double_pair_t>& regions,
                                      double intra_class_ratio=1.0,
                                      double inter_class_ratio=0.025);
 
+void network_create_school_relation_v2 (std::vector<person_t*>& students,
+                                     uint32_t age_ini,
+                                     uint32_t age_end,
+                                     dist_double_t& dist_class_size,
+                                     dist_double_t& dist_school_size,
+                                     region_t *prof_region,
+                                     dist_double_t& dist_prof_age,
+                                     double intra_class_ratio=1.0,
+                                     double inter_class_ratio=0.025);
+
 uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags);
 
 inline uint64_t get_n_population_per_relation_flag (std::initializer_list<relation_type_t> list)
@@ -79,6 +89,9 @@ static void network_create_connection_one_to_all (person_t *spreader, T& people,
 	for (auto it=people.begin(); it!=people.end(); ++it) {
 		person_t *pi = *it;
 
+		if (pi == nullptr)
+			break;
+
 		if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio) && network_check_if_people_are_neighbors(spreader, pi) == false) {
 			network_create_edge(spreader, pi, type);
 		}
@@ -91,8 +104,14 @@ static void network_create_connection_between_people (T& people, relation_type_t
 	for (auto it=people.begin(); it!=people.end(); ) {
 		person_t *pi = *it;
 
+		if (pi == nullptr)
+			break;
+
 		for (auto jt=++it; jt!=people.end(); ++jt) {
 			person_t *pj = *jt;
+
+			if (pj == nullptr)
+				break;
 
 			if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio) && network_check_if_people_are_neighbors(pi, pj) == false) {
 				network_create_edge(pi, pj, type);

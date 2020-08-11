@@ -19,7 +19,7 @@ void cfg_t::scenery_setup ()
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 540.0;
 	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
-	this->cycle_division = 4.0;
+	this->cycle_division = 1.0;
 	//this->cycles_pre_symptomatic = 3.0;
 	//this->r0 = 10.0;
 
@@ -80,12 +80,15 @@ void region_t::setup_health_units ()
 void region_t::setup_relations ()
 {
 	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+		dprintf("setting up %s relations...\n", this->get_name().c_str());
+
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
 		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
 
 		this->create_families(dist_family_size);
 		this->create_random_connections(dist_number_random_connections);
 //return;
+	#if 0
 		std::vector<region_double_pair_t> school;
 		uint32_t i, n_schools, age;
 		uint64_t n_students, school_max_students = 2000;
@@ -121,6 +124,55 @@ void region_t::setup_relations ()
 		school.push_back( {this, 0.2} );
 
 		network_create_school_relation(school, 19, 23, dist_school_class_size, this, dist_school_prof_age, 0.2, 0.002);
+	#else
+		std::vector<person_t*> students;
+		uint32_t age_ini = 4;
+		uint32_t age_end = 18;
+		double school_ratio = 0.9;
+		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
+		const_double_dist_t dist_school_size(2000.0);
+
+		struct school_per_age_t {
+			uint32_t age;
+			uint32_t n, i;
+		};
+
+		std::vector<school_per_age_t> v;
+		v.resize(age_end+1);
+
+		for (uint32_t age=age_ini; age<=age_end; age++) {
+			v[age].n = (uint32_t)((double)this->get_region_people_per_age(age) * school_ratio);
+			v[age].age = age;
+			v[age].i = 0;
+		}
+
+		students.reserve(this->people.size());
+
+		std::vector<person_t*> people_ = this->people;
+
+		std::shuffle(people_.begin(), people_.end(), rgenerator);
+
+		for (person_t *p: people_) {
+			uint32_t age = p->get_age();
+
+			if (age >= age_ini && age <= age_end && v[age].i < v[age].n) {
+				students.push_back(p);
+				v[age].i++;
+			}
+		}
+
+		normal_double_dist_t dist_school_prof_age(40.0, 10.0, 25.0, 70.0);
+
+		network_create_school_relation_v2(students,
+		                                  age_ini,
+		                                  age_end,
+		                                  dist_school_class_size,
+                                          dist_school_size,
+                                          this,
+                                          dist_school_prof_age,
+                                          0.2,
+                                          0.003);
+	#endif
 	}
 }
 

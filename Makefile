@@ -1,6 +1,6 @@
 CPP = g++
 CPPFLAGS = -I./engine -I./parser -g -O2
-LDFLAGS = -lpthread
+LDFLAGS =
 
 OBJS_ENGINE := $(patsubst %.cpp,%.o,$(wildcard engine/*.cpp))
 OBJS_PARSER := $(patsubst %.cpp,%.o,$(wildcard parser/*.cpp))

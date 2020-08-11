@@ -322,6 +322,13 @@ static double get_affective_r0 (std::initializer_list<relation_type_t> list)
 	return get_affective_r0(flags);
 }
 
+void panic (const char *str);
+
+inline void panic ()
+{
+	panic("");
+}
+
 struct region_double_pair_t {
 	region_t *region;
 	double ratio;
