@@ -271,7 +271,6 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 				i++;
 			}
 		}
-printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
 
 //printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		if (!test) {
@@ -281,6 +280,7 @@ printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
 	}
 	else if (cycle == warmup) {
 //		cfg.global_r0_factor = 1.05;
+		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
 		adjust_r_no_school(1.2);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
