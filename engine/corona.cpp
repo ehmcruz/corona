@@ -29,7 +29,12 @@ double current_cycle = 0.0;
 uint64_t people_per_age[AGES_N];
 
 std::vector<person_t*> population;
+
 static std::deque< std::pair<person_t*, person_t*> > to_infect_in_cycle;
+static std::deque< person_t* > to_recover_die_in_cycle;
+
+static std::vector<person_t*> pop_infected;
+static uint32_t pop_infected_n = 0;
 
 static const char default_results_file[] = "results-cycles";
 static char *results_file;
@@ -128,6 +133,9 @@ static void run_cycle_step ()
 	uint64_t sanity_check_infected, sanity_critical;
 #endif
 
+//dprintf("tracker -------------------- %.2f\n", current_cycle);
+//dprintf("tracker list"); for (person_t *p: pop_infected) { if (!p) break; dprintf("%u, ", p->get_id()); } dprintf("\n");
+
 #ifdef SANITY_CHECK
 {
 	uint64_t sanity_check;
@@ -164,7 +172,35 @@ static void run_cycle_step ()
 	sanity_critical = 0;
 #endif
 
+#ifdef SANITY_CHECK
 	for (person_t *p: population) {
+		if (p->get_state() == ST_INFECTED) {
+			C_ASSERT_PRINTF( p->get_infected_state_vec_pos() < pop_infected_n, "failed id=%u\n", p->get_id() )
+			C_ASSERT_PRINTF( pop_infected[ p->get_infected_state_vec_pos() ] == p, "failed id=%u\n", p->get_id() )
+		}
+	}
+#endif
+
+#if 1
+	for (person_t *p: pop_infected) {
+		if (unlikely(p == nullptr))
+			break;
+		//dprintf("tracker cycle pid %i\n", p->get_id());
+
+	#ifdef SANITY_CHECK
+		sanity_check_infected += (p->get_state() == ST_INFECTED);
+	#endif
+
+		p->cycle_infected();
+
+	#ifdef SANITY_CHECK
+		sanity_critical += (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_CRITICAL);
+	#endif
+	}
+#else
+	for (person_t *p: population) {
+		//dprintf("tracker cycle pid %i\n", p->get_id());
+
 	#ifdef SANITY_CHECK
 		sanity_check_infected += (p->get_state() == ST_INFECTED);
 	#endif
@@ -175,8 +211,20 @@ static void run_cycle_step ()
 		sanity_critical += (p->get_state() == ST_INFECTED && p->get_infected_state() == ST_CRITICAL);
 	#endif
 	}
+#endif
 
 	SANITY_ASSERT(sanity_check_infected == prev_cycle_stats[GLOBAL_STATS].ac_state[ST_INFECTED])
+
+	for (person_t *p: to_recover_die_in_cycle) {
+		//dprintf("tracker remove pid %i\n", p->get_id());
+		pop_infected[ p->get_infected_state_vec_pos() ] = pop_infected[ --pop_infected_n ];
+		pop_infected[ p->get_infected_state_vec_pos() ]->set_infected_state_vec_pos( p->get_infected_state_vec_pos() );
+		pop_infected[ pop_infected_n ] = nullptr;
+	}
+
+	to_recover_die_in_cycle.clear();
+
+	//dprintf("tracker list"); for (person_t *p: pop_infected) { if (!p) break; dprintf("%u, ", p->get_id()); } dprintf("\n");
 
 	try_to_summon();
 
@@ -496,6 +544,8 @@ void person_t::die ()
 {
 	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_SEVERE || this->infected_state == ST_CRITICAL))
 
+	this->remove_from_infected_list();
+
 	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 		stats_t& stats = cycle_stats[*it];
 
@@ -521,9 +571,16 @@ void person_t::die ()
 //cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
 }
 
+void person_t::remove_from_infected_list ()
+{
+	to_recover_die_in_cycle.push_back( this );
+}
+
 void person_t::recover ()
 {
 	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_ASYMPTOMATIC || this->infected_state == ST_MILD || this->infected_state == ST_SEVERE))
+
+	this->remove_from_infected_list();
 
 	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 		stats_t& stats = cycle_stats[*it];
@@ -549,6 +606,8 @@ void person_t::recover ()
 
 void person_t::cycle_infected ()
 {
+	C_ASSERT(this->state == ST_INFECTED)
+
 	if (this->infected_state != ST_INCUBATION) {
 		for (auto it = this->get_neighbor_list()->begin(); *it != nullptr; ++it) {
 			if (it.check_probability())
@@ -672,8 +731,13 @@ void person_t::pre_infect (person_t *from)
 {
 	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL && this->infected_cycle == -1.0)
 
+//printf("tracker add pid %i\n", this->get_id());
+
 	if (likely(from != nullptr))
 		from->n_victims++;
+
+	this->infected_state_vec_pos = pop_infected_n;
+	pop_infected[ pop_infected_n++ ] = this;
 
 	this->infected_cycle = current_cycle;
 	this->state = ST_INFECTED;
@@ -894,6 +958,8 @@ static void load_regions ()
 	}
 
 	C_ASSERT(population.size() == total)
+
+	pop_infected.resize(population.size(), nullptr);
 
 	stats_zone_t& zone = stats_zone_list.front();
 	C_ASSERT( zone.get_sid() == GLOBAL_STATS )

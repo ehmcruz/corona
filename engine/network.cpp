@@ -391,6 +391,9 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
 		//class_ocupancy[age].second = 0;    // current amount of students
 	}
 
+		report_progress_t progress("school loading ...", students.size(), 10000);
+
+
 	for (person_t *p: students) {
 		uint32_t age = p->get_age();
 
@@ -400,6 +403,8 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
 
 		class_students[age].students[ class_students[age].i++ ] = p;
 		school_students[ school_i++ ] = p;
+
+		progress.check_report(1);
 
 		if (class_students[age].i == class_students[age].size || school_i == school_size) {
 		#ifdef SANITY_ASSERT
@@ -445,7 +450,7 @@ panic("in\n");
 			C_ASSERT(class_students[age].size <= class_students[age].students.size())
 
 			if (school_i == school_size) {
-				dprintf("created school with %u students\n", school_i);
+				//dprintf("created school with %u students\n", school_i);
 				network_create_connection_between_people(school_students, RELATION_SCHOOL, inter_class_ratio);
 
 				for (auto& p: school_students)
@@ -469,7 +474,7 @@ panic("in\n");
 	}
 
 	if (school_i > 0) {
-		dprintf("created school with %u students\n", school_i);
+		//dprintf("created school with %u students\n", school_i);
 		network_create_connection_between_people(school_students, RELATION_SCHOOL, inter_class_ratio);
 	}
 }

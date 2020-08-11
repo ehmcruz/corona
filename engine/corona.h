@@ -186,6 +186,7 @@ class person_t
 	OO_ENCAPSULATE(infected_state_t, infected_state)
 	OO_ENCAPSULATE(region_t*, region)
 	OO_ENCAPSULATE(health_unit_t*, health_unit)
+	OO_ENCAPSULATE(uint32_t, infected_state_vec_pos)
 
 private:
 	infected_state_t next_infected_state, final_infected_state;
@@ -206,6 +207,7 @@ public:
 	void infect ();
 	void pre_infect (person_t *from);
 	void symptoms_arise (bool fast_track);
+	void remove_from_infected_list ();
 
 	inline void force_infect () {
 		this->pre_infect(nullptr);

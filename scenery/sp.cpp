@@ -24,8 +24,8 @@ void cfg_t::scenery_setup ()
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
 
-	//this->n_regions = csv->get_ncities();
-	this->n_regions = 1;
+	this->n_regions = csv->get_ncities();
+//	this->n_regions = 1;
 
 	cprintf("number of cities: %u\n", this->n_regions);
 }
@@ -49,8 +49,8 @@ void region_t::setup_population ()
 
 	std::string name;
 
-	//name = csv->get_city_name( this->get_id() );
-	name = "SaoPaulo";
+	name = csv->get_city_name( this->get_id() );
+	//name = "SaoPaulo";
 
 	this->set_name(name);
 
@@ -87,52 +87,64 @@ void region_t::setup_relations ()
 		this->create_families(dist_family_size);
 
 		dprintf("creating random connections for city %s...\n", this->get_name().c_str());
-		this->create_random_connections(dist_number_random_connections);
 
+		report_progress_t progress("random loading ...", this->get_npopulation(), 10000);
+		this->create_random_connections(dist_number_random_connections, &progress);
+return;
 		dprintf("creating schools for city %s...\n", this->get_name().c_str());
 
-		std::vector<region_double_pair_t> school;
-		uint32_t i, n_schools, age;
-		uint64_t n_students, school_max_students = 2000;
-		double school_ratio;
-
+		std::vector<person_t*> students;
+		uint32_t age_ini = 4;
+		uint32_t age_end = 18;
+		double school_ratio = 0.9;
 		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
+		const_double_dist_t dist_school_size(2000.0);
 
-		school_ratio = 0.9;
-		n_students = 0;
-		for (age=4; age<=18; age++) {
-			n_students += (uint64_t)((double)this->get_region_people_per_age(age) * school_ratio);
+		struct school_per_age_t {
+			uint32_t age;
+			uint32_t n, i;
+		};
+
+		std::vector<school_per_age_t> v;
+		v.resize(age_end+1);
+
+		for (uint32_t age=age_ini; age<=age_end; age++) {
+			v[age].n = (uint32_t)((double)this->get_region_people_per_age(age) * school_ratio);
+			v[age].age = age;
+			v[age].i = 0;
 		}
 
-		n_schools = n_students / school_max_students;
+		students.reserve(this->people.size());
 
-		n_schools++;
+		std::vector<person_t*> people_ = this->people;
 
-		school.push_back( {this, school_ratio / (double)n_schools} );
+		std::shuffle(people_.begin(), people_.end(), rgenerator);
 
-		printf("%s n_schools:%u school_ratio_per_school:%.2f students_per_school:" PU64 "\n",
-		       this->get_name().c_str(),
-		       n_schools,
-		       school_ratio / (double)n_schools,
-		       (uint64_t)((school_ratio / (double)n_schools)*(double)n_students));
+		for (person_t *p: people_) {
+			uint32_t age = p->get_age();
+
+			if (age >= age_ini && age <= age_end && v[age].i < v[age].n) {
+				students.push_back(p);
+				v[age].i++;
+			}
+		}
 
 		normal_double_dist_t dist_school_prof_age(40.0, 10.0, 25.0, 70.0);
 
-		for (i=0; i<n_schools; i++)
-			network_create_school_relation(school, 4, 18, dist_school_class_size, this, dist_school_prof_age, 0.2, 0.001);
-
-		school.clear();
-
-		school.push_back( {this, 0.2} );
-
-		network_create_school_relation(school, 19, 23, dist_school_class_size, this, dist_school_prof_age, 0.2, 0.002);
+		network_create_school_relation_v2(students,
+		                                  age_ini,
+		                                  age_end,
+		                                  dist_school_class_size,
+                                          dist_school_size,
+                                          this,
+                                          dist_school_prof_age,
+                                          0.2,
+                                          0.003);
 	}
 }
 
 void setup_inter_region_relations ()
 {
-	exit(1);
-
 	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
 			for (auto jt=it+1; jt!=regions.end(); ++jt) {
@@ -241,13 +253,15 @@ static void adjust_r_open_schools ()
 
 void callback_before_cycle (double cycle)
 {
-	const uint64_t people_warmup = 7300;
+	const uint64_t people_warmup = 1000;
 	const double warmup = 47.0;
 
 	if (cycle < warmup) {
 		static bool test = false;
 
-		uint64_t summon_per_cycle = (uint64_t)((double)people_warmup / (warmup * cfg.cycle_division));
+		uint32_t summon_per_cycle = (uint64_t)((double)people_warmup / (warmup * cfg.cycle_division));
+
+dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 		for (uint32_t i=0; i<summon_per_cycle; ) {
 			person_t *p = pick_random_person();
@@ -257,7 +271,7 @@ void callback_before_cycle (double cycle)
 				i++;
 			}
 		}
-printf("r0 cycle 0: %.2f\n", get_affective_r0());
+printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
 
 //printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		if (!test) {
