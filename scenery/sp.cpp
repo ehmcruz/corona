@@ -261,8 +261,8 @@ static void adjust_r_open_schools ()
 
 void callback_before_cycle (double cycle)
 {
-	const uint64_t people_warmup = 80;
-	const double warmup = 47.0;
+	const uint64_t people_warmup = 1200;
+	const double warmup = 30.0;
 
 	// target is 49000 infected after 47 days
 
@@ -291,7 +291,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 	else if (cycle == warmup) {
 //		cfg.global_r0_factor = 1.05;
 		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
-		adjust_r_no_school(1.9);
+		adjust_r_no_school(1.7);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 //		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
@@ -299,8 +299,8 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 56.0) {
-		adjust_r_no_school(1.4);
+	else if (cycle == 45.0) {
+		adjust_r_no_school(1.30);
 		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
