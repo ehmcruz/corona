@@ -21,6 +21,10 @@ void cfg_t::scenery_setup ()
 	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
 	this->r0 = 3.0;
 
+	this->probability_asymptomatic = 0.87;
+	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
+	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
+
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
 
