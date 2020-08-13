@@ -540,6 +540,14 @@ void person_t::setup_infection_probabilities (double pmild, double psevere, doub
 //	dprintf("ac_pasymptomatic:%.4f ac_pmild:%.4f ac_psevere:%.4f ac_pcritical:%.4f\n", this->prob_ac_asymptomatic, this->prob_ac_mild, this->prob_ac_severe, this->prob_ac_critical);
 }
 
+void person_t::force_infect ()
+{
+	if (current_cycle == 0.0)
+		this->pre_infect(nullptr);
+	else
+		to_infect_in_cycle.push_back( std::make_pair(nullptr, this) );
+}
+
 void person_t::die ()
 {
 	C_ASSERT(this->state == ST_INFECTED && (this->infected_state == ST_SEVERE || this->infected_state == ST_CRITICAL))
@@ -729,12 +737,18 @@ void person_t::cycle_infected ()
 
 void person_t::pre_infect (person_t *from)
 {
+	double incub_cycles;
+
 	SANITY_ASSERT(this->state == ST_HEALTHY && this->infected_state == ST_NULL && this->infected_cycle == -1.0)
 
 //printf("tracker add pid %i\n", this->get_id());
 
-	if (likely(from != nullptr))
+	if (likely(from != nullptr)) {
 		from->n_victims++;
+		incub_cycles = cfg.cycles_incubation->generate();
+	}
+	else     // forced infection, reduce the delay of incubation as much as possible
+		incub_cycles = cfg.step;
 
 	this->infected_state_vec_pos = pop_infected_n;
 	pop_infected[ pop_infected_n++ ] = this;
@@ -755,7 +769,7 @@ void person_t::pre_infect (person_t *from)
 		stats.ac_state[ST_INFECTED]++;
 	}
 
-	this->setup_infection_countdown( cfg.cycles_incubation->generate() );
+	this->setup_infection_countdown( incub_cycles );
 }
 
 void person_t::symptoms_arise (bool fast_track)
@@ -877,6 +891,29 @@ double get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 
 		case NETWORK_TYPE_NETWORK:
 			r0 = network_get_affective_r0(flags);
+		break;
+
+		default:
+			r0 = 0.0; // avoid warning
+			C_ASSERT(0)
+	}
+
+	return r0;
+}
+
+/****************************************************************/
+
+double get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
+{
+	double r0;
+
+	switch (cfg.network_type) {
+		case NETWORK_TYPE_FULLY_CONNECTED:
+			r0 = cfg.r0 * cfg.global_r0_factor;
+		break;
+
+		case NETWORK_TYPE_NETWORK:
+			r0 = network_get_affective_r0_fast(flags);
 		break;
 
 		default:

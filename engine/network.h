@@ -4,7 +4,7 @@
 void network_start_population_graph ();
 void network_after_all_regular_connetions ();
 double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags);
-double network_get_affective_r0_fast ();
+double network_get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags);
 void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n);
 
 void network_create_school_relation (std::vector<region_double_pair_t>& regions,

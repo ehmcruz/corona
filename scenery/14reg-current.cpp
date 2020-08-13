@@ -295,6 +295,7 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 	else if (cycle == 30.0) {
+//{ person_t *p; do { p = region_t::get("Paranavai")->pick_random_person(); if (p->get_state() == ST_HEALTHY) { p->force_infect(); break;} } while (1); }
 		cfg.global_r0_factor = 1.05;
 		adjust_r_no_school(1.0);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];

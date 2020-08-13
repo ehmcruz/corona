@@ -20,8 +20,10 @@
 
 #ifdef SANITY_CHECK
 	#define SANITY_ASSERT(V) C_ASSERT(V)
+	#define SANITY_ASSERT_PRINTF(V, ...) C_ASSERT_PRINTF(V, __VA_ARGS__)
 #else
 	#define SANITY_ASSERT(V)
+	#define SANITY_ASSERT_PRINTF(V, ...)
 #endif
 
 #ifdef DEBUG

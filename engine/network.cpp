@@ -223,6 +223,9 @@ void region_t::create_random_connections (dist_double_t& dist, report_progress_t
 		// remove the amount of connections that p already have
 		n -= (int32_t)get_number_of_neighbors(p, RELATION_UNKNOWN);
 
+		if (report != nullptr)
+			report->check_report(1);
+
 		if (n <= 0)
 			continue;
 
@@ -230,9 +233,6 @@ void region_t::create_random_connections (dist_double_t& dist, report_progress_t
 			neighbor = this->pick_random_person_not_neighbor(p);
 			network_create_edge(p, neighbor, RELATION_UNKNOWN);
 		}
-
-		if (report != nullptr)
-			report->check_report(1);
 	}
 }
 
@@ -746,12 +746,14 @@ double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 	return r0;
 }
 
-double network_get_affective_r0_fast ()
+double network_get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	double r0 = 0.0;
 
-	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++)
-		r0 += cfg.relation_type_transmit_rate[i] * (double)cfg.relation_type_number[i];
+	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++) {
+		if (flags.test(i))
+			r0 += cfg.relation_type_transmit_rate[i] * (double)cfg.relation_type_number[i];
+	}
 
 	r0 *= cfg.global_r0_factor;
 	r0 *= cfg.cycles_contagious->get_expected();
