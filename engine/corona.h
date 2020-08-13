@@ -266,7 +266,7 @@ public:
 	person_t* pick_random_person_not_neighbor (person_t *p);
 	
 	void create_families (dist_double_t& dist, report_progress_t *report = nullptr);
-	void create_random_connections (dist_double_t& dist, report_progress_t *report = nullptr);
+	void create_random_connections (dist_double_t& dist, relation_type_t type=RELATION_UNKNOWN, report_progress_t *report = nullptr);
 
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);

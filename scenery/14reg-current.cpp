@@ -93,7 +93,7 @@ void region_t::setup_relations ()
 		rname += " random loading...";
 		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
 
-		this->create_random_connections(dist_number_random_connections, &progress_random);
+		this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
 return;
 	#if 0
 		std::vector<region_double_pair_t> school;
@@ -207,7 +207,7 @@ void setup_inter_region_relations ()
 
 				cprintf("%s-%s " PU64 "\n", s->get_name().c_str(), t->get_name().c_str(), sn);
 				
-				network_create_inter_city_relation(s, t, sn);
+				network_create_inter_city_relation(s, t, sn, RELATION_UNKNOWN);
 			}
 		}
 	}

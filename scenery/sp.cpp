@@ -92,7 +92,7 @@ void region_t::setup_relations ()
 		rname += " random loading...";
 		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
 
-		this->create_random_connections(dist_number_random_connections, &progress_random);
+		this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
 //return;
 		dprintf("creating schools for city %s...\n", this->get_name().c_str());
 
@@ -182,7 +182,7 @@ void setup_inter_region_relations ()
 
 				cprintf("creating links between cities %s-%s " PU64 "...\n", s->get_name().c_str(), t->get_name().c_str(), sn);
 				
-				network_create_inter_city_relation(s, t, sn);
+				network_create_inter_city_relation(s, t, sn, RELATION_UNKNOWN);
 			}
 		}
 	}
@@ -261,7 +261,7 @@ static void adjust_r_open_schools ()
 
 void callback_before_cycle (double cycle)
 {
-	const uint64_t people_warmup = 1200;
+	const uint64_t people_warmup = 1700;
 	const double warmup = 30.0;
 
 	// target is 49000 infected after 47 days
@@ -291,7 +291,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 	else if (cycle == warmup) {
 //		cfg.global_r0_factor = 1.05;
 		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
-		adjust_r_no_school(1.7);
+		adjust_r_no_school(1.5);
 //		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 //		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
@@ -300,7 +300,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		stages_green++;
 	}
 	else if (cycle == 45.0) {
-		adjust_r_no_school(1.30);
+		adjust_r_no_school(1.35);
 		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());

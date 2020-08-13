@@ -212,7 +212,7 @@ person_t* region_t::pick_random_person_not_neighbor (person_t *p)
 	return neighbor;
 }
 
-void region_t::create_random_connections (dist_double_t& dist, report_progress_t *report)
+void region_t::create_random_connections (dist_double_t& dist, relation_type_t type, report_progress_t *report)
 {
 	person_t *neighbor;
 	int32_t i, n;
@@ -231,7 +231,7 @@ void region_t::create_random_connections (dist_double_t& dist, report_progress_t
 
 		for (i=0; i<n; i++) {
 			neighbor = this->pick_random_person_not_neighbor(p);
-			network_create_edge(p, neighbor, RELATION_UNKNOWN);
+			network_create_edge(p, neighbor, type);
 		}
 	}
 }
@@ -313,7 +313,7 @@ static void calibrate_rate_per_type ()
 		);
 }
 
-void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n)
+void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n, relation_type_t type)
 {
 	uint64_t i;
 	person_t *sp, *tp;
@@ -325,7 +325,7 @@ void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n)
 		tp = t->pick_random_person();
 
 		if (network_check_if_people_are_neighbors(sp, tp) == false) {
-			network_create_edge(sp, tp, RELATION_TRAVEL);
+			network_create_edge(sp, tp, type);
 			i++;
 		}
 	}
