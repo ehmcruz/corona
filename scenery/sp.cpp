@@ -17,7 +17,7 @@ static int32_t stages_green = 0;
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
-	this->cycles_to_simulate = 160.0;
+	this->cycles_to_simulate = 30.0 * 12.0;
 	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
 	this->r0 = 3.0;
 
