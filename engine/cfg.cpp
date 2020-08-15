@@ -7,10 +7,12 @@ cfg_t::cfg_t ()
 	#define CORONA_CFG(TYPE, PRINT, STAT) this->STAT = 0;
 	#define CORONA_CFG_OBJ(TYPE, STAT) this->STAT = nullptr;
 	#define CORONA_CFG_VECTOR(TYPE, PRINT, LIST, STAT, N) for (uint32_t i=0; i<N; i++) { this->STAT[i] = 0; }
+	#define CORONA_CFG_MATRIX(TYPE, PRINT, PRINTFUNC, STAT, NROWS, NCOLS) for (uint32_t i=0; i<NROWS; i++) { for (uint32_t j=0; j<NCOLS; j++) this->STAT[i][j] = 0; }
 	#include <cfg.h>
 	#undef CORONA_CFG
 	#undef CORONA_CFG_OBJ
 	#undef CORONA_CFG_VECTOR
+	#undef CORONA_CFG_MATRIX
 
 	this->set_defaults();
 	this->scenery_setup();
@@ -64,6 +66,11 @@ void cfg_t::set_defaults ()
 	this->r0_factor_per_group[ST_SEVERE] = 0.5;
 	this->r0_factor_per_group[ST_CRITICAL] = 0.5;
 
+	for (uint32_t r=0; r<NUMBER_OF_RELATIONS; r++) {
+		for (uint32_t i=0; i<NUMBER_OF_INFECTED_STATES; i++)
+			this->factor_per_relation_group[r][i] = 1.0;
+	}
+
 	this->network_type = NETWORK_TYPE_FULLY_CONNECTED;
 
 	this->n_regions = 1;
@@ -115,9 +122,11 @@ void cfg_t::dump ()
 	#define CORONA_CFG(TYPE, PRINT, STAT) cprintf(#STAT ": " PRINT "\n", this->STAT);
 	#define CORONA_CFG_OBJ(TYPE, STAT) cprintf(#STAT ": "); this->STAT->print_params(stdout); cprintf("\n");
 	#define CORONA_CFG_VECTOR(TYPE, PRINT, LIST, STAT, N) for (uint32_t i=0; i<N; i++) { cprintf(#STAT ".%s: " PRINT "\n", LIST##_str(i), this->STAT[i]); }
+	#define CORONA_CFG_MATRIX(TYPE, PRINT, PRINTFUNC, STAT, NROWS, NCOLS) for (uint32_t i=0; i<NROWS; i++) { for (uint32_t j=0; j<NCOLS; j++) { cprintf(#STAT ".%s: " PRINT "\n", PRINTFUNC(i, j), this->STAT[i][j]); } }
 	#include <cfg.h>
 	#undef CORONA_CFG
 	#undef CORONA_CFG_OBJ
 	#undef CORONA_CFG_VECTOR
+	#undef CORONA_CFG_MATRIX
 //exit(1);
 }

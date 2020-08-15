@@ -48,6 +48,8 @@ char* state_str (int32_t i)
 		"ST_DEAD"
 	};
 
+	static_assert((sizeof(list) / sizeof(*list)) == NUMBER_OF_STATES);
+
 	C_ASSERT(i < NUMBER_OF_STATES)
 
 	return (char*)list[i];
@@ -63,6 +65,8 @@ char* infected_state_str (int32_t i)
 		"ST_SEVERE",
 		"ST_CRITICAL"
 	};
+
+	static_assert((sizeof(list) / sizeof(*list)) == NUMBER_OF_INFECTED_STATES);
 
 	C_ASSERT(i < NUMBER_OF_INFECTED_STATES)
 
@@ -84,6 +88,8 @@ char* critical_per_age_str (int32_t age_group)
 		"90_",
 	};
 
+	static_assert((sizeof(list) / sizeof(*list)) == AGE_CATS_N);
+
 	C_ASSERT(age_group < AGE_CATS_N)
 	
 	return (char*)list[age_group];
@@ -96,13 +102,43 @@ char* relation_type_str (int32_t i)
 		"B",
 		"U",
 		"S",
+		"S0",
+		"S1",
+		"S2",
+		"S3",
+		"S4",
 		"T",
 		"O",
 	};
 
+	static_assert((sizeof(list) / sizeof(*list)) == NUMBER_OF_RELATIONS);
+
 	C_ASSERT(i < NUMBER_OF_RELATIONS)
 
 	return (char*)list[i];
+}
+
+static std::string factor_per_relation_group_str_matrix[NUMBER_OF_RELATIONS][NUMBER_OF_INFECTED_STATES];
+
+static void load_factor_per_relation_group_str ()
+{
+	for (uint32_t r=0; r<NUMBER_OF_RELATIONS; r++) {
+		for (uint32_t i=0; i<NUMBER_OF_INFECTED_STATES; i++) {
+			std::string& s = factor_per_relation_group_str_matrix[r][i];
+
+			s = relation_type_str(r);
+			s += "_";
+			s += infected_state_str(i);
+		}
+	}
+}
+
+char* factor_per_relation_group_str (int32_t relation, int32_t group)
+{
+	C_ASSERT(relation < NUMBER_OF_RELATIONS)
+	C_ASSERT(group < NUMBER_OF_INFECTED_STATES)
+
+	return (char*)factor_per_relation_group_str_matrix[relation][group].c_str();
 }
 
 /****************************************************************/
@@ -1118,6 +1154,8 @@ int main (int argc, char **argv)
 
 	for (i=0; i<AGES_N; i++)
 		people_per_age[i] = 0;
+
+	load_factor_per_relation_group_str();
 
 	generate_entropy();
 

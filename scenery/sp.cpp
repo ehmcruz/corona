@@ -340,3 +340,151 @@ void callback_end ()
 
 	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }
+
+struct room_t {
+	std::vector<person_t*> students;
+	uint32_t size;
+	uint32_t i;
+};
+
+static void network_create_school_relation_v2_professor (std::vector<person_t*>& students,
+                                                         region_t *prof_region,
+                                                         dist_double_t& dist_prof_age)
+{
+	uint32_t prof_age = (uint32_t)dist_prof_age.generate();
+
+	for (person_t *prof: prof_region->get_people()) {
+		if (prof->get_age() == prof_age && network_vertex_data(prof).flags.test(RELATION_SCHOOL) == false) {
+			network_vertex_data(prof).flags.set(VFLAG_PROFESSOR);
+			network_create_connection_one_to_all(prof, students, RELATION_SCHOOL);
+			break;
+		}
+	}
+}
+
+void sp_create_school_relation_contingency (std::vector<person_t*>& students,
+                                            uint32_t age_ini,
+                                            uint32_t age_end,
+                                            dist_double_t& dist_class_size,
+                                            dist_double_t& dist_school_size,
+                                            region_t *prof_region,
+                                            dist_double_t& dist_prof_age,
+                                            double intra_class_ratio,
+                                            double inter_class_ratio,
+                                            report_progress_t *report)
+{
+	std::vector<person_t*> school_students;
+
+	uint32_t school_i = 0;
+	uint32_t school_size = (uint32_t)dist_school_size.generate();
+
+	std::vector<room_t> class_students;
+	
+	school_students.resize( (uint32_t)dist_school_size.get_max(), nullptr );
+
+	C_ASSERT(school_size <= school_students.size())
+	
+	class_students.resize( age_end + 1 );
+
+	dprintf("total amount of students to go to school: " PU64 "\n", students.size());
+
+	for (uint32_t age=age_ini; age<=age_end; age++) {
+		class_students[age].students.resize( (uint32_t)dist_class_size.get_max(), nullptr );
+		class_students[age].size = (uint32_t)dist_class_size.generate();
+		class_students[age].i = 0;
+
+		C_ASSERT(class_students[age].size <= class_students[age].students.size())
+
+		//for (uint32_t i=0; i<class_students[age].size(); i++)
+		//	class_students[age][i] = nullptr;
+
+		//class_ocupancy[age].first = 0;     // target amount of students
+		//class_ocupancy[age].second = 0;    // current amount of students
+	}
+
+
+	for (person_t *p: students) {
+		uint32_t age = p->get_age();
+
+		C_ASSERT(age >= age_ini && age <= age_end)
+		C_ASSERT(class_students[age].i <= class_students[age].size)
+		C_ASSERT(school_i <= school_size)
+
+		class_students[age].students[ class_students[age].i++ ] = p;
+		school_students[ school_i++ ] = p;
+
+		if (report != nullptr)
+			report->check_report(1);
+
+		if (class_students[age].i == class_students[age].size || school_i == school_size) {
+		#ifdef SANITY_ASSERT
+		{
+			bool was_null = false;
+			for (auto p: class_students[age].students) {
+				if (was_null == false) {
+					was_null = (p == nullptr);
+				}
+				else {
+					C_ASSERT(p == nullptr)
+				}
+			}
+		}
+		#endif
+
+//			dprintf("created class room with %u students\n", class_students[age].i);
+
+			network_create_connection_between_people(class_students[age].students, RELATION_SCHOOL, intra_class_ratio);
+
+#if 0
+network_print_population_graph( {RELATION_SCHOOL} );
+for (auto p: class_students[age].students) if (p) dprintf("%i, ", p->get_id());
+dprintf("       %.4f\n", intra_class_ratio);
+panic("in\n");
+#endif
+
+			network_create_school_relation_v2_professor(class_students[age].students, prof_region, dist_prof_age);
+
+#if 0
+network_print_population_graph( {RELATION_SCHOOL} );
+for (auto p: class_students[age].students) if (p) dprintf("%i, ", p->get_id());
+dprintf("\n");
+panic("in\n");
+#endif
+
+			for (auto& p: class_students[age].students)
+				p = nullptr;
+
+			class_students[age].size = (uint32_t)dist_class_size.generate();
+			class_students[age].i = 0;
+
+			C_ASSERT(class_students[age].size <= class_students[age].students.size())
+
+			if (school_i == school_size) {
+				//dprintf("created school with %u students\n", school_i);
+				network_create_connection_between_people(school_students, RELATION_SCHOOL, inter_class_ratio);
+
+				for (auto& p: school_students)
+					p = nullptr;
+
+				school_i = 0;
+				school_size = (uint32_t)dist_school_size.generate();
+
+				C_ASSERT(school_size <= school_students.size())
+			}
+		}
+	}
+
+	for (uint32_t age=age_ini; age<=age_end; age++) {
+		if (class_students[age].i > 0) {
+//			dprintf("created class room with %u students\n", class_students[age].i);
+
+			network_create_connection_between_people(class_students[age].students, RELATION_SCHOOL, intra_class_ratio);
+			network_create_school_relation_v2_professor(class_students[age].students, prof_region, dist_prof_age);
+		}
+	}
+
+	if (school_i > 0) {
+		//dprintf("created school with %u students\n", school_i);
+		network_create_connection_between_people(school_students, RELATION_SCHOOL, inter_class_ratio);
+	}
+}

@@ -137,6 +137,11 @@ enum relation_type_t {
 	RELATION_BUDDY,
 	RELATION_UNKNOWN,
 	RELATION_SCHOOL,
+	RELATION_SCHOOL_0,       // some strategies require schools to divide each classroom in different days
+	RELATION_SCHOOL_1,
+	RELATION_SCHOOL_2,
+	RELATION_SCHOOL_3,
+	RELATION_SCHOOL_4,
 	RELATION_TRAVEL,
 	RELATION_OTHERS,
 	NUMBER_OF_RELATIONS,
@@ -146,6 +151,8 @@ enum relation_type_t {
 };
 
 char* relation_type_str (int32_t i);
+
+char* factor_per_relation_group_str (int32_t relation, int32_t group);
 
 struct pop_vertex_data_t {
 	person_t *p;
@@ -361,16 +368,31 @@ public:
 	#define CORONA_CFG(TYPE, PRINT, STAT) TYPE STAT;
 	#define CORONA_CFG_OBJ(TYPE, STAT) TYPE *STAT;
 	#define CORONA_CFG_VECTOR(TYPE, PRINT, LIST, STAT, N) TYPE STAT[N];
+	#define CORONA_CFG_MATRIX(TYPE, PRINT, PRINTFUNC, STAT, NROWS, NCOLS) TYPE STAT[NROWS][NCOLS];
 	#include <cfg.h>
 	#undef CORONA_CFG
 	#undef CORONA_CFG_OBJ
 	#undef CORONA_CFG_VECTOR
+	#undef CORONA_CFG_MATRIX
 
 	cfg_t();
 	void set_defaults ();
 	void scenery_setup (); // coded in scenery
 	void load_derived();
 	void dump ();
+
+	inline double get_factor_per_relation_group(relation_type_t r, infected_state_t i) {
+		SANITY_ASSERT(r < NUMBER_OF_RELATIONS)
+		SANITY_ASSERT(i < NUMBER_OF_INFECTED_STATES)
+
+		return this->factor_per_relation_group[r][i];
+	}
+
+	inline double get_factor_per_relation_group(relation_type_t r, person_t *p) {
+		SANITY_ASSERT(p->get_state() == ST_INFECTED);
+
+		return this->get_factor_per_relation_group(r, p->get_infected_state());
+	}
 };
 
 // coded in scenery

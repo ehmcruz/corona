@@ -798,7 +798,7 @@ neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 		neighbor_list_t::pair_t& pair = this->connected[i];
 
 		type = edesc(*ei).type;
-		it.prob += cfg.relation_type_transmit_rate[type];
+		it.prob += cfg.relation_type_transmit_rate[type] * cfg.get_factor_per_relation_group(type, this->get_person());
 
 		pair.first = it.prob;
 		pair.second = get_neighbor(this->get_person(), *ei);

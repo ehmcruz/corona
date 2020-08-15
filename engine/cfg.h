@@ -30,6 +30,8 @@ CORONA_CFG_VECTOR(double, "%.4f", relation_type, relation_type_weights, NUMBER_O
 
 CORONA_CFG_VECTOR(double, "%.4f", infected_state, r0_factor_per_group, NUMBER_OF_INFECTED_STATES)
 
+CORONA_CFG_MATRIX(double, "%.4f", factor_per_relation_group_str, factor_per_relation_group, NUMBER_OF_RELATIONS, NUMBER_OF_INFECTED_STATES)
+
 CORONA_CFG(uint32_t, "%u", network_type)
 
 CORONA_CFG(uint32_t, "%u", n_regions)
