@@ -4,6 +4,8 @@
 #include <random>
 #include <algorithm>
 
+//#define REDUCED_SCHOOL
+
 static csv_ages_t *csv;
 
 //static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
@@ -14,13 +16,15 @@ static health_unit_t enfermaria(1000000000, ST_SEVERE);
 
 static int32_t stages_green = 0;
 
+static uint32_t sp_school_div = 3;
+
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 30.0 * 12.0;
 
-	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
-		this->relation_type_weights[r] = 2.0;
+//	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+//		this->relation_type_weights[r] = 2.0;
 
 	this->r0 = 3.0;
 
@@ -145,6 +149,8 @@ void region_t::setup_relations ()
 		rname += " school loading...";
 		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
 
+	#ifdef REDUCED_SCHOOL
+	#else
 		network_create_school_relation_v2(students,
 		                                  age_ini,
 		                                  age_end,
@@ -155,6 +161,7 @@ void region_t::setup_relations ()
                                           0.2,
                                           0.003,
                                           &progress_school);
+	#endif
 	}
 }
 
@@ -198,14 +205,20 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
-	return;
-
 	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
 		stats_zone_t *zone = create_new_stats_zone();
 		zone->get_name() = "school";
 
+		std::bitset<NUMBER_OF_FLAGS> mask;
+		mask.set(RELATION_SCHOOL);
+		mask.set(RELATION_SCHOOL_0);
+		mask.set(RELATION_SCHOOL_1);
+		mask.set(RELATION_SCHOOL_2);
+		mask.set(RELATION_SCHOOL_3);
+		mask.set(RELATION_SCHOOL_4);
+
 		for (person_t *p: population) {
-			if (network_vertex_data(p).flags.test(RELATION_SCHOOL))
+			if ((network_vertex_data(p).flags & mask).any())
 				zone->add_person(p);
 		}
 	}
@@ -260,7 +273,7 @@ static void adjust_r_open_schools ()
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 3.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
@@ -270,6 +283,9 @@ void callback_before_cycle (double cycle)
 {
 	const uint64_t people_warmup = 1700;
 	const double warmup = 30.0;
+	const double cycle_open_school = 210.0;
+	static uint32_t day = RELATION_SCHOOL_0;
+	double intpart;
 
 	// target is 49000 infected after 47 days
 
@@ -313,10 +329,23 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 210.0) {
+	else if (cycle == cycle_open_school) {
 		adjust_r_open_schools();
 		stages_green++;
 	}
+#ifdef REDUCED_SCHOOL
+	else if (cycle > cycle_open_school && modf(cycle, &intpart) == 0.0) {
+		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
+			cfg.relation_type_transmit_rate[r] = 0;
+
+		cfg.relation_type_transmit_rate[day] = 3.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+		
+		day++;
+
+		if (day >= sp_school_div)
+			day= 0;
+	}
+#endif
 }
 
 void callback_after_cycle (double cycle)
