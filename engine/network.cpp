@@ -331,7 +331,7 @@ void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n, r
 	}
 }
 
-struct room_t {
+struct network_school_room_t {
 	std::vector<person_t*> students;
 	uint32_t size;
 	uint32_t i;
@@ -368,7 +368,7 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
 	uint32_t school_i = 0;
 	uint32_t school_size = (uint32_t)dist_school_size.generate();
 
-	std::vector<room_t> class_students;
+	std::vector<network_school_room_t> class_students;
 	
 	school_students.resize( (uint32_t)dist_school_size.get_max(), nullptr );
 
@@ -397,8 +397,12 @@ void network_create_school_relation_v2 (std::vector<person_t*>& students,
 		uint32_t age = p->get_age();
 
 		C_ASSERT(age >= age_ini && age <= age_end)
-		C_ASSERT(class_students[age].i <= class_students[age].size)
-		C_ASSERT(school_i <= school_size)
+
+		C_ASSERT(class_students[age].i < class_students[age].size)
+		C_ASSERT(school_i < school_size)
+
+		C_ASSERT(class_students[age].i < class_students[age].students.size())
+		C_ASSERT(school_i < school_students.size())
 
 		class_students[age].students[ class_students[age].i++ ] = p;
 		school_students[ school_i++ ] = p;

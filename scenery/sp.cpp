@@ -18,7 +18,10 @@ void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 30.0 * 12.0;
-	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
+
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		this->relation_type_weights[r] = 2.0;
+
 	this->r0 = 3.0;
 
 	this->probability_asymptomatic = 0.87;
@@ -310,9 +313,9 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 180.0) {
-		//adjust_r_open_schools();
-//		stages_green++;
+	else if (cycle == 210.0) {
+		adjust_r_open_schools();
+		stages_green++;
 	}
 }
 
@@ -326,7 +329,7 @@ void callback_end ()
 	uint32_t i;
 	uint64_t n_students, n_profs;
 
-	C_ASSERT(stages_green == 3)
+	C_ASSERT(stages_green == 4)
 
 	n_profs = get_n_population_per_relation_flag( {VFLAG_PROFESSOR} );
 	n_students = get_n_population_per_relation_flag( {RELATION_SCHOOL} );
@@ -341,25 +344,34 @@ void callback_end ()
 	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }
 
-struct room_t {
+struct sp_room_t {
 	std::vector<person_t*> students;
 	uint32_t size;
 	uint32_t i;
+	uint32_t room_i;
+	person_t *prof;
 };
 
-static void network_create_school_relation_v2_professor (std::vector<person_t*>& students,
-                                                         region_t *prof_region,
-                                                         dist_double_t& dist_prof_age)
+static person_t* sp_find_professor (region_t *prof_region, dist_double_t& dist_prof_age)
 {
 	uint32_t prof_age = (uint32_t)dist_prof_age.generate();
 
 	for (person_t *prof: prof_region->get_people()) {
 		if (prof->get_age() == prof_age && network_vertex_data(prof).flags.test(RELATION_SCHOOL) == false) {
 			network_vertex_data(prof).flags.set(VFLAG_PROFESSOR);
-			network_create_connection_one_to_all(prof, students, RELATION_SCHOOL);
-			break;
+			network_vertex_data(prof).flags.set(RELATION_SCHOOL); // to prevent selecting the same professor twice
+			return prof;
 		}
 	}
+
+	C_ASSERT(false)
+
+	return nullptr;
+}
+
+static void sp_create_school_relation_professor (std::vector<person_t*>& students, person_t *prof)
+{
+	network_create_connection_one_to_all(prof, students, RELATION_SCHOOL);
 }
 
 void sp_create_school_relation_contingency (std::vector<person_t*>& students,
@@ -371,6 +383,7 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
                                             dist_double_t& dist_prof_age,
                                             double intra_class_ratio,
                                             double inter_class_ratio,
+                                            uint32_t room_div,
                                             report_progress_t *report)
 {
 	std::vector<person_t*> school_students;
@@ -378,7 +391,7 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
 	uint32_t school_i = 0;
 	uint32_t school_size = (uint32_t)dist_school_size.generate();
 
-	std::vector<room_t> class_students;
+	std::vector<sp_room_t> class_students;
 	
 	school_students.resize( (uint32_t)dist_school_size.get_max(), nullptr );
 
@@ -392,6 +405,7 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
 		class_students[age].students.resize( (uint32_t)dist_class_size.get_max(), nullptr );
 		class_students[age].size = (uint32_t)dist_class_size.generate();
 		class_students[age].i = 0;
+		class_students[age].room_i = 0;
 
 		C_ASSERT(class_students[age].size <= class_students[age].students.size())
 
@@ -401,7 +415,6 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
 		//class_ocupancy[age].first = 0;     // target amount of students
 		//class_ocupancy[age].second = 0;    // current amount of students
 	}
-
 
 	for (person_t *p: students) {
 		uint32_t age = p->get_age();
@@ -433,7 +446,14 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
 
 //			dprintf("created class room with %u students\n", class_students[age].i);
 
-			network_create_connection_between_people(class_students[age].students, RELATION_SCHOOL, intra_class_ratio);
+			C_ASSERT(class_students[age].room_i < room_div)
+
+			uint32_t school_rtype = static_cast<uint32_t>(RELATION_SCHOOL_0) + class_students[age].room_i;
+
+			if (class_students[age].room_i == 0)
+				class_students[age].prof = sp_find_professor(prof_region, dist_prof_age);
+
+			network_create_connection_between_people(class_students[age].students, static_cast<relation_type_t>(school_rtype), intra_class_ratio);
 
 #if 0
 network_print_population_graph( {RELATION_SCHOOL} );
@@ -442,7 +462,12 @@ dprintf("       %.4f\n", intra_class_ratio);
 panic("in\n");
 #endif
 
-			network_create_school_relation_v2_professor(class_students[age].students, prof_region, dist_prof_age);
+			sp_create_school_relation_professor(class_students[age].students, class_students[age].prof);
+
+			class_students[age].room_i++;
+
+			if (class_students[age].room_i == room_div)
+				class_students[age].room_i = 0;
 
 #if 0
 network_print_population_graph( {RELATION_SCHOOL} );
@@ -477,9 +502,16 @@ panic("in\n");
 	for (uint32_t age=age_ini; age<=age_end; age++) {
 		if (class_students[age].i > 0) {
 //			dprintf("created class room with %u students\n", class_students[age].i);
+			C_ASSERT(class_students[age].room_i < room_div)
 
-			network_create_connection_between_people(class_students[age].students, RELATION_SCHOOL, intra_class_ratio);
-			network_create_school_relation_v2_professor(class_students[age].students, prof_region, dist_prof_age);
+			uint32_t school_rtype = static_cast<uint32_t>(RELATION_SCHOOL_0) + class_students[age].room_i;
+
+			if (class_students[age].room_i == 0)
+				class_students[age].prof = sp_find_professor(prof_region, dist_prof_age);
+			
+			network_create_connection_between_people(class_students[age].students, static_cast<relation_type_t>(school_rtype), intra_class_ratio);
+			
+			sp_create_school_relation_professor(class_students[age].students, class_students[age].prof);
 		}
 	}
 

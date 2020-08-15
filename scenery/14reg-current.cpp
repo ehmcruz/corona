@@ -94,7 +94,7 @@ void region_t::setup_relations ()
 		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
 
 		this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
-return;
+//return;
 	#if 0
 		std::vector<region_double_pair_t> school;
 		uint32_t i, n_schools, age;
