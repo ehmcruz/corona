@@ -281,7 +281,7 @@ static void adjust_r_open_schools ()
 
 void callback_before_cycle (double cycle)
 {
-	const uint64_t people_warmup = 1700;
+	const uint64_t people_warmup = 600;
 	const double warmup = 30.0;
 	const double cycle_open_school = 210.0;
 	static uint32_t day = RELATION_SCHOOL_0;
@@ -323,7 +323,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		stages_green++;
 	}
 	else if (cycle == 45.0) {
-		adjust_r_no_school(1.35);
+		adjust_r_no_school(1.31);
 		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
 		//cfg.global_r0_factor = 1.16 / cfg.r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
