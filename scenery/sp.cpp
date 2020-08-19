@@ -18,6 +18,15 @@ static int32_t stages_green = 0;
 
 static uint32_t sp_school_div = 3;
 
+static double ratio_critical_per_age[AGE_CATS_N];
+static double ratio_severe_per_age[AGE_CATS_N];
+static double ratio_mild_per_age[AGE_CATS_N];
+static double ratio_deaths_per_age[AGE_CATS_N];
+static double ratio_asymptomatic_per_age[AGE_CATS_N];
+static double ratio_reported_per_age[AGE_CATS_N];
+
+void sp_setup_infection_state_rate ();
+
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
@@ -28,7 +37,7 @@ void cfg_t::scenery_setup ()
 
 	this->r0 = 3.0;
 
-	this->probability_asymptomatic = 0.87;
+	this->probability_asymptomatic = 0.70;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
@@ -44,19 +53,6 @@ void cfg_t::scenery_setup ()
 void region_t::setup_population ()
 {
 	uint32_t i, n;
-
-	uint32_t reported_deaths_per_age[AGE_CATS_N] = { // deaths according to the "Boletim da Pandemia"
-		2,         // 0-9
-		2,         // 10-19
-		9,         // 20-29
-		40,        // 30-39
-		59,        // 40-49
-		104,       // 50-59
-		198,       // 60-69
-		211,       // 70-79
-		176,       // 80-89
-		48         // 90+
-	};
 
 	std::string name;
 
@@ -75,8 +71,6 @@ void region_t::setup_population ()
 		this->add_people(n, i);
 	}
 	//exit(1);
-
-	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age);
 
 //	if (this->get_name() == "Paranavai")
 //		this->track_stats();
@@ -222,6 +216,8 @@ void setup_extra_relations ()
 				zone->add_person(p);
 		}
 	}
+
+	sp_setup_infection_state_rate();
 }
 
 static double backup_school_r0;
@@ -273,7 +269,7 @@ static void adjust_r_open_schools ()
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 3.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
@@ -371,6 +367,227 @@ void callback_end ()
 	}
 
 	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
+}
+
+void sp_setup_infection_state_rate ()
+{
+	uint32_t reported_critical_per_age[AGE_CATS_N] = {
+		198,	//0-9
+		146,	//10-19
+		617,	//20-29
+		1776,	//30-39
+		2677,	//40-49
+		3667,	//50-59
+		4147,	//60-69
+		3652,	//70-79
+		2136,	//80-89
+		498	//90+
+	};
+
+	uint32_t reported_severe_per_age[AGE_CATS_N] = {
+		498,	//0-9
+		377,	//10-19
+		2034,	//20-29
+		5573,	//30-39
+		7585,	//40-49
+		8494,	//50-59
+		8093,	//60-69
+		5925,	//70-79
+		3589,	//80-89
+		939	//90+
+	};
+
+	uint32_t reported_mild_per_age[AGE_CATS_N] = {
+		7912,	//0-9
+		18605,	//10-19
+		64751,	//20-29
+		91021,	//30-39
+		71768,	//40-49
+		39903,	//50-59
+		14768,	//60-69
+		2428,	//70-79
+		0,	//80-89
+		0	//90+
+	};
+
+	uint32_t reported_confirmed_per_age[AGE_CATS_N] = {
+		8608,	//0-9
+		19128,	//10-19
+		67402,	//20-29
+		98370,	//30-39
+		82030,	//40-49
+		52064,	//50-59
+		27008,	//60-69
+		12005,	//70-79
+		5725,	//80-89
+		1437	//90+
+	};
+
+	uint32_t reported_deaths_per_age[AGE_CATS_N] = {
+		25,	//0-9
+		40,	//10-19
+		161,	//20-29
+		584,	//30-39
+		1211,	//40-49
+		2372,	//50-59
+		3814,	//60-69
+		3988,	//70-79
+		3033,	//80-89
+		870	//90+
+	};
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		ratio_critical_per_age[i] = (double)reported_critical_per_age[i] / (double)reported_confirmed_per_age[i];
+		ratio_severe_per_age[i] = (double)reported_severe_per_age[i] / (double)reported_confirmed_per_age[i];
+		ratio_mild_per_age[i] = (double)reported_mild_per_age[i] / (double)reported_confirmed_per_age[i];
+		ratio_deaths_per_age[i] = (double)reported_deaths_per_age[i] / (double)reported_confirmed_per_age[i];
+	}
+
+	cprintf("\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++)
+		cprintf("ratio_critical_per_age[%s]: %.4f\n", critical_per_age_str(i), ratio_critical_per_age[i]);
+
+	cprintf("\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++)
+		cprintf("ratio_severe_per_age[%s]: %.4f\n", critical_per_age_str(i), ratio_severe_per_age[i]);
+
+	cprintf("\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++)
+		cprintf("ratio_mild_per_age[%s]: %.4f\n", critical_per_age_str(i), ratio_mild_per_age[i]);
+
+	cprintf("\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++)
+		cprintf("ratio_deaths_per_age[%s]: %.4f\n", critical_per_age_str(i), ratio_deaths_per_age[i]);
+
+	/* asymp(age) + mild(age) + severe(age) + critical(age) = 1.0
+	   
+	   asymp(age) + mild(age) = 1.0 - severe(age) - critical(age)
+
+	   mild(age) + severe(age) + critical(age) = reported(age)
+
+	   mild(age) = reported(age) / (severe(age) + critical(age))
+	   
+
+	   we wiil consider that the probability of being asymp is directly proportional of being mild
+	   we need to do this because the equation has 2 degrees of freedom
+
+	   we calculate the asymp ratio such that the average asymp ratio will be our global asymp ratio
+	*/
+
+	cprintf("\n");
+
+	double *weight = ratio_mild_per_age;
+
+	uint64_t n = 0;
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		n += people_per_age_cat[i];
+		cprintf("people_per_age_cat[%s]: " PU64 "  %.4f\n", critical_per_age_str(i), people_per_age_cat[i], weight[i]);
+	}
+
+	C_ASSERT(population.size() == n)
+
+	adjust_weights_to_fit_mean<double, uint64_t, AGE_CATS_N> (
+		weight,
+		people_per_age_cat,
+		cfg.probability_asymptomatic * (double)population.size(),
+		ratio_asymptomatic_per_age
+		);
+
+
+	cprintf("\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++)
+		cprintf("ratio_asymptomatic_per_age[%s]: %.4f\n", critical_per_age_str(i), ratio_asymptomatic_per_age[i]);
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++)
+		ratio_reported_per_age[i] = 1.0 - ratio_asymptomatic_per_age[i];
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		ratio_critical_per_age[i] *= ratio_reported_per_age[i];
+		ratio_severe_per_age[i] *= ratio_reported_per_age[i];
+		ratio_mild_per_age[i] = 1.0 - (ratio_critical_per_age[i] + ratio_severe_per_age[i] + ratio_asymptomatic_per_age[i]);
+		ratio_deaths_per_age[i] *= ratio_reported_per_age[i];
+	}
+
+	cprintf("\n");
+
+	cprintf("age     mild    sev     crit             table reported\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		cprintf("%-5s:  %.4f  %.4f  %.4f  %.4f\n", critical_per_age_str(i), ratio_mild_per_age[i] / ratio_reported_per_age[i], ratio_severe_per_age[i] / ratio_reported_per_age[i], ratio_critical_per_age[i] / ratio_reported_per_age[i],
+			ratio_mild_per_age[i] / ratio_reported_per_age[i] + ratio_severe_per_age[i] / ratio_reported_per_age[i] + ratio_critical_per_age[i] / ratio_reported_per_age[i]);
+	}
+
+	double asymp_test = 0.0;
+
+	cfg.probability_mild = 0.0;
+	cfg.probability_severe = 0.0;
+	cfg.probability_critical = 0.0;
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		asymp_test += ratio_asymptomatic_per_age[i] * (double)people_per_age_cat[i];
+
+		cfg.probability_mild += ratio_mild_per_age[i] * (double)people_per_age_cat[i];
+		cfg.probability_severe += ratio_severe_per_age[i] * (double)people_per_age_cat[i];
+		cfg.probability_critical += ratio_critical_per_age[i] * (double)people_per_age_cat[i];
+	}
+
+	asymp_test /= (double)population.size();
+	cfg.probability_mild /= (double)population.size();
+	cfg.probability_severe /= (double)population.size();
+	cfg.probability_critical /= (double)population.size();
+
+	cfg.probability_asymptomatic = 1.0 - (cfg.probability_mild + cfg.probability_severe + cfg.probability_critical);
+
+	cprintf("\n");
+
+	cprintf("asymp_test: %.4f\n", asymp_test);
+	cprintf("cfg.probability_asymptomatic: %.4f\n", cfg.probability_asymptomatic);
+	cprintf("cfg.probability_mild: %.4f      (reported %.4f)\n", cfg.probability_mild, cfg.probability_mild / (1.0 - cfg.probability_asymptomatic));
+	cprintf("cfg.probability_severe: %.4f      (reported %.4f)\n", cfg.probability_severe, cfg.probability_severe / (1.0 - cfg.probability_asymptomatic));
+	cprintf("cfg.probability_critical: %.4f      (reported %.4f)\n", cfg.probability_critical, cfg.probability_critical / (1.0 - cfg.probability_asymptomatic));
+
+	cprintf("\n");
+
+	cprintf("age     asymp   mild    sev     crit             table global\n");
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		cprintf("%-5s:  %.4f  %.4f  %.4f  %.4f  %.4f\n", critical_per_age_str(i), ratio_asymptomatic_per_age[i], ratio_mild_per_age[i], ratio_severe_per_age[i], ratio_critical_per_age[i], ratio_asymptomatic_per_age[i] + ratio_mild_per_age[i] + ratio_severe_per_age[i] + ratio_critical_per_age[i]);
+	}
+
+	cprintf("setting up infection rates...\n");
+
+	for (person_t *p: population) {
+		p->setup_infection_probabilities(ratio_mild_per_age[ p->age_cat() ], ratio_severe_per_age[ p->age_cat() ], ratio_critical_per_age[ p->age_cat() ]);
+	}
+
+#ifdef SANITY_CHECK
+	double mild_test = 0.0, severe_test = 0.0, critical_test = 0.0;
+	asymp_test = 0.0;
+
+	for (person_t *p: population) {
+		asymp_test += p->get_probability_asymptomatic();
+		mild_test += p->get_probability_mild();
+		severe_test += p->get_probability_severe();
+		critical_test += p->get_probability_critical();
+	}
+
+	asymp_test /= (double)population.size();
+	mild_test /= (double)population.size();
+	severe_test /= (double)population.size();
+	critical_test /= (double)population.size();
+
+	cprintf("\n");
+
+	cprintf("asymp_test: %.4f\n", asymp_test);
+	cprintf("mild_test: %.4f\n", mild_test);
+	cprintf("severe_test: %.4f\n", severe_test);
+	cprintf("critical_test: %.4f\n", critical_test);
+#endif
 }
 
 struct sp_room_t {

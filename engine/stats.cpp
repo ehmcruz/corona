@@ -23,6 +23,25 @@ void stats_obj_mean_t::print (FILE *fp)
 	fprintf(fp, "%.4f", v);
 }
 
+void stats_obj_mean_t::print ()
+{
+	this->print(stdout);
+}
+
+/****************************************************/
+
+void global_stats_t::print (FILE *fp)
+{
+	fprintf(fp, "global_stats.days_between_generations: ");
+	this->days_between_generations.print(fp);
+	fprintf(fp, "\n");
+}
+
+void global_stats_t::print ()
+{
+	this->print(stdout);
+}
+
 /****************************************************/
 
 stats_t::stats_t ()

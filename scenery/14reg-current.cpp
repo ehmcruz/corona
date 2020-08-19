@@ -343,3 +343,4 @@ void callback_end ()
 
 	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }
+

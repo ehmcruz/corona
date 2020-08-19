@@ -73,6 +73,7 @@ public:
 	stats_obj_mean_t ();
 	void reset ();
 	void print (FILE *fp);
+	void print ();
 
 	template <typename T>
 	inline void acc (T v) {
@@ -120,6 +121,14 @@ public:
 	void copy_ac (stats_t *from);
 	void dump_csv_header (FILE *fp);
 	void dump_csv (FILE *fp);
+};
+
+class global_stats_t
+{
+public:
+	stats_obj_mean_t days_between_generations;
+	void print (FILE *fp);
+	void print ();
 };
 
 extern uint32_t number_of_stats;
@@ -226,6 +235,10 @@ public:
 	}
 
 	void add_sid (int32_t sid);
+
+	inline uint32_t age_cat () {
+		return get_age_cat( this->get_age() );
+	}
 };
 
 class health_unit_t
@@ -250,6 +263,7 @@ class region_t
 private:
 	std::list<health_unit_t*> health_units;
 	uint64_t region_people_per_age[AGES_N];
+	uint64_t region_people_per_age_cat[AGE_CATS_N];
 
 public:
 	region_t (uint32_t id);
@@ -408,6 +422,7 @@ extern double current_cycle;
 extern std::vector<person_t*> population;
 extern std::vector<region_t*> regions;
 extern uint64_t people_per_age[AGES_N];
+extern uint64_t people_per_age_cat[AGE_CATS_N];
 
 #define cycle_stats (*cycle_stats_ptr)
 

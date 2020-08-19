@@ -27,6 +27,7 @@ std::vector<region_t*> regions;
 double current_cycle = 0.0;
 
 uint64_t people_per_age[AGES_N];
+uint64_t people_per_age_cat[AGE_CATS_N];
 
 std::vector<person_t*> population;
 
@@ -38,6 +39,8 @@ static uint32_t pop_infected_n = 0;
 
 static const char default_results_file[] = "results-cycles";
 static char *results_file;
+
+static global_stats_t global_stats;
 
 char* state_str (int32_t i)
 {
@@ -339,6 +342,9 @@ region_t::region_t (uint32_t id)
 	for (i=0; i<AGES_N; i++)
 		this->region_people_per_age[i] = 0;
 
+	for (i=0; i<AGE_CATS_N; i++)
+		this->region_people_per_age_cat[i] = 0;
+
 	this->setup_population();
 
 	std::shuffle(this->people.begin(), this->people.end(), rgenerator);
@@ -369,6 +375,9 @@ void region_t::add_people (uint64_t n, uint32_t age)
 
 	people_per_age[age] += n;
 	this->region_people_per_age[age] += n;
+
+	people_per_age_cat[ get_age_cat(age) ] += n;
+	this->region_people_per_age_cat[ get_age_cat(age) ] += n;
 }
 
 void region_t::set_population_number (uint64_t npopulation)
@@ -386,17 +395,7 @@ person_t* region_t::pick_random_person ()
 
 void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age)
 {
-	uint64_t people_per_age[AGE_CATS_N];
-	uint32_t i;
-
-	for (i=0; i<AGE_CATS_N; i++)
-		people_per_age[i] = 0;
-
-	for (person_t *p: this->people) {
-		people_per_age[ get_age_cat(p->get_age()) ]++;
-	}
-
-	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age, people_per_age);
+	this->adjust_population_infection_state_rate_per_age(reported_deaths_per_age, this->region_people_per_age_cat);
 }
 
 void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reported_deaths_per_age, uint64_t *people_per_age)
@@ -562,6 +561,11 @@ void person_t::add_sid (int32_t sid)
 
 void person_t::setup_infection_probabilities (double pmild, double psevere, double pcritical)
 {
+	C_ASSERT((pmild + psevere + pcritical) <= 1.0)
+	C_ASSERT(pmild >= 0.0)
+	C_ASSERT(psevere >= 0.0)
+	C_ASSERT(pcritical >= 0.0)
+
 	this->probability_asymptomatic = 1.0 - (pmild + psevere + pcritical);
 	this->probability_mild = pmild;
 	this->probability_severe = psevere;
@@ -782,6 +786,7 @@ void person_t::pre_infect (person_t *from)
 	if (likely(from != nullptr)) {
 		from->n_victims++;
 		incub_cycles = cfg.cycles_incubation->generate();
+		global_stats.days_between_generations.acc(current_cycle - from->infected_cycle);
 	}
 	else     // forced infection, reduce the delay of incubation as much as possible
 		incub_cycles = cfg.step;
@@ -816,6 +821,8 @@ void person_t::symptoms_arise (bool fast_track)
 	this->next_infected_state = this->final_infected_state;
 	this->setup_infection_countdown(this->final_countdown);
 
+	SANITY_ASSERT(this->infected_state == ST_MILD)
+
 	if (fast_track == false) {
 		for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 			stats_t& stats = cycle_stats[*it];
@@ -824,6 +831,9 @@ void person_t::symptoms_arise (bool fast_track)
 
 			stats.ac_infected_state[ ST_PRESYMPTOMATIC ]--;
 			stats.ac_infected_state[ this->infected_state ]++;
+
+			stats.reported++;
+			stats.ac_reported++;
 		}
 	}
 }
@@ -1155,6 +1165,9 @@ int main (int argc, char **argv)
 	for (i=0; i<AGES_N; i++)
 		people_per_age[i] = 0;
 
+	for (i=0; i<AGE_CATS_N; i++)
+		people_per_age_cat[i] = 0;
+
 	load_factor_per_relation_group_str();
 
 	generate_entropy();
@@ -1198,6 +1211,8 @@ int main (int argc, char **argv)
 	std::chrono::duration<double> time_load = std::chrono::duration_cast<std::chrono::duration<double>>(tbefore_sim - tbegin);
 	std::chrono::duration<double> time_sim = std::chrono::duration_cast<std::chrono::duration<double>>(tend - tbefore_sim);
 
+	cprintf("\n");
+	global_stats.print();
 	cprintf("\n");
 	cprintf("load time: %.2fs\n", time_load.count());
 	cprintf("simulation time: %.2fs\n", time_sim.count());
