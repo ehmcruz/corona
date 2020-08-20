@@ -702,6 +702,8 @@ void person_t::cycle_infected ()
 
 							stats.ac_infected_state[ST_MILD]--;
 							stats.ac_infected_state[ST_SEVERE]++;
+
+							stats.ac_total_infected_state[ST_SEVERE]++;
 						}
 
 						this->infected_state = ST_SEVERE;
@@ -719,6 +721,8 @@ void person_t::cycle_infected ()
 							stats.ac_infected_state[ST_CRITICAL]++;
 
 							stats.ac_critical_per_age[ get_age_cat(this->age) ]++;
+
+							stats.ac_total_infected_state[ST_CRITICAL]++;
 						}
 
 						this->infected_state = ST_CRITICAL;

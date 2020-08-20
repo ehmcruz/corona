@@ -218,7 +218,7 @@ static void adjust_weights_to_fit_mean (Tweight *orig_weights, Tvalue *values, d
 
 	k = mean / sum;
 
-dprintf("sum:%.4f  mean:%.4f  k:%.4f\n", sum, mean, k);
+//dprintf("sum:%.4f  mean:%.4f  k:%.4f\n", sum, mean, k);
 
 	for (i=0; i<N; i++)
 		adj_weights[i] = (double)orig_weights[i] * k;
