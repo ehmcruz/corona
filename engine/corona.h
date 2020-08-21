@@ -423,6 +423,7 @@ extern std::vector<person_t*> population;
 extern std::vector<region_t*> regions;
 extern uint64_t people_per_age[AGES_N];
 extern uint64_t people_per_age_cat[AGE_CATS_N];
+extern std::string scenery_results_fname;
 
 #define cycle_stats (*cycle_stats_ptr)
 

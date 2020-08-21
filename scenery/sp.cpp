@@ -4,7 +4,21 @@
 #include <random>
 #include <algorithm>
 
-//#define REDUCED_SCHOOL
+#ifndef SCHOOL_STRATEGY
+	#define SCHOOL_STRATEGY 0
+#endif
+
+#ifndef SCHOOL_WEIGHT
+	#define SCHOOL_WEIGHT 2.0
+#endif
+
+#ifndef SP_CYCLES_TO_SIM
+	#define SP_CYCLES_TO_SIM 360.0
+#endif
+
+#ifndef SP_CYCLE_TO_OPEN_SCHOOL
+	#define SP_CYCLE_TO_OPEN_SCHOOL 210.0
+#endif
 
 static csv_ages_t *csv;
 
@@ -16,17 +30,31 @@ static health_unit_t enfermaria(1000000000, ST_SEVERE);
 
 static int32_t stages_green = 0;
 
-static uint32_t sp_school_div = 3;
+#if SCHOOL_STRATEGY == 1 || SCHOOL_STRATEGY == 2
+	static uint32_t sp_school_div = 3;
+#endif
 
 void sp_setup_infection_state_rate ();
+
+void sp_create_school_relation_contingency (std::vector<person_t*>& students,
+                                            uint32_t age_ini,
+                                            uint32_t age_end,
+                                            dist_double_t& dist_class_size,
+                                            dist_double_t& dist_school_size,
+                                            region_t *prof_region,
+                                            dist_double_t& dist_prof_age,
+                                            double intra_class_ratio,
+                                            double inter_class_ratio,
+                                            uint32_t room_div,
+                                            report_progress_t *report);
 
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
-	this->cycles_to_simulate = 30.0 * 12.0;
+	this->cycles_to_simulate = SP_CYCLES_TO_SIM;
 
-//	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
-//		this->relation_type_weights[r] = 2.0;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		this->relation_type_weights[r] = SCHOOL_WEIGHT;
 
 	this->r0 = 3.0;
 
@@ -41,6 +69,23 @@ void cfg_t::scenery_setup ()
 //	this->n_regions = 1;
 
 	cprintf("number of cities: %u\n", this->n_regions);
+
+#ifdef SP_RESULTS_FILE
+	scenery_results_fname = "-";
+	scenery_results_fname += SP_RESULTS_FILE;
+#endif
+
+/*	cprintf("RELATION_SCHOOL = %u\n", RELATION_SCHOOL);
+	cprintf("RELATION_SCHOOL_0 = %u\n", RELATION_SCHOOL_0);
+	cprintf("RELATION_SCHOOL_1 = %u\n", RELATION_SCHOOL_1);
+	cprintf("RELATION_SCHOOL_2 = %u\n", RELATION_SCHOOL_2);
+	cprintf("RELATION_SCHOOL_3 = %u\n", RELATION_SCHOOL_3);
+	cprintf("RELATION_SCHOOL_4 = %u\n", RELATION_SCHOOL_4);
+
+	uint32_t i = 0;
+	for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
+		cprintf("RELATION_SCHOOL_%i = %u    %u\n", i++, r, r - RELATION_SCHOOL_0);
+exit(1);*/
 }
 
 void region_t::setup_population ()
@@ -137,8 +182,7 @@ void region_t::setup_relations ()
 		rname += " school loading...";
 		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
 
-	#ifdef REDUCED_SCHOOL
-	#else
+	#if SCHOOL_STRATEGY == 0
 		network_create_school_relation_v2(students,
 		                                  age_ini,
 		                                  age_end,
@@ -148,6 +192,18 @@ void region_t::setup_relations ()
                                           dist_school_prof_age,
                                           0.2,
                                           0.003,
+                                          &progress_school);
+	#elif SCHOOL_STRATEGY == 1 || SCHOOL_STRATEGY == 2
+		sp_create_school_relation_contingency(students,
+		                                  age_ini,
+		                                  age_end,
+		                                  dist_school_class_size,
+                                          dist_school_size,
+                                          this,
+                                          dist_school_prof_age,
+                                          0.2,
+                                          0.003,
+                                          sp_school_div,
                                           &progress_school);
 	#endif
 	}
@@ -221,7 +277,9 @@ static void adjust_r_no_school (double target_r0)
 	double family_r0, unknown_r0, factor;
 
 	backup_school_r0 = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		cfg.relation_type_transmit_rate[r] = 0.0;
 
 	//target_r0 /= cfg.cycles_contagious;
 	//target_r0 *= (double)population.size();
@@ -263,7 +321,7 @@ static void adjust_r_open_schools ()
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
@@ -273,8 +331,8 @@ void callback_before_cycle (double cycle)
 {
 	const uint64_t people_warmup = 500;
 	const double warmup = 30.0;
-	const double cycle_open_school = 210.0;
-	static uint32_t day = RELATION_SCHOOL_0;
+	const double cycle_open_school = SP_CYCLE_TO_OPEN_SCHOOL;
+	static uint32_t day = 0;
 	double intpart;
 
 	// target is 49000 infected after 47 days
@@ -319,21 +377,41 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
+#if SCHOOL_STRATEGY == 0
 	else if (cycle == cycle_open_school) {
 		adjust_r_open_schools();
 		stages_green++;
 	}
-#ifdef REDUCED_SCHOOL
-	else if (cycle > cycle_open_school && modf(cycle, &intpart) == 0.0) {
-		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
-			cfg.relation_type_transmit_rate[r] = 0;
+#elif SCHOOL_STRATEGY == 1 || SCHOOL_STRATEGY == 2
+	else if (cycle >= cycle_open_school && modf(cycle, &intpart) == 0.0) {
+		dprintf("day = %u\n", day);
 
-		cfg.relation_type_transmit_rate[day] = 3.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+		uint32_t relation = day + RELATION_SCHOOL_0;
+
+		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+
+		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
+			cfg.relation_type_transmit_rate[r] = 0.0;
+
+		cfg.relation_type_transmit_rate[relation] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	
+	#if SCHOOL_STRATEGY == 2
+		uint32_t next = day + 1;
+
+		if (next >= (sp_school_div))
+			next = 0;
+
+		uint32_t relation_next = next + RELATION_SCHOOL_0;
+
+		cfg.relation_type_transmit_rate[relation_next] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	#endif
+
+		cprintf("opening schools for students of day %i  type %s\n", day, relation_type_str(relation));
 		
 		day++;
 
-		if (day >= sp_school_div)
-			day= 0;
+		if (day >= (sp_school_div))
+			day = 0;
 	}
 #endif
 }
@@ -813,8 +891,12 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
 		uint32_t age = p->get_age();
 
 		C_ASSERT(age >= age_ini && age <= age_end)
-		C_ASSERT(class_students[age].i <= class_students[age].size)
-		C_ASSERT(school_i <= school_size)
+
+		C_ASSERT(class_students[age].i < class_students[age].size)
+		C_ASSERT(school_i < school_size)
+
+		C_ASSERT(class_students[age].i < class_students[age].students.size())
+		C_ASSERT(school_i < school_students.size())
 
 		class_students[age].students[ class_students[age].i++ ] = p;
 		school_students[ school_i++ ] = p;

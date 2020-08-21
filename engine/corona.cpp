@@ -42,6 +42,8 @@ static char *results_file;
 
 static global_stats_t global_stats;
 
+std::string scenery_results_fname;
+
 char* state_str (int32_t i)
 {
 	static const char *list[] = {
@@ -1196,6 +1198,7 @@ int main (int argc, char **argv)
 	for (stats_zone_t& zone: stats_zone_list) {
 		std::string fname(results_file);
 		fname += '-';
+		fname += scenery_results_fname;
 		fname += zone.get_name();
 		fname += ".csv";
 
