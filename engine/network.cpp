@@ -39,7 +39,7 @@ void network_start_population_graph ()
 	pop_graph = new pop_graph_t( population.size() );
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++)
-		cfg.relation_type_number[i] = 0;
+		cfg->relation_type_number[i] = 0;
 
 // code isnt ready yet
 //return;
@@ -161,7 +161,7 @@ pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_
 	vdesc(vertex1).flags.set(edge_data.type);
 	vdesc(vertex2).flags.set(edge_data.type);
 
-	cfg.relation_type_number[edge_data.type] += 2;
+	cfg->relation_type_number[edge_data.type] += 2;
 
 	return e;
 }
@@ -280,7 +280,7 @@ static void calibrate_rate_per_type ()
 	}
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		SANITY_ASSERT(test[i] == cfg.relation_type_number[i])
+		SANITY_ASSERT(test[i] == cfg->relation_type_number[i])
 	}
 	
 	// now we verify again
@@ -300,16 +300,16 @@ static void calibrate_rate_per_type ()
 	}
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		SANITY_ASSERT(test[i] == cfg.relation_type_number[i])
+		SANITY_ASSERT(test[i] == cfg->relation_type_number[i])
 	}
 }
 #endif
 
 	adjust_weights_to_fit_mean<double, uint64_t, NUMBER_OF_RELATIONS> (
-		cfg.relation_type_weights,
-		cfg.relation_type_number,
-		cfg.probability_infect_per_cycle_step * (double)population.size(),
-		cfg.relation_type_transmit_rate
+		cfg->relation_type_weights,
+		cfg->relation_type_number,
+		cfg->probability_infect_per_cycle_step * (double)population.size(),
+		cfg->relation_type_transmit_rate
 		);
 }
 
@@ -734,17 +734,17 @@ double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 				boost::tie(e, exist) = boost::edge(*vi, *vin, *pop_graph);
 				C_ASSERT(exist)
 
-				r0_person += cfg.relation_type_transmit_rate[ edesc(e).type ];
+				r0_person += cfg->relation_type_transmit_rate[ edesc(e).type ];
 			}
 
-			//r0_person *= cfg.global_r0_factor;
+			//r0_person *= cfg->global_r0_factor;
 			r0 += r0_person;
 		}
 	}
 
-	r0 *= cfg.global_r0_factor;
-	r0 *= cfg.cycles_contagious->get_expected();
-	r0 *= cfg.cycle_division;
+	r0 *= cfg->global_r0_factor;
+	r0 *= cfg->cycles_contagious->get_expected();
+	r0 *= cfg->cycle_division;
 	r0 /= (double)n;
 
 	return r0;
@@ -756,12 +756,12 @@ double network_get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
 
 	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++) {
 		if (flags.test(i))
-			r0 += cfg.relation_type_transmit_rate[i] * (double)cfg.relation_type_number[i];
+			r0 += cfg->relation_type_transmit_rate[i] * (double)cfg->relation_type_number[i];
 	}
 
-	r0 *= cfg.global_r0_factor;
-	r0 *= cfg.cycles_contagious->get_expected();
-	r0 *= cfg.cycle_division;
+	r0 *= cfg->global_r0_factor;
+	r0 *= cfg->cycles_contagious->get_expected();
+	r0 *= cfg->cycle_division;
 	r0 /= (double)population.size();
 
 	return r0;
@@ -802,7 +802,7 @@ neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 		neighbor_list_t::pair_t& pair = this->connected[i];
 
 		type = edesc(*ei).type;
-		it.prob += cfg.relation_type_transmit_rate[type] * cfg.get_factor_per_relation_group(type, this->get_person());
+		it.prob += cfg->relation_type_transmit_rate[type] * cfg->get_factor_per_relation_group(type, this->get_person());
 
 		pair.first = it.prob;
 		pair.second = get_neighbor(this->get_person(), *ei);
@@ -820,8 +820,8 @@ neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 	}
 //blah += it.prob; cprintf(" (total %.4f)\n", it.prob); //exit(1);
 
-	it.prob *= cfg.global_r0_factor;
-	it.prob *= cfg.r0_factor_per_group[ this->get_person()->get_infected_state() ];
+	it.prob *= cfg->global_r0_factor;
+	it.prob *= cfg->r0_factor_per_group[ this->get_person()->get_infected_state() ];
 
 	if (likely(it.prob > 0.0))
 		it.calc();

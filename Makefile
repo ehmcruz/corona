@@ -1,6 +1,6 @@
 CPP = g++
 CPPFLAGS = -I./engine -I./parser -g -O2
-LDFLAGS =
+LDFLAGS = -lboost_program_options
 
 SP_SCENERY = scenery/sp-school-capacity-100.exec scenery/sp-school-capacity-33.exec scenery/sp-school-capacity-66.exec
 

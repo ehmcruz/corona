@@ -12,7 +12,7 @@
 
 #include <corona.h>
 
-cfg_t cfg;
+cfg_t *cfg;
 
 std::vector<stats_t> *cycle_stats_ptr = nullptr;
 static std::vector<stats_t> *prev_cycle_stats_ptr = nullptr;
@@ -38,7 +38,7 @@ static std::vector<person_t*> pop_infected;
 static uint32_t pop_infected_n = 0;
 
 static const char default_results_file[] = "results-cycles";
-static char *results_file;
+static const char *results_file;
 
 static global_stats_t global_stats;
 
@@ -152,7 +152,7 @@ bool try_to_summon ()
 {
 	bool r = false;
 
-	if (roll_dice(cfg.probability_summon_per_cycle_step)) {
+	if (roll_dice(cfg->probability_summon_per_cycle_step)) {
 		person_t *p;
 
 		p = pick_random_person();
@@ -413,7 +413,7 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 	adjust_biased_weights_to_fit_mean<uint32_t, uint64_t, AGE_CATS_N> (
 		reported_deaths_per_age,
 		people_per_age,
-		cfg.probability_critical * (double)this->get_npopulation(),
+		cfg->probability_critical * (double)this->get_npopulation(),
 		deaths_weight_per_age
 		);
 
@@ -432,17 +432,34 @@ void region_t::adjust_population_infection_state_rate_per_age (uint32_t *reporte
 	}
 
 	dprintf("total critical predicted:%.4f sum:%.2f critical_rate:%.4f critical_rate_test:%.4f\n",
-	       (cfg.probability_critical * (double)this->get_npopulation()),
+	       (cfg->probability_critical * (double)this->get_npopulation()),
 	       sum,
-	       cfg.probability_critical,
+	       cfg->probability_critical,
 	       sum / (double)this->get_npopulation()
 	       );
 //if (this->name == "Paranavai") exit(1);
 	for (person_t *p: this->people) {
 		pcritical = deaths_weight_per_age[ get_age_cat( p->get_age() ) ];
-		//pcritical = cfg.probability_critical;
-		psevere = pcritical * (cfg.probability_severe / cfg.probability_critical);
-		pmild = pcritical * (cfg.probability_mild / cfg.probability_critical);
+		//pcritical = cfg->probability_critical;
+		psevere = pcritical * (cfg->probability_severe / cfg->probability_critical);
+		pmild = pcritical * (cfg->probability_mild / cfg->probability_critical);
+
+		double sum = pmild + psevere + pcritical;
+
+		#define max_prob 0.99
+
+		if (sum >= max_prob) {
+			/*
+				sum        ->     max_prob
+				pcritical  ->     new_pcritical
+			*/
+			double r = max_prob / sum;
+			pmild *= r;
+			psevere *= r;
+			pcritical *= r;
+		}
+
+		#undef max_prob
 
 		p->setup_infection_probabilities(pmild, psevere, pcritical);
 	}
@@ -537,7 +554,7 @@ person_t::person_t ()
 	for (int32_t& sid: this->sids)
 		sid = -1;
 
-	this->setup_infection_probabilities(cfg.probability_mild, cfg.probability_severe, cfg.probability_critical);
+	this->setup_infection_probabilities(cfg->probability_mild, cfg->probability_severe, cfg->probability_critical);
 
 	this->health_unit = nullptr;
 	this->neighbor_list = nullptr;
@@ -563,7 +580,7 @@ void person_t::add_sid (int32_t sid)
 
 void person_t::setup_infection_probabilities (double pmild, double psevere, double pcritical)
 {
-	C_ASSERT((pmild + psevere + pcritical) <= 1.0)
+	C_ASSERT_P((pmild + psevere + pcritical) <= 1.0, "pmild:" << pmild << " psevere:" << psevere << " pcritical:" << pcritical << " sum:" << (pmild+psevere+pcritical))
 	C_ASSERT(pmild >= 0.0)
 	C_ASSERT(psevere >= 0.0)
 	C_ASSERT(pcritical >= 0.0)
@@ -665,7 +682,7 @@ void person_t::cycle_infected ()
 		}
 	}
 
-	this->infection_countdown -= cfg.step;
+	this->infection_countdown -= cfg->step;
 
 	switch (this->infected_state) {
 		case ST_INCUBATION:
@@ -712,7 +729,7 @@ void person_t::cycle_infected ()
 
 						this->health_unit = this->region->enter_health_unit(this);
 
-						this->setup_infection_countdown(cfg.cycles_severe_in_hospital->generate());
+						this->setup_infection_countdown(cfg->cycles_severe_in_hospital->generate());
 					break;
 
 					case ST_CRITICAL:
@@ -731,7 +748,7 @@ void person_t::cycle_infected ()
 
 						this->health_unit = this->region->enter_health_unit(this);
 
-						this->setup_infection_countdown(cfg.cycles_critical_in_icu->generate());
+						this->setup_infection_countdown(cfg->cycles_critical_in_icu->generate());
 					break;
 
 					default:
@@ -741,9 +758,9 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_SEVERE:
-			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_severe_in_hospital_per_cycle_step))
+			if (this->health_unit != nullptr && roll_dice(cfg->death_rate_severe_in_hospital_per_cycle_step))
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_severe_outside_hospital_per_cycle_step))
+			else if (this->health_unit == nullptr && roll_dice(cfg->death_rate_severe_outside_hospital_per_cycle_step))
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
@@ -754,14 +771,14 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_CRITICAL:
-			if (this->health_unit != nullptr && roll_dice(cfg.death_rate_critical_in_hospital_per_cycle_step))
+			if (this->health_unit != nullptr && roll_dice(cfg->death_rate_critical_in_hospital_per_cycle_step))
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(cfg.death_rate_critical_outside_hospital_per_cycle_step))
+			else if (this->health_unit == nullptr && roll_dice(cfg->death_rate_critical_outside_hospital_per_cycle_step))
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;
 
-				this->setup_infection_countdown(cfg.cycles_severe_in_hospital->generate());
+				this->setup_infection_countdown(cfg->cycles_severe_in_hospital->generate());
 
 				for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 					stats_t& stats = cycle_stats[*it];
@@ -791,11 +808,11 @@ void person_t::pre_infect (person_t *from)
 
 	if (likely(from != nullptr)) {
 		from->n_victims++;
-		incub_cycles = cfg.cycles_incubation->generate();
+		incub_cycles = cfg->cycles_incubation->generate();
 		global_stats.days_between_generations.acc(current_cycle - from->infected_cycle);
 	}
 	else     // forced infection, reduce the delay of incubation as much as possible
-		incub_cycles = cfg.step;
+		incub_cycles = cfg->step;
 
 	this->infected_state_vec_pos = pop_infected_n;
 	pop_infected[ pop_infected_n++ ] = this;
@@ -854,15 +871,15 @@ void person_t::infect ()
 
 	if (p <= this->prob_ac_asymptomatic) {
 		this->infected_state = ST_ASYMPTOMATIC;
-		this->setup_infection_countdown(cfg.cycles_contagious->generate());
+		this->setup_infection_countdown(cfg->cycles_contagious->generate());
 	}
 	else if (p <= this->prob_ac_mild) {
 		this->infected_state = ST_PRESYMPTOMATIC;
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_FAKE_IMMUNE;
 
-		double tmp_contagious = cfg.cycles_contagious->generate();
-		double tmp_pre_symptomatic = cfg.cycles_pre_symptomatic->generate();
+		double tmp_contagious = cfg->cycles_contagious->generate();
+		double tmp_pre_symptomatic = cfg->cycles_pre_symptomatic->generate();
 
 		if (likely(tmp_contagious > tmp_pre_symptomatic))
 			this->final_countdown = tmp_contagious - tmp_pre_symptomatic;
@@ -875,15 +892,15 @@ void person_t::infect ()
 		this->infected_state = ST_PRESYMPTOMATIC;
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_SEVERE;
-		this->final_countdown = cfg.cycles_before_hospitalization->generate();
-		this->setup_infection_countdown(cfg.cycles_pre_symptomatic->generate());
+		this->final_countdown = cfg->cycles_before_hospitalization->generate();
+		this->setup_infection_countdown(cfg->cycles_pre_symptomatic->generate());
 	}
 	else {
 		this->infected_state = ST_PRESYMPTOMATIC;
 		this->next_infected_state = ST_MILD;
 		this->final_infected_state = ST_CRITICAL;
-		this->final_countdown = cfg.cycles_before_hospitalization->generate();
-		this->setup_infection_countdown(cfg.cycles_pre_symptomatic->generate());
+		this->final_countdown = cfg->cycles_before_hospitalization->generate();
+		this->setup_infection_countdown(cfg->cycles_pre_symptomatic->generate());
 	}
 
 	// if there is no delay to have symptons
@@ -936,9 +953,9 @@ double get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	double r0;
 
-	switch (cfg.network_type) {
+	switch (cfg->network_type) {
 		case NETWORK_TYPE_FULLY_CONNECTED:
-			r0 = cfg.r0 * cfg.global_r0_factor;
+			r0 = cfg->r0 * cfg->global_r0_factor;
 		break;
 
 		case NETWORK_TYPE_NETWORK:
@@ -959,9 +976,9 @@ double get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	double r0;
 
-	switch (cfg.network_type) {
+	switch (cfg->network_type) {
 		case NETWORK_TYPE_FULLY_CONNECTED:
-			r0 = cfg.r0 * cfg.global_r0_factor;
+			r0 = cfg->r0 * cfg->global_r0_factor;
 		break;
 
 		case NETWORK_TYPE_NETWORK:
@@ -987,9 +1004,9 @@ static void simulate ()
 	callback_before_cycle(current_cycle);
 	callback_after_cycle(current_cycle);
 
-	current_cycle += cfg.step;
+	current_cycle += cfg->step;
 
-	for ( ; current_cycle<cfg.cycles_to_simulate; current_cycle+=cfg.step) {
+	for ( ; current_cycle<cfg->cycles_to_simulate; current_cycle+=cfg->step) {
 		cprintf("Cycle %.2f\n", current_cycle);
 
 		prev_cycle_stats_ptr = cycle_stats_ptr;
@@ -1027,9 +1044,9 @@ static void load_regions ()
 {
 	uint64_t i, total;
 
-	regions.reserve( cfg.n_regions );
+	regions.reserve( cfg->n_regions );
 
-	for (i=0; i<cfg.n_regions; i++)
+	for (i=0; i<cfg->n_regions; i++)
 		regions.push_back( new region_t(i) );
 
 	total = 0;
@@ -1057,7 +1074,7 @@ static void load_regions ()
 		zone.add_person(p);
 	}
 
-	if (cfg.network_type == NETWORK_TYPE_FULLY_CONNECTED) {
+	if (cfg->network_type == NETWORK_TYPE_FULLY_CONNECTED) {
 		neighbor_list_fully_connected_t *v;
 		v = new neighbor_list_fully_connected_t[ population.size() ];
 
@@ -1066,7 +1083,7 @@ static void load_regions ()
 			population[i]->set_neighbor_list( v+i );
 		}
 	}
-	else if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	else if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		neighbor_list_network_t *v;
 		v = new neighbor_list_network_t[ population.size() ];
 
@@ -1157,16 +1174,38 @@ int main (int argc, char **argv)
 	FILE *fp;
 	int64_t i;
 
+	namespace po = boost::program_options;
+	po::options_description cmd_line_args("Corona Simulator -- Options");
+	po::variables_map vm;
+
 	tbegin = std::chrono::steady_clock::now();
 
-	if (argc == 1)
-		results_file = (char*)default_results_file;
-	else if (argc == 2)
-		results_file = argv[1];
-	else {
-		cprintf("Usage: %s <results_file>\n", argv[0]);
-		exit(1);
+	try {
+		cmd_line_args.add_options()
+			("help,h", "Help screen")
+			("fresults", po::value<std::string>()->default_value(default_results_file), "Results file output");
+
+		setup_cmd_line_args(cmd_line_args);
+
+		po::store(po::parse_command_line(argc, argv, cmd_line_args), vm);
+		po::notify(vm);
+
+		if (vm.count("help")) {
+			std::cout << cmd_line_args << std::endl;
+			return 0;
+		}
+		if (vm.count("fresults"))
+			std::cout << "Results file output: " << vm["fresults"].as<std::string>() << std::endl;
 	}
+	catch (const boost::program_options::error &ex) {
+		DMSG(ex.what() << std::endl);
+	}
+
+	results_file = vm["fresults"].as<std::string>().c_str();
+
+	CMSG("results_file: " << results_file << std::endl)
+
+	cfg = new cfg_t;
 
 	for (i=0; i<AGES_N; i++)
 		people_per_age[i] = 0;
@@ -1186,7 +1225,7 @@ int main (int argc, char **argv)
 
 	load_stats_engine_stage_2();
 
-	cfg.dump();
+	cfg->dump();
 //exit(1);
 	tbefore_sim = std::chrono::steady_clock::now();
 

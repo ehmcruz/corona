@@ -17,6 +17,11 @@ static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
 
 std::string name("Paranavai");
 
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
+{
+
+}
+
 void cfg_t::scenery_setup ()
 {
 	csv = new csv_ages_t((char*)"data/distribuicao-etaria-paranavai.csv");
@@ -86,12 +91,12 @@ void callback_before_cycle (double cycle)
 	}
 	else if (has_already_locked == 0 && global_cycle_stats().ac_state[ST_INFECTED] >= 2) {
 		has_already_locked = 1;
-		cfg.global_r0_factor = 0.35;
+		cfg->global_r0_factor = 0.35;
 
 		lock_start_cycle = cycle;
 	}
 	else if (has_already_locked == 1 && cycle >= (lock_start_cycle+30)) {
-		cfg.global_r0_factor = 1.0;
+		cfg->global_r0_factor = 1.0;
 	}
 }
 

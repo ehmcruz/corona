@@ -17,6 +17,11 @@ static csv_ages_t *csv;
 
 static std::string name("Paranavai");
 
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
+{
+
+}
+
 void cfg_t::scenery_setup ()
 {
 	//this->network_type = NETWORK_TYPE_NETWORK;
@@ -88,12 +93,12 @@ void callback_before_cycle (double cycle)
 	}
 	else if (has_already_locked == 0 && global_cycle_stats().ac_infected_state[ST_CRITICAL] >= 3) {
 		has_already_locked = 1;
-		cfg.global_r0_factor = 0.35;
+		cfg->global_r0_factor = 0.35;
 
 		lock_start_cycle = cycle;
 	}
 	else if (has_already_locked == 1 && global_cycle_stats().ac_infected_state[ST_CRITICAL] == 0) {
-		cfg.global_r0_factor = 1.0;
+		cfg->global_r0_factor = 1.0;
 	}
 }
 

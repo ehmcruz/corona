@@ -17,6 +17,8 @@
 #include <boost/graph/undirected_graph.hpp>
 #include <boost/graph/adjacency_list.hpp>
 
+#include <boost/program_options.hpp>
+
 #include <lib.h>
 
 #define AGE_CATS_N 10
@@ -410,13 +412,14 @@ public:
 };
 
 // coded in scenery
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args);
 void setup_inter_region_relations ();
 void setup_extra_relations ();
 void callback_before_cycle (double cycle);
 void callback_after_cycle (double cycle);
 void callback_end ();
 
-extern cfg_t cfg;
+extern cfg_t *cfg;
 extern std::vector<stats_t> *cycle_stats_ptr;
 extern double current_cycle;
 extern std::vector<person_t*> population;

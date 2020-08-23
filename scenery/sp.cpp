@@ -8,9 +8,7 @@
 	#define SCHOOL_STRATEGY 0
 #endif
 
-#ifndef SCHOOL_WEIGHT
-	#define SCHOOL_WEIGHT 2.0
-#endif
+static double sp_school_weight = 2.0;
 
 #ifndef SP_CYCLES_TO_SIM
 	#define SP_CYCLES_TO_SIM 360.0
@@ -48,13 +46,22 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
                                             uint32_t room_div,
                                             report_progress_t *report);
 
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
+{
+	cmd_line_args.add_options()
+		("schoolweight", boost::program_options::value<double>()->notifier( [] (double v) { sp_school_weight = v; } ), "School weight");
+}
+
 void cfg_t::scenery_setup ()
 {
+
+	DMSG("sp_school_weight: " << sp_school_weight << std::endl)
+exit(0);
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = SP_CYCLES_TO_SIM;
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
-		this->relation_type_weights[r] = SCHOOL_WEIGHT;
+		this->relation_type_weights[r] = sp_school_weight;
 
 	this->r0 = 3.0;
 
@@ -68,7 +75,7 @@ void cfg_t::scenery_setup ()
 	this->n_regions = csv->get_ncities();
 //	this->n_regions = 1;
 
-	cprintf("number of cities: %u\n", this->n_regions);
+	DMSG("number of cities" << this->n_regions << std::endl);
 
 #ifdef SP_RESULTS_FILE
 	scenery_results_fname = "-";
@@ -123,7 +130,7 @@ void region_t::setup_health_units ()
 
 void region_t::setup_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
 		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
 
@@ -211,7 +218,7 @@ void region_t::setup_relations ()
 
 void setup_inter_region_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
 			for (auto jt=it+1; jt!=regions.end(); ++jt) {
 				region_t *s, *t;
@@ -249,7 +256,7 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		stats_zone_t *zone = create_new_stats_zone();
 		zone->get_name() = "school";
 
@@ -276,12 +283,12 @@ static void adjust_r_no_school (double target_r0)
 {
 	double family_r0, unknown_r0, factor;
 
-	backup_school_r0 = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
+	backup_school_r0 = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
-		cfg.relation_type_transmit_rate[r] = 0.0;
+		cfg->relation_type_transmit_rate[r] = 0.0;
 
-	//target_r0 /= cfg.cycles_contagious;
+	//target_r0 /= cfg->cycles_contagious;
 	//target_r0 *= (double)population.size();
 
 	/*
@@ -289,14 +296,14 @@ static void adjust_r_no_school (double target_r0)
 	f*others = (target-family)
 	*/
 
-	family_r0 = cfg.relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg.relation_type_number[RELATION_FAMILY];
-	family_r0 *= cfg.cycles_contagious->get_expected();
-	family_r0 *= cfg.cycle_division;
+	family_r0 = cfg->relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg->relation_type_number[RELATION_FAMILY];
+	family_r0 *= cfg->cycles_contagious->get_expected();
+	family_r0 *= cfg->cycle_division;
 	family_r0 /= (double)population.size();
 
-	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
-	unknown_r0 *= cfg.cycles_contagious->get_expected();
-	unknown_r0 *= cfg.cycle_division;
+	unknown_r0 = cfg->relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg->relation_type_number[RELATION_UNKNOWN];
+	unknown_r0 *= cfg->cycles_contagious->get_expected();
+	unknown_r0 *= cfg->cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f family_r0: %.2f\n", current_cycle, family_r0);
@@ -304,11 +311,11 @@ static void adjust_r_no_school (double target_r0)
 	
 	factor = (target_r0 - family_r0) / unknown_r0;
 
-	cfg.relation_type_transmit_rate[RELATION_UNKNOWN] *= factor;
+	cfg->relation_type_transmit_rate[RELATION_UNKNOWN] *= factor;
 
-	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
-	unknown_r0 *= cfg.cycles_contagious->get_expected();
-	unknown_r0 *= cfg.cycle_division;
+	unknown_r0 = cfg->relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg->relation_type_number[RELATION_UNKNOWN];
+	unknown_r0 *= cfg->cycles_contagious->get_expected();
+	unknown_r0 *= cfg->cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
@@ -321,7 +328,7 @@ static void adjust_r_open_schools ()
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
@@ -340,7 +347,7 @@ void callback_before_cycle (double cycle)
 	if (cycle < warmup) {
 		static bool test = false;
 
-		uint32_t summon_per_cycle = (uint64_t)((double)people_warmup / (warmup * cfg.cycle_division));
+		uint32_t summon_per_cycle = (uint64_t)((double)people_warmup / (warmup * cfg->cycle_division));
 
 dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
@@ -360,20 +367,20 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		}
 	}
 	else if (cycle == warmup) {
-//		cfg.global_r0_factor = 1.05;
+//		cfg->global_r0_factor = 1.05;
 		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
 		adjust_r_no_school(1.5);
-//		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-//		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
-//		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
-//		cfg.global_r0_factor = 0.9 / cfg.r0;
+//		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+//		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+//		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+//		cfg->global_r0_factor = 0.9 / cfg->r0;
 //printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 45.0) {
 		adjust_r_no_school(1.28);
-		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
-		//cfg.global_r0_factor = 1.16 / cfg.r0;
+		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
@@ -388,12 +395,12 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 		uint32_t relation = day + RELATION_SCHOOL_0;
 
-		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
 		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
-			cfg.relation_type_transmit_rate[r] = 0.0;
+			cfg->relation_type_transmit_rate[r] = 0.0;
 
-		cfg.relation_type_transmit_rate[relation] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+		cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 	
 	#if SCHOOL_STRATEGY == 2
 		uint32_t next = day + 1;
@@ -403,7 +410,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 		uint32_t relation_next = next + RELATION_SCHOOL_0;
 
-		cfg.relation_type_transmit_rate[relation_next] = SCHOOL_WEIGHT * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+		cfg->relation_type_transmit_rate[relation_next] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 	#endif
 
 		cprintf("opening schools for students of day %i  type %s\n", day, relation_type_str(relation));
@@ -435,10 +442,10 @@ void callback_end ()
 	cprintf("amount of students: " PU64 "\n", n_students);
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg.relation_type_number[i]);
+		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg->relation_type_number[i]);
 	}
 
-	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
+	cprintf("amount of school relations per student: %.2f\n", (double)cfg->relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }
 
 void sp_setup_infection_state_rate ()
@@ -616,14 +623,14 @@ void sp_setup_infection_state_rate ()
 /*	adjust_weights_to_fit_mean<double, uint64_t, AGE_CATS_N> (
 		weight,
 		people_per_age_cat,
-		cfg.probability_asymptomatic * (double)population.size(),
+		cfg->probability_asymptomatic * (double)population.size(),
 		ratio_asymptomatic_per_age
 		);*/
 
 	adjust_weights_to_fit_mean<double, uint64_t, AGE_CATS_N> (
 		weight,
 		people_per_age_cat,
-		cfg.probability_asymptomatic * (double)population.size(),
+		cfg->probability_asymptomatic * (double)population.size(),
 		ratio_asymptomatic_per_age
 		);
 
@@ -656,11 +663,11 @@ void sp_setup_infection_state_rate ()
 		transform the ratio considering
 	*/
 
-	double target_mild_prob = ((double)total_mild / (double)total_confirmed) * (1.0 - cfg.probability_asymptomatic);
+	double target_mild_prob = ((double)total_mild / (double)total_confirmed) * (1.0 - cfg->probability_asymptomatic);
 
-	double target_severe_prob = ((double)total_severe / (double)total_confirmed) * (1.0 - cfg.probability_asymptomatic);
+	double target_severe_prob = ((double)total_severe / (double)total_confirmed) * (1.0 - cfg->probability_asymptomatic);
 
-	double target_critical_prob = ((double)total_critical / (double)total_confirmed) * (1.0 - cfg.probability_asymptomatic);
+	double target_critical_prob = ((double)total_critical / (double)total_confirmed) * (1.0 - cfg->probability_asymptomatic);
 
 	cprintf("\n");
 	cprintf("target_mild_prob: %.4f\n", target_mild_prob);
@@ -733,36 +740,36 @@ void sp_setup_infection_state_rate ()
 
 	cprintf("\n");
 	cprintf("MEAN :  %.4f  %.4f  %.4f  %.4f\n", t_asymp, t_mild, t_severe, t_critical);
-	cprintf("REP  :  %.4f  %.4f  %.4f  %.4f\n", 0.0, t_mild / (1.0 - cfg.probability_asymptomatic), t_severe / (1.0 - cfg.probability_asymptomatic), t_critical / (1.0 - cfg.probability_asymptomatic));
+	cprintf("REP  :  %.4f  %.4f  %.4f  %.4f\n", 0.0, t_mild / (1.0 - cfg->probability_asymptomatic), t_severe / (1.0 - cfg->probability_asymptomatic), t_critical / (1.0 - cfg->probability_asymptomatic));
 
-	cfg.probability_mild = t_mild;
-	cfg.probability_severe = t_severe;
-	cfg.probability_critical = t_critical;
-	cfg.probability_asymptomatic = 1.0 - (cfg.probability_mild + cfg.probability_severe + cfg.probability_critical);
+	cfg->probability_mild = t_mild;
+	cfg->probability_severe = t_severe;
+	cfg->probability_critical = t_critical;
+	cfg->probability_asymptomatic = 1.0 - (cfg->probability_mild + cfg->probability_severe + cfg->probability_critical);
 
 #if 0
 	double asymp_test = 0.0;
 
-	cfg.probability_mild = 0.0;
-	cfg.probability_severe = 0.0;
-	cfg.probability_critical = 0.0;
+	cfg->probability_mild = 0.0;
+	cfg->probability_severe = 0.0;
+	cfg->probability_critical = 0.0;
 
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
 		asymp_test += ratio_asymptomatic_per_age[i] * (double)people_per_age_cat[i];
 
-		cfg.probability_mild += ratio_mild_per_age[i] * (double)people_per_age_cat[i];
-		cfg.probability_severe += ratio_severe_per_age[i] * (double)people_per_age_cat[i];
-		cfg.probability_critical += ratio_critical_per_age[i] * (double)people_per_age_cat[i];
-//		cfg.probability_critical += ratio_critical_per_age[i] * (double)reported_confirmed_per_age[i];
+		cfg->probability_mild += ratio_mild_per_age[i] * (double)people_per_age_cat[i];
+		cfg->probability_severe += ratio_severe_per_age[i] * (double)people_per_age_cat[i];
+		cfg->probability_critical += ratio_critical_per_age[i] * (double)people_per_age_cat[i];
+//		cfg->probability_critical += ratio_critical_per_age[i] * (double)reported_confirmed_per_age[i];
 	}
 
 	asymp_test /= (double)population.size();
-	cfg.probability_mild /= (double)population.size();
-	cfg.probability_severe /= (double)population.size();
-	cfg.probability_critical /= (double)population.size();
-//	cfg.probability_critical /= total_confirmed;
+	cfg->probability_mild /= (double)population.size();
+	cfg->probability_severe /= (double)population.size();
+	cfg->probability_critical /= (double)population.size();
+//	cfg->probability_critical /= total_confirmed;
 
-	cfg.probability_asymptomatic = 1.0 - (cfg.probability_mild + cfg.probability_severe + cfg.probability_critical);
+	cfg->probability_asymptomatic = 1.0 - (cfg->probability_mild + cfg->probability_severe + cfg->probability_critical);
 
 	cprintf("\n");
 
@@ -777,10 +784,10 @@ void sp_setup_infection_state_rate ()
 	}
 #endif
 
-	cprintf("cfg.probability_asymptomatic: %.4f\n", cfg.probability_asymptomatic);
-	cprintf("cfg.probability_mild: %.4f      (reported %.4f   original %.4f)\n", cfg.probability_mild, cfg.probability_mild / (1.0 - cfg.probability_asymptomatic), (double)total_mild / (double)total_confirmed);
-	cprintf("cfg.probability_severe: %.4f      (reported %.4f   original %.4f)\n", cfg.probability_severe, cfg.probability_severe / (1.0 - cfg.probability_asymptomatic), (double)total_severe / (double)total_confirmed);
-	cprintf("cfg.probability_critical: %.4f      (reported %.4f   original %.4f)\n", cfg.probability_critical, cfg.probability_critical / (1.0 - cfg.probability_asymptomatic), (double)total_critical / (double)total_confirmed);
+	cprintf("cfg->probability_asymptomatic: %.4f\n", cfg->probability_asymptomatic);
+	cprintf("cfg->probability_mild: %.4f      (reported %.4f   original %.4f)\n", cfg->probability_mild, cfg->probability_mild / (1.0 - cfg->probability_asymptomatic), (double)total_mild / (double)total_confirmed);
+	cprintf("cfg->probability_severe: %.4f      (reported %.4f   original %.4f)\n", cfg->probability_severe, cfg->probability_severe / (1.0 - cfg->probability_asymptomatic), (double)total_severe / (double)total_confirmed);
+	cprintf("cfg->probability_critical: %.4f      (reported %.4f   original %.4f)\n", cfg->probability_critical, cfg->probability_critical / (1.0 - cfg->probability_asymptomatic), (double)total_critical / (double)total_confirmed);
 
 	cprintf("setting up infection rates...\n");
 

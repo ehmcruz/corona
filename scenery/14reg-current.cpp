@@ -14,6 +14,11 @@ static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
 
 static int32_t stages_green = 0;
 
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
+{
+
+}
+
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
@@ -79,7 +84,7 @@ void region_t::setup_health_units ()
 
 void region_t::setup_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		dprintf("setting up %s relations...\n", this->get_name().c_str());
 
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
@@ -190,7 +195,7 @@ void region_t::setup_relations ()
 
 void setup_inter_region_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
 			for (auto jt=it+1; jt!=regions.end(); ++jt) {
 				region_t *s, *t;
@@ -216,7 +221,7 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		stats_zone_t *zone = create_new_stats_zone();
 		zone->get_name() = "school";
 
@@ -233,10 +238,10 @@ static void adjust_r_no_school (double target_r0)
 {
 	double family_r0, unknown_r0, factor;
 
-	//backup_school_r0 = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+	//backup_school_r0 = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 
-	//target_r0 /= cfg.cycles_contagious;
+	//target_r0 /= cfg->cycles_contagious;
 	//target_r0 *= (double)population.size();
 
 	/*
@@ -244,14 +249,14 @@ static void adjust_r_no_school (double target_r0)
 	f*others = (target-family)
 	*/
 
-	family_r0 = cfg.relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg.relation_type_number[RELATION_FAMILY];
-	family_r0 *= cfg.cycles_contagious->get_expected();
-	family_r0 *= cfg.cycle_division;
+	family_r0 = cfg->relation_type_transmit_rate[RELATION_FAMILY] * (double)cfg->relation_type_number[RELATION_FAMILY];
+	family_r0 *= cfg->cycles_contagious->get_expected();
+	family_r0 *= cfg->cycle_division;
 	family_r0 /= (double)population.size();
 
-	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
-	unknown_r0 *= cfg.cycles_contagious->get_expected();
-	unknown_r0 *= cfg.cycle_division;
+	unknown_r0 = cfg->relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg->relation_type_number[RELATION_UNKNOWN];
+	unknown_r0 *= cfg->cycles_contagious->get_expected();
+	unknown_r0 *= cfg->cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f family_r0: %.2f\n", current_cycle, family_r0);
@@ -259,11 +264,11 @@ static void adjust_r_no_school (double target_r0)
 	
 	factor = (target_r0 - family_r0) / unknown_r0;
 
-	cfg.relation_type_transmit_rate[RELATION_UNKNOWN] *= factor;
+	cfg->relation_type_transmit_rate[RELATION_UNKNOWN] *= factor;
 
-	unknown_r0 = cfg.relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg.relation_type_number[RELATION_UNKNOWN];
-	unknown_r0 *= cfg.cycles_contagious->get_expected();
-	unknown_r0 *= cfg.cycle_division;
+	unknown_r0 = cfg->relation_type_transmit_rate[RELATION_UNKNOWN] * (double)cfg->relation_type_number[RELATION_UNKNOWN];
+	unknown_r0 *= cfg->cycles_contagious->get_expected();
+	unknown_r0 *= cfg->cycle_division;
 	unknown_r0 /= (double)population.size();
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
@@ -277,7 +282,7 @@ static void adjust_r_open_schools ()
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
-	cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg.relation_type_transmit_rate[RELATION_UNKNOWN];
+	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
@@ -296,20 +301,20 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 	}
 	else if (cycle == 30.0) {
 //{ person_t *p; do { p = region_t::get("Paranavai")->pick_random_person(); if (p->get_state() == ST_HEALTHY) { p->force_infect(); break;} } while (1); }
-		cfg.global_r0_factor = 1.05;
+		cfg->global_r0_factor = 1.05;
 		adjust_r_no_school(1.0);
-//		backup = cfg.relation_type_transmit_rate[RELATION_SCHOOL];
-//		cfg.relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
-//		cfg.global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
-		//cfg.global_r0_factor = 0.9 / cfg.r0;
+//		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+//		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+//		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//cfg->global_r0_factor = 0.9 / cfg->r0;
 //printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 51.0) {
 		adjust_r_no_school(1.3);
-		//cfg.global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg.global_r0_factor);
-		//cfg.global_r0_factor = 1.16 / cfg.r0;
-		//cfg.global_r0_factor = 1.16 / cfg.r0;
+		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
@@ -338,9 +343,9 @@ void callback_end ()
 	cprintf("amount of students: " PU64 "\n", n_students);
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg.relation_type_number[i]);
+		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg->relation_type_number[i]);
 	}
 
-	cprintf("amount of school relations per student: %.2f\n", (double)cfg.relation_type_number[RELATION_SCHOOL] / (double)n_students);
+	cprintf("amount of school relations per student: %.2f\n", (double)cfg->relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }
 

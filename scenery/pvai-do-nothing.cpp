@@ -11,6 +11,11 @@ static health_unit_t santa_casa_enfermaria(200000, ST_SEVERE);
 
 static std::string name("Paranavai");
 
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
+{
+
+}
+
 void cfg_t::scenery_setup ()
 {
 	//this->network_type = NETWORK_TYPE_NETWORK;
@@ -61,7 +66,7 @@ void region_t::setup_health_units ()
 
 void region_t::setup_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
 		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
 
