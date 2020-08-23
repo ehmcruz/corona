@@ -1183,7 +1183,9 @@ int main (int argc, char **argv)
 	try {
 		cmd_line_args.add_options()
 			("help,h", "Help screen")
-			("fresults", po::value<std::string>()->default_value(default_results_file), "Results file output");
+			("fresults", po::value<std::string>()->default_value(default_results_file), "Results file output")
+			("cycles", po::value<double>()->default_value(0.0), "Number of cycles to simulate")
+			("cfgdump", "Only dump the config");
 
 		setup_cmd_line_args(cmd_line_args);
 
@@ -1194,8 +1196,8 @@ int main (int argc, char **argv)
 			std::cout << cmd_line_args << std::endl;
 			return 0;
 		}
-		if (vm.count("fresults"))
-			std::cout << "Results file output: " << vm["fresults"].as<std::string>() << std::endl;
+//		if (vm.count("fresults"))
+//			std::cout << "Results file output: " << vm["fresults"].as<std::string>() << std::endl;
 	}
 	catch (const boost::program_options::error &ex) {
 		DMSG(ex.what() << std::endl);
@@ -1206,6 +1208,16 @@ int main (int argc, char **argv)
 	CMSG("results_file: " << results_file << std::endl)
 
 	cfg = new cfg_t;
+
+	if (vm["cycles"].as<double>() != 0.0)
+		cfg->cycles_to_simulate = vm["cycles"].as<double>();
+
+	C_ASSERT(cfg->cycles_to_simulate > 0.0);
+
+	if (vm.count("cfgdump")) {
+		cfg->dump();
+		return 0;
+	}
 
 	for (i=0; i<AGES_N; i++)
 		people_per_age[i] = 0;
