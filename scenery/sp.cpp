@@ -8,7 +8,8 @@
 	X_SP_SCHOOL_STRATEGY_(SCHOOL_CLOSED) \
 	X_SP_SCHOOL_STRATEGY_(SCHOOL_OPEN_33) \
 	X_SP_SCHOOL_STRATEGY_(SCHOOL_OPEN_66) \
-	X_SP_SCHOOL_STRATEGY_(SCHOOL_OPEN_100)
+	X_SP_SCHOOL_STRATEGY_(SCHOOL_OPEN_100) \
+	X_SP_SCHOOL_STRATEGY_(SCHOOL_OPEN_PLANNED)
 
 enum sp_school_strategy_t {
 	#define X_SP_SCHOOL_STRATEGY_(S) S,
@@ -27,13 +28,24 @@ static const char* sp_school_strategy_str (sp_school_strategy_t s)
 	return list[s];
 }
 
+enum class sp_plan_t {
+	phase_0,
+	phase_33,
+	phase_66,
+	phase_100
+};
+
+static sp_plan_t sp_plan = sp_plan_t::phase_0;
+
 static sp_school_strategy_t sp_school_strategy = SCHOOL_CLOSED;
 
 static double sp_school_weight = 2.0;
 
 static double sp_cycle_to_open_school = 210.0;
 
-static uint32_t sp_school_div = 3;
+static double sp_cycles_between_phases = 7.0 * 6.0; // 6 weeks default
+
+static const uint32_t sp_school_div = 3;
 
 static csv_ages_t *csv;
 
@@ -68,27 +80,23 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 		("schoolopencycle", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_cycle_to_open_school = v;
 			} ), "Cycle to open schools")
-		("schoolstrat", boost::program_options::value<int>()->notifier( [] (int v) {
-				switch (v) {
-					case 0:
-						sp_school_strategy = SCHOOL_CLOSED;
-					break;
-
-					case 33:
-						sp_school_strategy = SCHOOL_OPEN_33;
-					break;
-
-					case 66:
-						sp_school_strategy = SCHOOL_OPEN_66;
-					break;
-
-					case 100:
-						sp_school_strategy = SCHOOL_OPEN_100;
-					break;
-
-					default:
-						CMSG("schoolstrat should be 0, 33, 66 or 100" << std::endl)
-						exit(1);
+		("schoolcyclesbetweenphases", boost::program_options::value<double>()->notifier( [] (double v) {
+				sp_cycles_between_phases = v;
+			} ), "Cycles between phases of SP plan to open schools")
+		("schoolstrat", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
+				if (v == "0")
+					sp_school_strategy = SCHOOL_CLOSED;
+				else if (v == "33")
+					sp_school_strategy = SCHOOL_OPEN_33;
+				else if (v == "66")
+					sp_school_strategy = SCHOOL_OPEN_66;
+				else if (v == "100")
+					sp_school_strategy = SCHOOL_OPEN_100;
+				else if (v == "planned")
+					sp_school_strategy = SCHOOL_OPEN_PLANNED;
+				else {
+					CMSG("schoolstrat should be 0, 33, 66, 100 or planned" << std::endl)
+					exit(1);
 				}
 			} ), "School opening strategy, should be 0, 33, 66 or 100");
 }
@@ -132,6 +140,7 @@ exit(1);*/
 	DMSG("sp_school_weight: " << sp_school_weight << std::endl)
 	DMSG("sp_school_strategy: " << sp_school_strategy_str(sp_school_strategy) << std::endl)
 	DMSG("sp_cycle_to_open_school: " << sp_cycle_to_open_school << std::endl)
+	DMSG("sp_cycles_between_phases: " << sp_cycles_between_phases << std::endl)
 }
 
 void region_t::setup_population ()
@@ -374,6 +383,7 @@ void callback_before_cycle (double cycle)
 	const uint64_t people_warmup = 500;
 	const double warmup = 30.0;
 	static uint32_t day = 0;
+	static double sp_plan_next_cycle_target;
 	double intpart;
 
 	// target is 49000 infected after 47 days
@@ -418,13 +428,11 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-#if SCHOOL_STRATEGY == 0
-	else if (cycle == sp_cycle_to_open_school) {
+	else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
 		adjust_r_open_schools();
 		stages_green++;
 	}
-#elif SCHOOL_STRATEGY == 1 || SCHOOL_STRATEGY == 2
-	else if (cycle >= sp_cycle_to_open_school && modf(cycle, &intpart) == 0.0) {
+	else if ((sp_school_strategy == SCHOOL_OPEN_33 || sp_school_strategy == SCHOOL_OPEN_66) && cycle >= sp_cycle_to_open_school && modf(cycle, &intpart) == 0.0) {
 		dprintf("day = %u\n", day);
 
 		uint32_t relation = day + RELATION_SCHOOL_0;
@@ -436,16 +444,16 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 		cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 	
-	#if SCHOOL_STRATEGY == 2
-		uint32_t next = day + 1;
+		if (sp_school_strategy == SCHOOL_OPEN_66) {
+			uint32_t next = day + 1;
 
-		if (next >= (sp_school_div))
-			next = 0;
+			if (next >= (sp_school_div))
+				next = 0;
 
-		uint32_t relation_next = next + RELATION_SCHOOL_0;
+			uint32_t relation_next = next + RELATION_SCHOOL_0;
 
-		cfg->relation_type_transmit_rate[relation_next] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
-	#endif
+			cfg->relation_type_transmit_rate[relation_next] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+		}
 
 		cprintf("opening schools for students of day %i  type %s\n", day, relation_type_str(relation));
 		
@@ -454,7 +462,68 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		if (day >= (sp_school_div))
 			day = 0;
 	}
-#endif
+	else if ((sp_school_strategy == SCHOOL_OPEN_PLANNED) && cycle >= sp_cycle_to_open_school && modf(cycle, &intpart) == 0.0) {
+		uint32_t relation = day + RELATION_SCHOOL_0;
+
+		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+
+		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
+			cfg->relation_type_transmit_rate[r] = 0.0;
+
+		switch (sp_plan) {
+			case sp_plan_t::phase_0:
+				sp_plan_next_cycle_target = cycle + sp_cycles_between_phases;
+				sp_plan = sp_plan_t::phase_33;
+			break;
+
+			case sp_plan_t::phase_33:
+				DMSG("SP school phase 33" << std::endl)
+
+				cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+
+				if (cycle >= sp_plan_next_cycle_target) {
+					sp_plan_next_cycle_target = cycle + sp_cycles_between_phases;
+					sp_plan = sp_plan_t::phase_66;
+				}
+			break;
+
+			case sp_plan_t::phase_66: {
+				DMSG("SP school phase 66" << std::endl)
+
+				cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+			
+				uint32_t next = day + 1;
+
+				if (next >= (sp_school_div))
+					next = 0;
+
+				uint32_t relation_next = next + RELATION_SCHOOL_0;
+
+				cfg->relation_type_transmit_rate[relation_next] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+
+				if (cycle >= sp_plan_next_cycle_target) {
+					sp_plan_next_cycle_target = cycle + sp_cycles_between_phases;
+					sp_plan = sp_plan_t::phase_100;
+				}
+			}
+			break;
+
+			case sp_plan_t::phase_100:
+				DMSG("SP school phase 100" << std::endl)
+
+				for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
+					cfg->relation_type_transmit_rate[r] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+			break;
+
+			default:
+				C_ASSERT(false)
+		}
+
+		day++;
+
+		if (day >= (sp_school_div))
+			day = 0;
+	}
 }
 
 void callback_after_cycle (double cycle)
@@ -470,7 +539,12 @@ void callback_end ()
 //	C_ASSERT(stages_green == 4)
 
 	n_profs = get_n_population_per_relation_flag( {VFLAG_PROFESSOR} );
-	n_students = get_n_population_per_relation_flag( {RELATION_SCHOOL} );
+
+	std::bitset<NUMBER_OF_FLAGS> mask;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		mask.set(r);
+
+	n_students = get_n_population_per_relation_flag(mask);
 
 	cprintf("amount of professors: " PU64 "\n", n_profs);
 	cprintf("amount of students: " PU64 "\n", n_students);
@@ -881,9 +955,9 @@ static person_t* sp_find_professor (region_t *prof_region, dist_double_t& dist_p
 	return nullptr;
 }
 
-static void sp_create_school_relation_professor (std::vector<person_t*>& students, person_t *prof)
+static void sp_create_school_relation_professor (std::vector<person_t*>& students, person_t *prof, relation_type_t type)
 {
-	network_create_connection_one_to_all(prof, students, RELATION_SCHOOL);
+	network_create_connection_one_to_all(prof, students, type);
 }
 
 void sp_create_school_relation_contingency (std::vector<person_t*>& students,
@@ -978,7 +1052,7 @@ dprintf("       %.4f\n", intra_class_ratio);
 panic("in\n");
 #endif
 
-			sp_create_school_relation_professor(class_students[age].students, class_students[age].prof);
+			sp_create_school_relation_professor(class_students[age].students, class_students[age].prof, static_cast<relation_type_t>(school_rtype));
 
 			class_students[age].room_i++;
 
@@ -1027,7 +1101,7 @@ panic("in\n");
 			
 			network_create_connection_between_people(class_students[age].students, static_cast<relation_type_t>(school_rtype), intra_class_ratio);
 			
-			sp_create_school_relation_professor(class_students[age].students, class_students[age].prof);
+			sp_create_school_relation_professor(class_students[age].students, class_students[age].prof, static_cast<relation_type_t>(school_rtype));
 		}
 	}
 
