@@ -98,7 +98,7 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 					CMSG("schoolstrat should be 0, 33, 66, 100 or planned" << std::endl)
 					exit(1);
 				}
-			} ), "School opening strategy, should be 0, 33, 66 or 100");
+			} ), "School opening strategy, should be 0, 33, 66, 100 or planned");
 }
 
 void cfg_t::scenery_setup ()
@@ -249,7 +249,7 @@ void region_t::setup_relations ()
 	                                          0.003,
 	                                          &progress_school);
 	
-		else if (sp_school_strategy == SCHOOL_OPEN_33 || sp_school_strategy == SCHOOL_OPEN_66)
+		else if (sp_school_strategy == SCHOOL_OPEN_33 || sp_school_strategy == SCHOOL_OPEN_66 || sp_school_strategy == SCHOOL_OPEN_PLANNED)
 			sp_create_school_relation_contingency(students,
 			                                  age_ini,
 			                                  age_end,
@@ -477,7 +477,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 			break;
 
 			case sp_plan_t::phase_33:
-				DMSG("SP school phase 33" << std::endl)
+				DMSG("SP school phase 33 type " << relation_type_str(relation) << std::endl)
 
 				cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
@@ -488,8 +488,6 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 			break;
 
 			case sp_plan_t::phase_66: {
-				DMSG("SP school phase 66" << std::endl)
-
 				cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 			
 				uint32_t next = day + 1;
@@ -498,6 +496,8 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 					next = 0;
 
 				uint32_t relation_next = next + RELATION_SCHOOL_0;
+
+				DMSG("SP school phase 66 type " << relation_type_str(relation) << " and " << relation_type_str(relation_next) << std::endl)
 
 				cfg->relation_type_transmit_rate[relation_next] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
