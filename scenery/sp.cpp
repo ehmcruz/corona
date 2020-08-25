@@ -108,8 +108,13 @@ void cfg_t::scenery_setup ()
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 360.0;
 
-	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
-		this->relation_type_weights[r] = sp_school_weight;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++) {
+		this->relation_type_weights[r] = 2.0;
+
+		this->factor_per_relation_group[r][ST_MILD] = 0.0;
+		this->factor_per_relation_group[r][ST_SEVERE] = 0.0;
+		this->factor_per_relation_group[r][ST_CRITICAL] = 0.0;
+	}
 
 	this->r0 = 3.0;
 
@@ -553,7 +558,12 @@ void callback_end ()
 		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg->relation_type_number[i]);
 	}
 
-	cprintf("amount of school relations per student: %.2f\n", (double)cfg->relation_type_number[RELATION_SCHOOL] / (double)n_students);
+	uint64_t n_relations = 0;
+
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		n_relations += cfg->relation_type_number[r];
+
+	cprintf("amount of school relations per student: %.2f\n", (double)n_relations / (double)n_students);
 }
 
 void sp_setup_infection_state_rate ()

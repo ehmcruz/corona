@@ -753,16 +753,19 @@ double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 double network_get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	double r0 = 0.0;
+	uint64_t n = 0;
 
 	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++) {
-		if (flags.test(i))
+		if (flags.test(i)) {
 			r0 += cfg->relation_type_transmit_rate[i] * (double)cfg->relation_type_number[i];
+			n += cfg->relation_type_number[i];
+		}
 	}
 
 	r0 *= cfg->global_r0_factor;
 	r0 *= cfg->cycles_contagious->get_expected();
 	r0 *= cfg->cycle_division;
-	r0 /= (double)population.size();
+	r0 /= (double)n;
 
 	return r0;
 }

@@ -273,19 +273,19 @@ static void adjust_r_no_school (double target_r0)
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
 
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	DMSG("r0 cycle " << current_cycle << ": " << get_affective_r0() << " (fast " << get_affective_r0_fast() << ")" << std::endl);
 //exit(1);
 }
 
 static void adjust_r_open_schools ()
 {
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
-	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+	printf("r0 cycle %.2f: %.2f (fast %.2f)\n", current_cycle, get_affective_r0(), get_affective_r0_fast());
+	printf("r0 cycle %.2f-student: %.2f (fast %.2f)\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ), get_affective_r0_fast( {RELATION_SCHOOL} ));
 
 	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
-	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+	printf("r0 cycle %.2f: %.2f (fast %.2f)\n", current_cycle, get_affective_r0(), get_affective_r0_fast());
+	printf("r0 cycle %.2f-student: %.2f (fast %.2f)\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ), get_affective_r0_fast( {RELATION_SCHOOL} ));
 }
 
 void callback_before_cycle (double cycle)
