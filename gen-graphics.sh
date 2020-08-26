@@ -23,6 +23,14 @@ for test in $sceneries
 do
 	for s in $subpop
 	do
+		rm -rf log/results/results-$test-$s
+		mkdir log/results/results-$test-$s
+
+		cp log/results/all-results-$test/results-$test-*-$s.csv log/results/results-$test-$s
+	done
+
+	for s in $subpop
+	do
 		rm -rf log/results/processed-$test-$s
 		mkdir log/results/processed-$test-$s
 
@@ -36,8 +44,19 @@ do
 
 	#	exit
 
-		./log/calc-mean-stddev.r log/results/processed-$test-$s log/results/results-$test-$s
+		rm -rf log/results/graphics-$test-$s
+		mkdir log/results/graphics-$test-$s
+		
+		./log/calc-mean-stddev.r log/results/processed-$test-$s log/results/graphics-$test-$s/results-$test-$s
 
-		./log/plot-with-interval.r log/results/results-$test-$s-mean.csv log/results/results-$test-$s-se.csv log/results/results-$test-$s
+		./log/plot-with-interval.r log/results/graphics-$test-$s/results-$test-$s-mean.csv log/results/graphics-$test-$s/results-$test-$s-se.csv log/results/graphics-$test-$s/results-$test-$s
+	done
+
+	# clean
+	
+	for s in $subpop
+	do
+		rm -rf log/results/results-$test-$s
+		rm -rf log/results/processed-$test-$s
 	done
 done

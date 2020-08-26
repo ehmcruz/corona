@@ -19,21 +19,13 @@ for test in $sceneries
 do
 	mkdir -p log/results/
 	
-	for s in $subpop
-	do
-		rm -rf log/results/results-$test-$s
-		mkdir log/results/results-$test-$s
-	done
+	rm -rf log/results/all-results-$test
+	mkdir log/results/all-results-$test
 
 	for i in `seq 1 $nruns`
 	do
 		echo "running $test run $i"
 		
-		./scenery/$test.exec results-$test-$i
-		
-		for s in $subpop
-		do
-			mv results-$test-$i-$s.csv log/results/results-$test-$s
-		done
+		./scenery/$test.exec --fresults log/results/all-results-$test/results-$test-$i
 	done
 done

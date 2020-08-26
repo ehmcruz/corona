@@ -1184,7 +1184,7 @@ int main (int argc, char **argv)
 		cmd_line_args.add_options()
 			("help,h", "Help screen")
 			("fresults", po::value<std::string>()->default_value(default_results_file), "Results file output")
-			("cycles", po::value<double>()->default_value(0.0), "Number of cycles to simulate")
+			("cycles,c", po::value<double>()->default_value(0.0), "Number of cycles to simulate")
 			("cfgdump", "Only dump the config");
 
 		setup_cmd_line_args(cmd_line_args);

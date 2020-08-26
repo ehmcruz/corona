@@ -74,16 +74,16 @@ void sp_create_school_relation_contingency (std::vector<person_t*>& students,
 void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
 {
 	cmd_line_args.add_options()
-		("schoolweight", boost::program_options::value<double>()->notifier( [] (double v) {
+		("schoolweight,w", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_school_weight = v;
 			} ), "School weight")
-		("schoolopencycle", boost::program_options::value<double>()->notifier( [] (double v) {
+		("schoolopencycle,o", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_cycle_to_open_school = v;
 			} ), "Cycle to open schools")
-		("schoolcyclesbetweenphases", boost::program_options::value<double>()->notifier( [] (double v) {
+		("schoolcyclesbetweenphases,b", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_cycles_between_phases = v;
 			} ), "Cycles between phases of SP plan to open schools")
-		("schoolstrat", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
+		("schoolstrat,s", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
 				if (v == "0")
 					sp_school_strategy = SCHOOL_CLOSED;
 				else if (v == "33")
