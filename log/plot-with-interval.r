@@ -15,9 +15,9 @@ library(ggplot2)
 
 # https://stackoverflow.com/questions/38470111/how-to-graph-with-geom-ribbon
 
-counters <- list("ac_state_ST_INFECTED", "ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL", "ac_state_ST_DEAD", "ac_state_ST_HEALTHY", "r", "reproductive")
+counters <- list("ac_state_ST_INFECTED", "ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL", "ac_state_ST_DEAD", "ac_state_ST_HEALTHY", "r", "reproductive", "g_reported")
 
-colors <- c("purple", "yellow", "orange", "red", "blue", "green", "cyan", "cyan")
+colors <- c("purple", "yellow", "orange", "red", "blue", "green", "cyan", "cyan", "gray")
 
 args = commandArgs(trailingOnly=TRUE)
 

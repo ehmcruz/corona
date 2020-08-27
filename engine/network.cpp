@@ -9,27 +9,10 @@
 #include <boost/graph/undirected_graph.hpp>
 #include <boost/graph/graph_utility.hpp>
 
-static pop_graph_t *pop_graph;
+pop_graph_t *pop_graph;
 
-static inline pop_vertex_data_t& vdesc (pop_vertex_t vertex)
-{
-	return (*pop_graph)[vertex];
-}
-
-static inline pop_vertex_data_t& vdesc (person_t *p)
-{
-	return vdesc(p->vertex);
-}
-
-pop_vertex_data_t& network_vertex_data (person_t *p)
-{
-	return vdesc(p);
-}
-
-static inline pop_edge_data_t& edesc (pop_edge_t edge)
-{
-	return (*pop_graph)[edge];
-}
+#define vdesc(v) network_vertex_data(v)
+#define edesc(e) network_edge_data(e)
 
 void network_start_population_graph ()
 {
@@ -46,10 +29,15 @@ void network_start_population_graph ()
 
 	cprintf("nvertex: %u\n", (uint32_t)num_vertices(*pop_graph));
 
-	for (boost::tie(vi,vend) = vertices(*pop_graph), i=0; vi != vend; ++vi, i++) {
+	C_ASSERT(num_vertices(*pop_graph) == population.size())
+
+	i = 0;
+	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) {
 		vdesc(*vi).p = population[i];
 		vdesc(*vi).flags.reset();
+		vdesc(*vi).school_class_room = UNDEFINED32;
 		population[i]->vertex = *vi;
+		i++;
 	}
 //exit(1);
 #if 0
@@ -136,6 +124,37 @@ bool network_check_if_people_are_neighbors (pop_vertex_t vertex1, pop_vertex_t v
 	}
 	
 	return false;
+}
+
+pop_edge_t network_get_edge (pop_vertex_t vertex1, pop_vertex_t vertex2)
+{
+	pop_edge_t e;
+	bool b;
+
+	boost::tie(e, b) = boost::edge(vertex1, vertex2, *pop_graph);
+
+	C_ASSERT(b != false)
+
+	return e;
+}
+
+void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2)
+{
+	pop_edge_t e;
+
+	e = network_get_edge(vertex1, vertex2);
+	
+	cfg->relation_type_number[edesc(e).type] -= 2;
+	
+	boost::remove_edge(vertex1, vertex2, *pop_graph);
+
+#ifdef SANITY_CHECK
+	bool b;
+
+	boost::tie(e, b) = boost::edge(vertex1, vertex2, *pop_graph);
+
+	C_ASSERT(b == false)
+#endif
 }
 
 pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)
@@ -248,6 +267,18 @@ uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags
 	return n;
 }
 
+void network_iterate_over_edges (void (*callback)(pop_vertex_data_t& s, pop_vertex_data_t& t, pop_edge_data_t& e))
+{
+	boost::graph_traits<pop_graph_t>::edge_iterator ei, ei_end;
+
+	for (boost::tie(ei,ei_end) = edges(*pop_graph); ei != ei_end; ++ei) {
+		pop_edge_t e = *ei;
+		pop_vertex_t s = boost::source(e, *pop_graph);
+		pop_vertex_t t = boost::target(e, *pop_graph);
+
+		(*callback)(vdesc(s), vdesc(t), edesc(*ei));
+	}
+}
 
 static void calibrate_rate_per_type ()
 {

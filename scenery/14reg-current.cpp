@@ -14,6 +14,274 @@ static health_unit_t santa_casa_enfermaria(20, ST_SEVERE);
 
 static int32_t stages_green = 0;
 
+/**********************************************************************/
+
+static void sp_reconfigure_class_room (std::vector<person_t*>& school_people, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end, uint32_t& rm)
+{
+//	DMSG("sp_reconfigure_class_room: " << (network_vertex_data(*it_begin).school_class_room) << " students " << (it_end - it_begin) << std::endl)
+
+	for (auto ita=it_begin; ita!=it_end; ++ita) {
+		for (auto itb=ita+1; itb!=it_end; ++itb) {
+			if (network_check_if_people_are_neighbors(*ita, *itb)) {
+				network_delete_edge(*ita, *itb);
+				rm++;
+//				DMSG("delete edge between " << ((*ita)->get_id()) << " and " << ((*itb)->get_id()) << std::endl)
+			}
+		}
+	}
+}
+
+void sp_configure_school ()
+{
+	// first find how many school people we have
+
+	uint32_t n_school_people = 0;
+
+	for (person_t *p: population) {
+		if (network_vertex_data(p).school_class_room != UNDEFINED32) {
+			n_school_people++;
+		}
+	}
+
+	if (n_school_people < 2)
+		return;
+
+	DMSG("found " << n_school_people << " students" << std::endl)
+
+	// now create a vector with all school people
+
+	std::vector<person_t*> school_people;
+	
+	school_people.reserve(n_school_people);
+
+	for (person_t *p: population) {
+		if (network_vertex_data(p).school_class_room != UNDEFINED32)
+			school_people.push_back(p);
+	}
+
+	C_ASSERT(school_people.size() == n_school_people)
+
+	// now sort people acording to their class room
+
+	std::sort(school_people.begin(), school_people.end(), [] (person_t *a, person_t *b) -> bool {
+		return (network_vertex_data(a).school_class_room < network_vertex_data(b).school_class_room);
+	});
+
+	// now identify each class room
+
+	auto it = school_people.begin() + 1;
+	auto it_begin = school_people.begin();
+
+cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+
+	uint32_t rm = 0;
+
+	while (true) {
+		if (it == school_people.end()) {
+			sp_reconfigure_class_room(school_people, it_begin, it, rm);
+			break;
+		}
+		else if (network_vertex_data(*it).school_class_room != network_vertex_data(*it_begin).school_class_room) {
+			sp_reconfigure_class_room(school_people, it_begin, it, rm);
+			it_begin = it;
+		}
+
+		++it;
+	}
+
+	DMSG("removed " << rm << " school relations" << std::endl)
+
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+exit(1);
+}
+
+static std::deque<person_t*> sp_professors;
+
+struct sp_school_room_t {
+	std::vector<person_t*> students;
+	uint32_t size;
+	uint32_t i;
+};
+
+static person_t* sp_create_school_relation_v2_professor (std::vector<person_t*>& students,
+                                                         region_t *prof_region,
+                                                         dist_double_t& dist_prof_age)
+{
+	do {
+		uint32_t prof_age = (uint32_t)dist_prof_age.generate();
+
+		for (person_t *prof: prof_region->get_people()) {
+			if (prof->get_age() == prof_age && network_vertex_data(prof).flags.test(RELATION_SCHOOL) == false) {
+				network_vertex_data(prof).flags.set(VFLAG_PROFESSOR);
+				network_create_connection_one_to_all(prof, students, RELATION_SCHOOL);
+				
+				return prof;
+			}
+		}
+	} while (true);
+
+	return nullptr;
+}
+
+void sp_create_school_relation_v2 (std::vector<person_t*>& students,
+                                     uint32_t age_ini,
+                                     uint32_t age_end,
+                                     dist_double_t& dist_class_size,
+                                     dist_double_t& dist_school_size,
+                                     region_t *prof_region,
+                                     dist_double_t& dist_prof_age,
+                                     double intra_class_ratio,
+                                     double inter_class_ratio,
+                                     report_progress_t *report)
+{
+	std::vector<person_t*> school_students;
+
+	uint32_t school_i = 0;
+	uint32_t school_size = (uint32_t)dist_school_size.generate();
+
+	std::vector<sp_school_room_t> class_students;
+	
+	school_students.resize( (uint32_t)dist_school_size.get_max(), nullptr );
+
+	C_ASSERT(school_size <= school_students.size())
+	
+	class_students.resize( age_end + 1 );
+
+	dprintf("total amount of students to go to school: " PU64 "\n", students.size());
+
+	for (uint32_t age=age_ini; age<=age_end; age++) {
+		class_students[age].students.resize( (uint32_t)dist_class_size.get_max(), nullptr );
+		class_students[age].size = (uint32_t)dist_class_size.generate();
+		class_students[age].i = 0;
+
+		C_ASSERT(class_students[age].size <= class_students[age].students.size())
+
+		//for (uint32_t i=0; i<class_students[age].size(); i++)
+		//	class_students[age][i] = nullptr;
+
+		//class_ocupancy[age].first = 0;     // target amount of students
+		//class_ocupancy[age].second = 0;    // current amount of students
+	}
+
+
+	for (person_t *p: students) {
+		uint32_t age = p->get_age();
+
+		C_ASSERT(age >= age_ini && age <= age_end)
+
+		C_ASSERT(class_students[age].i < class_students[age].size)
+		C_ASSERT(school_i < school_size)
+
+		C_ASSERT(class_students[age].i < class_students[age].students.size())
+		C_ASSERT(school_i < school_students.size())
+
+		class_students[age].students[ class_students[age].i++ ] = p;
+		school_students[ school_i++ ] = p;
+
+		if (report != nullptr)
+			report->check_report(1);
+
+		if (class_students[age].i == class_students[age].size || school_i == school_size) {
+		#ifdef SANITY_ASSERT
+		{
+			bool was_null = false;
+			for (auto p: class_students[age].students) {
+				if (was_null == false) {
+					was_null = (p == nullptr);
+				}
+				else {
+					C_ASSERT(p == nullptr)
+				}
+			}
+		}
+		#endif
+
+//			dprintf("created class room with %u students\n", class_students[age].i);
+
+			network_create_connection_between_people(class_students[age].students, RELATION_SCHOOL, intra_class_ratio);
+
+			for (auto it=class_students[age].students.begin(); it!=class_students[age].students.end(); ++it) {
+				person_t *p = *it;
+				if (p == nullptr)
+					break;
+
+				network_vertex_data(p).school_class_room = sp_professors.size();
+			}
+
+#if 0
+network_print_population_graph( {RELATION_SCHOOL} );
+for (auto p: class_students[age].students) if (p) dprintf("%i, ", p->get_id());
+dprintf("       %.4f\n", intra_class_ratio);
+panic("in\n");
+#endif
+
+			person_t *prof = sp_create_school_relation_v2_professor(class_students[age].students, prof_region, dist_prof_age);
+
+			network_vertex_data(prof).school_class_room = sp_professors.size();
+
+			sp_professors.push_back(prof);
+
+#if 0
+network_print_population_graph( {RELATION_SCHOOL} );
+for (auto p: class_students[age].students) if (p) dprintf("%i, ", p->get_id());
+dprintf("\n");
+panic("in\n");
+#endif
+
+			for (auto& p: class_students[age].students)
+				p = nullptr;
+
+			class_students[age].size = (uint32_t)dist_class_size.generate();
+			class_students[age].i = 0;
+
+			C_ASSERT(class_students[age].size <= class_students[age].students.size())
+
+			if (school_i == school_size) {
+//				dprintf("created school with %u students\n", school_i);
+				network_create_connection_between_people(school_students, RELATION_SCHOOL, inter_class_ratio);
+
+				for (auto& p: school_students)
+					p = nullptr;
+
+				school_i = 0;
+				school_size = (uint32_t)dist_school_size.generate();
+
+				C_ASSERT(school_size <= school_students.size())
+			}
+		}
+	}
+
+	for (uint32_t age=age_ini; age<=age_end; age++) {
+		if (class_students[age].i > 0) {
+//			dprintf("created class room with %u students\n", class_students[age].i);
+			for (person_t *p: class_students[age].students) {
+				if (p == nullptr)
+					break;
+				network_vertex_data(p).school_class_room = sp_professors.size();
+			}
+
+			network_create_connection_between_people(class_students[age].students, RELATION_SCHOOL, intra_class_ratio);
+			
+			person_t *prof = sp_create_school_relation_v2_professor(class_students[age].students, prof_region, dist_prof_age);
+
+			network_vertex_data(prof).school_class_room = sp_professors.size();
+
+			sp_professors.push_back(prof);
+		}
+	}
+
+	if (school_i > 0) {
+		//dprintf("created school with %u students\n", school_i);
+		network_create_connection_between_people(school_students, RELATION_SCHOOL, inter_class_ratio);
+	}
+}
+
+/**********************************************************************/
+
 void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
 {
 
@@ -179,7 +447,8 @@ void region_t::setup_relations ()
 		rname += " school loading...";
 		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
 
-		network_create_school_relation_v2(students,
+		// network_create_school_relation_v2
+		sp_create_school_relation_v2(students,
 		                                  age_ini,
 		                                  age_end,
 		                                  dist_school_class_size,
@@ -319,7 +588,8 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 		stages_green++;
 	}
 	else if (cycle == 180.0) {
-		adjust_r_open_schools();
+		//adjust_r_open_schools();
+		sp_configure_school();
 		stages_green++;
 	}
 }
@@ -348,4 +618,3 @@ void callback_end ()
 
 	cprintf("amount of school relations per student: %.2f\n", (double)cfg->relation_type_number[RELATION_SCHOOL] / (double)n_students);
 }
-

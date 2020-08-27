@@ -45,6 +45,8 @@ for (i in 1:length(col_reproductive)) {
 data$group_infected <- col_group_infected
 data$reproductive <- col_reproductive
 
+data$g_reported = data$ac_infected_state_ST_MILD + data$ac_infected_state_ST_SEVERE + data$ac_infected_state_ST_CRITICAL
+
 #data_input$test <- data_input$state_ST_INFECTED
 
 print(data)

@@ -16,6 +16,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_utility.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -168,6 +169,7 @@ char* factor_per_relation_group_str (int32_t relation, int32_t group);
 struct pop_vertex_data_t {
 	person_t *p;
 	std::bitset<NUMBER_OF_FLAGS> flags;
+	uint32_t school_class_room;
 };
 
 struct pop_edge_data_t {
