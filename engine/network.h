@@ -6,11 +6,13 @@ extern pop_graph_t *pop_graph;
 void network_start_population_graph ();
 void network_after_all_regular_connetions ();
 double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags);
-double network_get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags);
+double network_get_affective_r0_fast ();
 void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n, relation_type_t type=RELATION_TRAVEL);
-void network_iterate_over_edges (std::function<void (pop_vertex_data_t& s, pop_vertex_data_t& t, pop_edge_data_t& e)> callback);
+void network_iterate_over_edges (std::function<void (pop_vertex_t s, pop_vertex_t t, pop_edge_t e)> callback);
+void network_iterate_over_vertices (std::function<void (pop_vertex_t v)> callback);
 pop_edge_t network_get_edge (pop_vertex_t vertex1, pop_vertex_t vertex2);
 void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2);
+void network_delete_edge (pop_edge_t e);
 
 inline void network_delete_edge (person_t *s, person_t *t)
 {

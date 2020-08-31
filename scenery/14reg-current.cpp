@@ -19,7 +19,7 @@ static int32_t stages_green = 0;
 static void sp_reconfigure_class_room (std::vector<person_t*>& school_people, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end, uint32_t& rm)
 {
 	uint32_t n_students = it_end - it_begin;
-	const double ratio = 0.5;
+	const double ratio = 0.2;
 
 	//DMSG("sp_reconfigure_class_room: " << (network_vertex_data(*it_begin).school_class_room) << " students " << n_students << std::endl)
 
@@ -117,7 +117,7 @@ void sp_configure_school ()
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
 		cfg->relation_type_transmit_rate[r] = 2.0 * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f: %.2f (fast %.2f)\n", current_cycle, get_affective_r0(), get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
 	uint32_t rm, count, count_other_rooms;
@@ -128,9 +128,9 @@ void sp_configure_school ()
 	
 	count = 0;
 	count_other_rooms = 0;
-	network_iterate_over_edges ([&count, &count_other_rooms, &mask] (pop_vertex_data_t& s, pop_vertex_data_t& t, pop_edge_data_t& e) {
-		count += (mask.test(e.type));
-		count_other_rooms += (e.type == RELATION_SCHOOL_4);
+	network_iterate_over_edges ([&count, &count_other_rooms, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		count += (mask.test(network_edge_data(e).type));
+		count_other_rooms += (network_edge_data(e).type == RELATION_SCHOOL_4);
 	});
 
 	DMSG("there are " << count << " school relations, with other rooms: " << count_other_rooms << std::endl)
@@ -155,36 +155,41 @@ void sp_configure_school ()
 		++it;
 	}
 
+	DMSG("removed " << rm << " school intra-class relations" << std::endl)
+
+	rm = 0;
+
 	// reduce amount of inter class relations to 1/3 of the original
 
-	for (auto ita=school_people.begin(); ita!=school_people.end(); ++ita) {
-		for (auto itb=ita+1; itb!=school_people.end(); ++itb) {
-			pop_edge_t edge;
+	std::vector<pop_edge_t> edges_to_rm;
+	edges_to_rm.reserve(count_other_rooms);
 
-			if (network_check_if_people_are_neighbors(*ita, *itb, &edge) && network_edge_data(edge).type == RELATION_SCHOOL_4) {
-				if (roll_dice(0.66)) {
-					network_delete_edge(*ita, *itb);
-					rm++;
-				}
-//				DMSG("delete edge between " << ((*ita)->get_id()) << " and " << ((*itb)->get_id()) << std::endl)
-			}
+	network_iterate_over_edges ([&edges_to_rm, &rm] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		if (network_edge_data(e).type == RELATION_SCHOOL_4 && roll_dice(0.66)) {
+			edges_to_rm.push_back(e);
+			rm++;
 		}
-	}
+	});
 
-	DMSG("removed " << rm << " school relations" << std::endl)
+	for (pop_edge_t e: edges_to_rm)
+		network_delete_edge(e);
+
+	edges_to_rm.clear();
+
+	DMSG("removed " << rm << " school inter-class relations" << std::endl)
 
 	count = 0;
 	count_other_rooms = 0;
-	network_iterate_over_edges ([&count, &count_other_rooms, &mask] (pop_vertex_data_t& s, pop_vertex_data_t& t, pop_edge_data_t& e) {
-		count += (mask.test(e.type));
-		count_other_rooms += (e.type == RELATION_SCHOOL_4);
+	network_iterate_over_edges ([&count, &count_other_rooms, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		count += (mask.test(network_edge_data(e).type));
+		count_other_rooms += (network_edge_data(e).type == RELATION_SCHOOL_4);
 	});
 
 	DMSG("after re-organizing, there are " << count << " school relations, with other rooms: " << count_other_rooms << std::endl)
 
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f: %.2f (fast %.2f)\n", current_cycle, get_affective_r0(), get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
-exit(1);
+//exit(1);
 }
 
 /**********************************************************************/
@@ -317,6 +322,16 @@ void region_t::setup_relations ()
 		rname += " school loading...";
 		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
 
+		/*
+			30*(30/2) * p = 7*30;
+			15p = 7
+			p = 0.47 ~ 0.5
+
+			2000*(2000/2) * p = 2*2000;
+			1000p = 2
+			p = 0.002
+		*/
+
 		network_create_school_relation(students,
 		                                  age_ini,
 		                                  age_end,
@@ -324,8 +339,8 @@ void region_t::setup_relations ()
                                           dist_school_size,
                                           this,
                                           dist_school_prof_age,
-                                          0.2,
-                                          0.003,
+                                          0.3,
+                                          0.00,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL_4,
@@ -421,12 +436,12 @@ static void adjust_r_no_school (double target_r0)
 static void adjust_r_open_schools ()
 {
 	printf("r0 cycle %.2f: %.2f (fast %.2f)\n", current_cycle, get_affective_r0(), get_affective_r0_fast());
-	printf("r0 cycle %.2f-student: %.2f (fast %.2f)\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ), get_affective_r0_fast( {RELATION_SCHOOL} ));
+	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
 	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 2.0 * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f (fast %.2f)\n", current_cycle, get_affective_r0(), get_affective_r0_fast());
-	printf("r0 cycle %.2f-student: %.2f (fast %.2f)\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ), get_affective_r0_fast( {RELATION_SCHOOL} ));
+	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 }
 
 void callback_before_cycle (double cycle)
@@ -461,7 +476,7 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 	}
 	else if (cycle == 180.0) {
 		//adjust_r_open_schools();
-		sp_configure_school();
+//		sp_configure_school();
 		stages_green++;
 	}
 }
@@ -476,10 +491,15 @@ void callback_end ()
 	uint32_t i;
 	uint64_t n_students, n_profs;
 
-	C_ASSERT(stages_green == 4)
+//	C_ASSERT(stages_green == 4)
 
 	n_profs = get_n_population_per_relation_flag( {VFLAG_PROFESSOR} );
-	n_students = get_n_population_per_relation_flag( {RELATION_SCHOOL} );
+
+	std::bitset<NUMBER_OF_FLAGS> mask;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		mask.set(r);
+
+	n_students = get_n_population_per_relation_flag(mask);
 
 	cprintf("amount of professors: " PU64 "\n", n_profs);
 	cprintf("amount of students: " PU64 "\n", n_students);
@@ -488,5 +508,38 @@ void callback_end ()
 		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg->relation_type_number[i]);
 	}
 
-	cprintf("amount of school relations per student: %.2f\n", (double)cfg->relation_type_number[RELATION_SCHOOL] / (double)n_students);
+	uint64_t n_relations = 0;
+
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		n_relations += cfg->relation_type_number[r];
+
+	cprintf("amount of school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
+
+	uint32_t count_rel_students = 0;
+	network_iterate_over_edges([&count_rel_students, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		count_rel_students += (mask.test(network_edge_data(e).type)
+			               && network_vertex_data(s).flags.test(VFLAG_PROFESSOR) == false
+			               && network_vertex_data(t).flags.test(VFLAG_PROFESSOR) == false);
+	});
+
+	uint32_t count_rel_school = 0;
+	network_iterate_over_edges([&count_rel_school, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		count_rel_school += mask.test(network_edge_data(e).type);
+	});
+
+	uint32_t count_students = 0;
+	network_iterate_over_vertices([&count_students, &mask] (pop_vertex_t v) {
+		count_students += ((network_vertex_data(v).flags & mask).any() && network_vertex_data(v).flags.test(VFLAG_PROFESSOR) == false);
+	});
+
+	uint32_t count_school = 0;
+	network_iterate_over_vertices([&count_school, &mask] (pop_vertex_t v) {
+		count_school += (network_vertex_data(v).flags & mask).any();
+	});
+
+	double rel_per_student = static_cast<double>(count_rel_students) / static_cast<double>(count_students);
+	double rel_per_school = static_cast<double>(count_rel_school) / static_cast<double>(count_school);
+
+	DMSG("there are " << count_students << " students and " << count_rel_students << " students relations, relations per student: " << rel_per_student << std::endl)
+	DMSG("there are " << count_school << " school people and " << count_rel_school << " school relations, relations per school people: " << rel_per_school << std::endl)
 }

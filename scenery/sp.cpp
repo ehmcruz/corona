@@ -45,6 +45,8 @@ static double sp_cycle_to_open_school = 210.0;
 
 static double sp_cycles_between_phases = 7.0 * 6.0; // 6 weeks default
 
+static double sp_ratio_student_intra_class_contingency = 0.2;
+
 static const uint32_t sp_school_div = 3;
 
 static csv_ages_t *csv;
@@ -59,17 +61,6 @@ static int32_t stages_green = 0;
 
 void sp_setup_infection_state_rate ();
 void sp_configure_school ();
-
-void sp_create_school_relation_v2 (std::vector<person_t*>& students,
-                                     uint32_t age_ini,
-                                     uint32_t age_end,
-                                     dist_double_t& dist_class_size,
-                                     dist_double_t& dist_school_size,
-                                     region_t *prof_region,
-                                     dist_double_t& dist_prof_age,
-                                     double intra_class_ratio,
-                                     double inter_class_ratio,
-                                     report_progress_t *report);
 
 void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
 {
@@ -98,7 +89,10 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 					CMSG("schoolstrat should be 0, 33, 66, 100 or planned" << std::endl)
 					exit(1);
 				}
-			} ), "School opening strategy, should be 0, 33, 66, 100 or planned");
+			} ), "School opening strategy, should be 0, 33, 66, 100 or planned")
+		("schoolnewintraprob,p", boost::program_options::value<double>()->notifier( [] (double v) {
+				sp_ratio_student_intra_class_contingency = v;
+			} ), "For partial school opening strategies (33, 66 and planned), the new probability of 2 students of the same class to interact with each other");
 }
 
 void cfg_t::scenery_setup ()
@@ -146,6 +140,7 @@ exit(1);*/
 	DMSG("sp_school_strategy: " << sp_school_strategy_str(sp_school_strategy) << std::endl)
 	DMSG("sp_cycle_to_open_school: " << sp_cycle_to_open_school << std::endl)
 	DMSG("sp_cycles_between_phases: " << sp_cycles_between_phases << std::endl)
+	DMSG("sp_ratio_student_intra_class_contingency: " << sp_ratio_student_intra_class_contingency << std::endl)
 }
 
 void region_t::setup_population ()
@@ -269,7 +264,7 @@ void region_t::setup_relations ()
 	                                          0.003,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL,
-	                                          RELATION_SCHOOL,
+	                                          RELATION_SCHOOL_4,
 	                                          &progress_school);
 		}
 	}
@@ -375,17 +370,17 @@ static void adjust_r_no_school (double target_r0)
 
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
 
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 }
 
 static void adjust_r_open_schools ()
 {
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
 	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
-	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0());
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 }
 
@@ -453,12 +448,13 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 		dprintf("day = %u\n", day);
 
-		uint32_t relation = day + RELATION_SCHOOL_0;
+		for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+			cfg->relation_type_transmit_rate[r] = 0.0;
 
 		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+		cfg->relation_type_transmit_rate[RELATION_SCHOOL_4] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
-		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
-			cfg->relation_type_transmit_rate[r] = 0.0;
+		uint32_t relation = day + RELATION_SCHOOL_0;
 
 		cfg->relation_type_transmit_rate[relation] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 	
@@ -488,12 +484,13 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 			sp_configure_school();
 		}
 
-		uint32_t relation = day + RELATION_SCHOOL_0;
+		for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+			cfg->relation_type_transmit_rate[r] = 0.0;
 
 		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+		cfg->relation_type_transmit_rate[RELATION_SCHOOL_4] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
-		for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
-			cfg->relation_type_transmit_rate[r] = 0.0;
+		uint32_t relation = day + RELATION_SCHOOL_0;
 
 		switch (sp_plan) {
 			case sp_plan_t::phase_0:
@@ -536,7 +533,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 			case sp_plan_t::phase_100:
 				DMSG("SP school phase 100" << std::endl)
 
-				for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_4; r++)
+				for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_3; r++)
 					cfg->relation_type_transmit_rate[r] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 			break;
 
@@ -585,6 +582,8 @@ void callback_end ()
 
 	cprintf("amount of school relations per student: %.2f\n", (double)n_relations / (double)n_students);
 }
+
+/**************************************************************/
 
 void sp_setup_infection_state_rate ()
 {
@@ -960,62 +959,176 @@ void sp_setup_infection_state_rate ()
 #endif
 }
 
-static void sp_reconfigure_class_room (std::vector<person_t*>& school_people, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
+/**************************************************************/
+
+static void sp_reconfigure_class_room (std::vector<person_t*>& school_people, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end, uint32_t& rm)
 {
+	uint32_t n_students = it_end - it_begin;
+
+	//DMSG("sp_reconfigure_class_room: " << (network_vertex_data(*it_begin).school_class_room) << " students " << n_students << std::endl)
+
+	if (n_students < 10)  // the class room is already small, no need to reconfigure
+		return;
+
+	// remove all intra class relations
+
 	for (auto ita=it_begin; ita!=it_end; ++ita) {
 		for (auto itb=ita+1; itb!=it_end; ++itb) {
-			boost::remove_edge((*ita)->vertex, (*itb)->vertex, *pop_graph);
+			if (network_check_if_people_are_neighbors(*ita, *itb)) {
+				network_delete_edge(*ita, *itb);
+				rm++;
+//				DMSG("delete edge between " << ((*ita)->get_id()) << " and " << ((*itb)->get_id()) << std::endl)
+			}
 		}
 	}
+
+	// find professor
+
+	std::vector<person_t*>::iterator it_prof = school_people.end();
+
+	for (auto it=it_begin; it!=it_end; ++it) {
+		if (network_vertex_data(*it).flags.test(VFLAG_PROFESSOR))
+			it_prof = it;
+	}
+
+	C_ASSERT(it_prof != school_people.end())
+
+	// move professor to the head
+
+	person_t *tmp = *it_begin;
+	person_t *prof = *it_prof;
+
+	*it_begin = prof;
+	*it_prof = tmp;
+
+	C_ASSERT(*it_begin == prof)
+
+	// re-create connections between students
+
+	uint32_t new_room_size = n_students / 3;
+
+	network_create_connection_between_people(it_begin+1, it_begin+new_room_size, RELATION_SCHOOL_0, sp_ratio_student_intra_class_contingency);
+	network_create_connection_between_people(it_begin+new_room_size, it_begin+new_room_size*2, RELATION_SCHOOL_1, sp_ratio_student_intra_class_contingency);
+	network_create_connection_between_people(it_begin+new_room_size*2, it_end, RELATION_SCHOOL_2, sp_ratio_student_intra_class_contingency);
+
+	// re-create connections for professor
+
+	network_create_connection_one_to_all(prof, it_begin+1, it_begin+new_room_size, RELATION_SCHOOL_0);
+	network_create_connection_one_to_all(prof, it_begin+new_room_size, it_begin+new_room_size*2, RELATION_SCHOOL_1);
+	network_create_connection_one_to_all(prof, it_begin+new_room_size*2, it_end, RELATION_SCHOOL_2);
 }
 
 void sp_configure_school ()
 {
+	DMSG("reconfiguring schools" << std::endl)
+
 	// first find how many school people we have
 
 	uint32_t n_school_people = 0;
 
 	for (person_t *p: population) {
-		if (network_vertex_data(p).school_class_room != UNDEFINED32) {
+		if (network_vertex_data(p).school_class_room != UNDEFINED32)
 			n_school_people++;
-		}
 	}
 
 	if (n_school_people < 2)
 		return;
 
+	DMSG("found " << n_school_people << " students" << std::endl)
+
 	// now create a vector with all school people
 
 	std::vector<person_t*> school_people;
+	
 	school_people.reserve(n_school_people);
 
 	for (person_t *p: population) {
-		if (network_vertex_data(p).school_class_room != UNDEFINED32) {
+		if (network_vertex_data(p).school_class_room != UNDEFINED32)
 			school_people.push_back(p);
-		}
 	}
+
+	C_ASSERT(school_people.size() == n_school_people)
 
 	// now sort people acording to their class room
 
 	std::sort(school_people.begin(), school_people.end(), [] (person_t *a, person_t *b) -> bool {
-		return (network_vertex_data(a).school_class_room <= network_vertex_data(b).school_class_room);
+		return (network_vertex_data(a).school_class_room < network_vertex_data(b).school_class_room);
 	});
 
 	// now identify each class room
 
+//	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+//		cfg->relation_type_transmit_rate[r] = 2.0 * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
+//	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+
+	uint32_t rm, count, count_other_rooms;
+
+	std::bitset<NUMBER_OF_FLAGS> mask;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		mask.set(r);
+	
+	count = 0;
+	count_other_rooms = 0;
+	network_iterate_over_edges ([&count, &count_other_rooms, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		count += (mask.test(network_edge_data(e).type));
+		count_other_rooms += (network_edge_data(e).type == RELATION_SCHOOL_4);
+	});
+
+	DMSG("there are " << count << " school relations, with other rooms: " << count_other_rooms << std::endl)
+
 	auto it = school_people.begin() + 1;
 	auto it_begin = school_people.begin();
 
+	rm = 0;
+
+	// reconfigure class rooms
+
 	while (true) {
 		if (it == school_people.end()) {
-			sp_reconfigure_class_room(school_people, it_begin, it);
+			sp_reconfigure_class_room(school_people, it_begin, it, rm);
 			break;
 		}
 		else if (network_vertex_data(*it).school_class_room != network_vertex_data(*it_begin).school_class_room) {
-			sp_reconfigure_class_room(school_people, it_begin, it);
+			sp_reconfigure_class_room(school_people, it_begin, it, rm);
 			it_begin = it;
 		}
 
 		++it;
 	}
+
+	DMSG("removed " << rm << " school intra-class relations" << std::endl)
+
+	rm = 0;
+
+	// reduce amount of inter class relations to 1/3 of the original
+
+	std::vector<pop_edge_t> edges_to_rm;
+	edges_to_rm.reserve(count_other_rooms);
+
+	network_iterate_over_edges ([&edges_to_rm, &rm] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		if (network_edge_data(e).type == RELATION_SCHOOL_4 && roll_dice(0.66)) {
+			edges_to_rm.push_back(e);
+			rm++;
+		}
+	});
+
+	for (pop_edge_t e: edges_to_rm)
+		network_delete_edge(e);
+
+	DMSG("removed " << rm << " school inter-class relations" << std::endl)
+
+	count = 0;
+	count_other_rooms = 0;
+	network_iterate_over_edges ([&count, &count_other_rooms, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+		count += (mask.test(network_edge_data(e).type));
+		count_other_rooms += (network_edge_data(e).type == RELATION_SCHOOL_4);
+	});
+
+	DMSG("after re-organizing, there are " << count << " school relations, with other rooms: " << count_other_rooms << std::endl)
+
+	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
+	//printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+//exit(1);
 }

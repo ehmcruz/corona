@@ -972,7 +972,7 @@ double get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 
 /****************************************************************/
 
-double get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
+double get_affective_r0_fast ()
 {
 	double r0;
 
@@ -982,7 +982,7 @@ double get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
 		break;
 
 		case NETWORK_TYPE_NETWORK:
-			r0 = network_get_affective_r0_fast(flags);
+			r0 = network_get_affective_r0_fast();
 		break;
 
 		default:

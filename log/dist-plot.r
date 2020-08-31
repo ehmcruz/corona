@@ -69,3 +69,20 @@ ggplot(data = dat, aes(x = x, y = y)) +
   geom_point(size = 3) +
   xlim(0, 15)+
   theme_classic()
+
+# ------------------------------------------------------------------
+
+png(file=paste0("teste-school-dist.png"), width=1000)
+
+x = rnorm(100000, 17, 12)
+
+den <- density(x)
+
+dat <- data.frame(x = den$x, y = den$y)
+
+# Plot density as points
+
+ggplot(data = dat, aes(x = x, y = y)) + 
+  geom_point(size = 3) +
+  xlim(0, 50)+
+  theme_classic()

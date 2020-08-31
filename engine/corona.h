@@ -346,26 +346,7 @@ static double get_affective_r0 (std::initializer_list<relation_type_t> list)
 	return get_affective_r0(flags);
 }
 
-double get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags);
-
-static double get_affective_r0_fast ()
-{
-	std::bitset<NUMBER_OF_FLAGS> flags;
-
-	flags.set();
-
-	return get_affective_r0_fast(flags);
-}
-
-static double get_affective_r0_fast (std::initializer_list<relation_type_t> list)
-{
-	std::bitset<NUMBER_OF_FLAGS> flags;
-
-	for (relation_type_t type: list)
-		flags.set(type);
-
-	return get_affective_r0_fast(flags);
-}
+double get_affective_r0_fast ();
 
 void panic (const char *str);
 

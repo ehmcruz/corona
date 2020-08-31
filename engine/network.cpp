@@ -158,6 +158,13 @@ void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2)
 #endif
 }
 
+void network_delete_edge (pop_edge_t e)
+{
+	cfg->relation_type_number[edesc(e).type] -= 2;
+	
+	boost::remove_edge(e, *pop_graph);
+}
+
 pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)
 {
 	pop_edge_t e;
@@ -204,6 +211,9 @@ static uint32_t calc_family_size (dist_double_t& dist, region_t *region, uint32_
 void region_t::create_families (dist_double_t& dist, report_progress_t *report)
 {
 	uint32_t n, family_size, i, j;
+	std::vector<person_t*> tmp = this->people;
+
+	std::shuffle(tmp.begin(), tmp.end(), rgenerator);
 
 	for (n=0; n<this->get_npopulation(); n+=family_size) {
 		family_size = calc_family_size(dist, this, n);
@@ -212,7 +222,7 @@ void region_t::create_families (dist_double_t& dist, report_progress_t *report)
 
 		for (i=n; i<(n+family_size); i++) {
 			for (j=i+1; j<(n+family_size); j++) {
-				network_create_edge(this->get_person(i), this->get_person(j), RELATION_FAMILY);
+				network_create_edge(tmp[i], tmp[j], RELATION_FAMILY);
 			}
 		}
 
@@ -268,7 +278,7 @@ uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags
 	return n;
 }
 
-void network_iterate_over_edges (std::function<void (pop_vertex_data_t& s, pop_vertex_data_t& t, pop_edge_data_t& e)> callback)
+void network_iterate_over_edges (std::function<void (pop_vertex_t s, pop_vertex_t t, pop_edge_t e)> callback)
 {
 	boost::graph_traits<pop_graph_t>::edge_iterator ei, ei_end;
 
@@ -277,7 +287,16 @@ void network_iterate_over_edges (std::function<void (pop_vertex_data_t& s, pop_v
 		pop_vertex_t s = boost::source(e, *pop_graph);
 		pop_vertex_t t = boost::target(e, *pop_graph);
 
-		callback(vdesc(s), vdesc(t), edesc(*ei));
+		callback(s, t, e);
+	}
+}
+
+void network_iterate_over_vertices (std::function<void (pop_vertex_t v)> callback)
+{
+	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
+
+	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) {
+		callback(*vi);
 	}
 }
 
@@ -626,22 +645,17 @@ double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 	return r0;
 }
 
-double network_get_affective_r0_fast (std::bitset<NUMBER_OF_FLAGS>& flags)
+double network_get_affective_r0_fast ()
 {
 	double r0 = 0.0;
-	uint64_t n = 0;
 
-	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++) {
-		if (flags.test(i)) {
-			r0 += cfg->relation_type_transmit_rate[i] * (double)cfg->relation_type_number[i];
-			n += cfg->relation_type_number[i];
-		}
-	}
+	for (uint32_t i=0; i<NUMBER_OF_RELATIONS; i++)
+		r0 += cfg->relation_type_transmit_rate[i] * (double)cfg->relation_type_number[i];
 
 	r0 *= cfg->global_r0_factor;
 	r0 *= cfg->cycles_contagious->get_expected();
 	r0 *= cfg->cycle_division;
-	r0 /= (double)n;
+	r0 /= (double)population.size();
 
 	return r0;
 }
