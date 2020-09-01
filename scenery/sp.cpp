@@ -245,8 +245,8 @@ void region_t::setup_relations ()
 	                                          dist_school_size,
 	                                          this,
 	                                          dist_school_prof_age,
-	                                          0.2,
-	                                          0.003,
+	                                          0.4,
+	                                          0.002,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL,
@@ -260,8 +260,8 @@ void region_t::setup_relations ()
 	                                          dist_school_size,
 	                                          this,
 	                                          dist_school_prof_age,
-	                                          0.2,
-	                                          0.003,
+	                                          0.4,
+	                                          0.002,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL_4,
@@ -320,6 +320,14 @@ void setup_extra_relations ()
 
 		for (person_t *p: population) {
 			if ((network_vertex_data(p).flags & mask).any())
+				zone->add_person(p);
+		}
+
+		zone = create_new_stats_zone();
+		zone->get_name() = "professors";
+
+		for (person_t *p: population) {
+			if (network_vertex_data(p).flags.test(VFLAG_PROFESSOR))
 				zone->add_person(p);
 		}
 	}

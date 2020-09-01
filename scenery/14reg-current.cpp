@@ -19,7 +19,7 @@ static int32_t stages_green = 0;
 static void sp_reconfigure_class_room (std::vector<person_t*>& school_people, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end, uint32_t& rm)
 {
 	uint32_t n_students = it_end - it_begin;
-	const double ratio = 0.2;
+	const double ratio = 0.4;
 
 	//DMSG("sp_reconfigure_class_room: " << (network_vertex_data(*it_begin).school_class_room) << " students " << n_students << std::endl)
 
@@ -339,8 +339,8 @@ void region_t::setup_relations ()
                                           dist_school_size,
                                           this,
                                           dist_school_prof_age,
-                                          0.3,
-                                          0.00,
+                                          0.35,
+                                          0.002,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL_4,
@@ -382,6 +382,14 @@ void setup_extra_relations ()
 
 		for (person_t *p: population) {
 			if (network_vertex_data(p).flags.test(RELATION_SCHOOL))
+				zone->add_person(p);
+		}
+
+		zone = create_new_stats_zone();
+		zone->get_name() = "professors";
+
+		for (person_t *p: population) {
+			if (network_vertex_data(p).flags.test(VFLAG_PROFESSOR))
 				zone->add_person(p);
 		}
 	}
