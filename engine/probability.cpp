@@ -1,5 +1,7 @@
 #include <random>
 
+#include <cmath>
+
 #include <corona.h>
 
 std::mt19937_64 rgenerator;
@@ -117,6 +119,39 @@ double normal_double_dist_t::generate_ ()
 }
 
 void normal_double_dist_t::print_params (FILE *fp)
+{
+	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->mean, this->stddev);
+}
+
+/**************************************************/
+
+lognormal_double_dist_t::lognormal_double_dist_t (double mean, double stddev, double min, double max)
+	: dist_double_mmm_t(mean, min, max),
+	  distribution(calc_log_mean(mean, stddev), calc_log_stddev(mean, stddev))
+{
+	this->stddev = stddev;
+}
+
+double lognormal_double_dist_t::calc_log_mean (double mean, double stddev)
+{
+	// mX    =  2 * math.log(mY) - math.log(sigY ELEVADO 2 + mY ELEVADO 2) / 2
+	return 2.0 * log(mean) - log(stddev*stddev + mean*mean) / 2.0;
+}
+
+double lognormal_double_dist_t::calc_log_stddev (double mean, double stddev)
+{
+	// sigX2 = -2 * math.log(mY) + math.log(sigY ELEVADO 2 + mY ELEVADO 2)
+	// sigX = math.sqrt(sigX2)
+	return sqrt( -2.0 * log(mean) + log(stddev*stddev + mean*mean) );
+}
+
+double lognormal_double_dist_t::generate_ ()
+{
+//this->print_params(stdout); for (int i=0; i<100; i++) cprintf(" %.2f", this->distribution(rgenerator)); cprintf("\n"); exit(1);
+	return this->distribution(rgenerator);
+}
+
+void lognormal_double_dist_t::print_params (FILE *fp)
 {
 	fprintf(fp, "mean(%.2f) stddev(%.2f)", this->mean, this->stddev);
 }

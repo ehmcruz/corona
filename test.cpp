@@ -4,11 +4,16 @@
 #include <random>
 #include <algorithm>
 
+void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
+{
+
+}
+
 void cfg_t::scenery_setup ()
 {
 	this->network_type = NETWORK_TYPE_NETWORK;
 
-	this->n_regions = 2;
+	this->n_regions = 1;
 }
 
 void region_t::setup_population ()
@@ -40,11 +45,15 @@ void region_t::setup_health_units ()
 
 void region_t::setup_relations ()
 {
-	if (cfg.network_type == NETWORK_TYPE_NETWORK) {
+	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
+		normal_double_dist_t dist_work_size(5.0, 2.0, 1.0, 10.0);
 		normal_double_dist_t dist_number_random_connections(5.0, 5.0, 5.0, 100.0);
 
 		//this->create_families(dist_family_size);
+		//this->create_work_relations(dist_work_size, 0, 100, 1.0, 0.5);
+//network_print_population_graph();
+//exit(1);
 		//this->create_random_connections(dist_number_random_connections);
 
 	#if 0
@@ -93,7 +102,7 @@ void region_t::setup_relations ()
 
 		const_double_dist_t dist_school_prof_age(21.0);
 
-		network_create_school_relation_v2(students,
+		network_create_school_relation(students,
 		                                  age_ini,
 		                                  age_end,
 		                                  dist_school_class_size,
@@ -101,7 +110,11 @@ void region_t::setup_relations ()
                                           this,
                                           dist_school_prof_age,
                                           1.0,
-                                          0.1);
+                                          0.1,
+                                          RELATION_SCHOOL,
+                                          RELATION_SCHOOL,
+                                          RELATION_SCHOOL_4,
+                                          nullptr);
 	#endif
 	}
 

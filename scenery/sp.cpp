@@ -3,6 +3,7 @@
 
 #include <random>
 #include <algorithm>
+#include <numeric>
 
 #define X_SP_SCHOOL_STRATEGY   \
 	X_SP_SCHOOL_STRATEGY_(SCHOOL_CLOSED) \
@@ -49,6 +50,14 @@ static double sp_ratio_student_intra_class_contingency = 0.2;
 
 static const uint32_t sp_school_div = 3;
 
+static double vaccine_cycle = 999999.0; // default no vaccine
+
+static double vaccine_immune_cycles = 14.0;
+
+static double vaccine_immunity_rate = 0.9;
+
+static uint32_t vaccine_per_cycle = 300000;
+
 static csv_ages_t *csv;
 
 //static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
@@ -74,6 +83,9 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 		("schoolcyclesbetweenphases,b", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_cycles_between_phases = v;
 			} ), "Cycles between phases of SP plan to open schools")
+		("vaccinecycle,v", boost::program_options::value<double>()->notifier( [] (double v) {
+				vaccine_cycle = v;
+			} ), "Cycle to start the vaccines")
 		("schoolstrat,s", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
 				if (v == "0")
 					sp_school_strategy = SCHOOL_CLOSED;
@@ -136,11 +148,15 @@ void cfg_t::scenery_setup ()
 		cprintf("RELATION_SCHOOL_%i = %u    %u\n", i++, r, r - RELATION_SCHOOL_0);
 exit(1);*/
 
+	vaccine_cycle += vaccine_immune_cycles;
+	vaccine_per_cycle /= this->cycle_division;
+
 	DMSG("sp_school_weight: " << sp_school_weight << std::endl)
 	DMSG("sp_school_strategy: " << sp_school_strategy_str(sp_school_strategy) << std::endl)
 	DMSG("sp_cycle_to_open_school: " << sp_cycle_to_open_school << std::endl)
 	DMSG("sp_cycles_between_phases: " << sp_cycles_between_phases << std::endl)
 	DMSG("sp_ratio_student_intra_class_contingency: " << sp_ratio_student_intra_class_contingency << std::endl)
+	DMSG("vaccine_cycle: " << vaccine_cycle << std::endl)
 }
 
 void region_t::setup_population ()
@@ -179,7 +195,7 @@ void region_t::setup_health_units ()
 void region_t::setup_relations ()
 {
 	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
-		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
+		gamma_double_dist_t dist_family_size(3.26, 1.69, 1.0, 10.0);
 		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
 
 		dprintf("creating families for city %s...\n", this->get_name().c_str());
@@ -198,7 +214,7 @@ void region_t::setup_relations ()
 		std::vector<person_t*> students;
 		uint32_t age_ini = 4;
 		uint32_t age_end = 18;
-		double school_ratio = 0.9;
+		double school_ratio = 0.778;
 		const_double_dist_t dist_school_size(2000.0);
 		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
 
@@ -231,7 +247,7 @@ void region_t::setup_relations ()
 			}
 		}
 
-		normal_double_dist_t dist_school_prof_age(40.0, 10.0, 25.0, 70.0);
+		gamma_double_dist_t dist_school_prof_age(41.15, 9.87, 20.0, 70.0);
 
 		rname = this->get_name();
 		rname += " school loading...";
@@ -245,7 +261,7 @@ void region_t::setup_relations ()
 	                                          dist_school_size,
 	                                          this,
 	                                          dist_school_prof_age,
-	                                          0.4,
+	                                          0.5,
 	                                          0.002,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL,
@@ -260,7 +276,7 @@ void region_t::setup_relations ()
 	                                          dist_school_size,
 	                                          this,
 	                                          dist_school_prof_age,
-	                                          0.4,
+	                                          0.5,
 	                                          0.002,
 	                                          RELATION_SCHOOL,
 	                                          RELATION_SCHOOL,
@@ -272,37 +288,67 @@ void region_t::setup_relations ()
 
 void setup_inter_region_relations ()
 {
+	double sp_total_mobility_ratio = 0.178;
+	double sp_mobility_ratio_to_capital = 0.9;
+
+	struct moving_people_t {
+		uint32_t weight;
+		uint32_t value;
+	};
+
+	std::vector<moving_people_t> moving_people;
+
+	moving_people.resize(cfg->n_regions);
+
 	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
-			for (auto jt=it+1; jt!=regions.end(); ++jt) {
-				region_t *s, *t;
-				uint64_t sn, tn;
+			region_t *s = *it;
 
-				s = *it;
-				t = *jt;
+			for (auto jt=regions.begin(); jt!=regions.end(); ++jt) {
+				region_t *t = *jt;
 
-				if (s->get_name() == "SaoPaulo") {
-					tn = (uint64_t)((double)t->get_npopulation() * 0.05);
-					sn = tn;
-				}
-				else if (t->get_name() == "SaoPaulo") {
-					sn = (uint64_t)((double)s->get_npopulation() * 0.05);
-					tn = sn;
-				}
-				else {
-					sn = (uint64_t)((double)s->get_npopulation() * 0.01);
-					tn = (uint64_t)((double)t->get_npopulation() * 0.01);
-				}
-
-				if (tn < sn)
-					sn = tn;
-				else
-					tn = sn;
-
-				cprintf("creating links between cities %s-%s " PU64 "...\n", s->get_name().c_str(), t->get_name().c_str(), sn);
-				
-				network_create_inter_city_relation(s, t, sn, RELATION_UNKNOWN);
+				moving_people[ t->get_id() ].weight = t->get_npopulation();
 			}
+
+			moving_people[ s->get_id() ].weight = 0;
+
+			if (s->get_name() == "SaoPaulo") {
+				adjust_values_to_fit_mean(moving_people,
+						sp_total_mobility_ratio * static_cast<double>(s->get_npopulation()));
+			}
+			else {
+				moving_people[ region_t::get("SaoPaulo")->get_id() ].weight = 0;
+
+				adjust_values_to_fit_mean(moving_people,
+						sp_total_mobility_ratio * (1.0 - sp_mobility_ratio_to_capital) * static_cast<double>(s->get_npopulation()));
+
+				moving_people[ region_t::get("SaoPaulo")->get_id() ].value =
+					static_cast<uint32_t>( sp_total_mobility_ratio * sp_mobility_ratio_to_capital * static_cast<double>(s->get_npopulation()) );
+			}
+
+			for (auto jt=regions.begin(); jt!=regions.end(); ++jt) {
+				region_t *t = *jt;
+				uint32_t n;
+
+				if (unlikely(s == t))
+					continue;
+
+				n = moving_people[t->get_id()].value;
+
+				CMSG("creating links between cities " << s->get_name() << "-" << t->get_name() << ": " << n << std::endl);
+				
+				network_create_inter_city_relation(s, t, n, RELATION_UNKNOWN);
+			}
+
+			uint32_t total = 0;
+
+			std::for_each(moving_people.begin(), moving_people.end(), [&total] (auto& v) {
+				total += v.value;
+			});
+
+			uint32_t total_test = static_cast<uint32_t>( sp_total_mobility_ratio * static_cast<double>(s->get_npopulation()) );
+
+			DMSG("sum of " << s->get_name() << ": " << total << " test " << total_test << std::endl)
 		}
 	}
 //exit(1);
@@ -390,6 +436,39 @@ static void adjust_r_open_schools ()
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
+}
+
+static void check_vaccine (double cycle)
+{
+	if (cycle >= vaccine_cycle) {
+		static bool first = false;
+		static std::vector<person_t*>::iterator it;
+		static std::vector<person_t*> pop;
+
+		uint32_t i;
+
+		if (!first) {
+			first = true;
+
+			pop = population;
+			std::shuffle(pop.begin(), pop.end(), rgenerator);
+			it = pop.begin();
+		}
+
+		i = 0;
+		while (it != pop.end()) {
+			C_ASSERT(i <= vaccine_per_cycle)
+
+			if (unlikely(i == vaccine_per_cycle))
+				break;
+
+			person_t *p = *it;
+
+			i += p->take_vaccine();
+
+			++it;
+		}
+	}
 }
 
 void callback_before_cycle (double cycle)
@@ -554,6 +633,8 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		if (day >= (sp_school_div))
 			day = 0;
 	}
+
+	check_vaccine(cycle);
 }
 
 void callback_after_cycle (double cycle)

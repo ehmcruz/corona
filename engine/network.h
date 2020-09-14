@@ -166,4 +166,48 @@ static void network_create_connection_between_2_groups (Ta& ga, Tb& gb, relation
 	}
 }
 
+static uint32_t calc_family_size (dist_double_t& dist, region_t *region, uint32_t filled)
+{
+	int32_t r;
+
+	r = (int32_t)(dist.generate() + 0.5);
+	
+	if (unlikely(r < 1))
+		r = 1;
+
+	if (unlikely((filled+r) > region->get_npopulation()))
+		r = region->get_npopulation() - filled;
+	
+	return r;
+}
+
+template <typename T>
+void network_create_clusters (T& people, dist_double_t& dist, relation_type_t type, double ratio=1.0, report_progress_t *report=nullptr)
+{
+	uint32_t n, cluster_size, i, j;
+
+	for (n=0; n<people.size(); n+=cluster_size) {
+		cluster_size = (int32_t)(dist.generate() + 0.5); // round to nearest
+
+		if (unlikely(cluster_size < 1))
+			cluster_size = 1;
+
+		if (unlikely((n+cluster_size) > people.size()))
+			cluster_size = people.size() - n;
+
+		// create a fully connected sub-graph for a family_size
+
+		for (i=n; i<(n+cluster_size); i++) {
+			for (j=i+1; j<(n+cluster_size); j++) {
+				if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio) && network_check_if_people_are_neighbors(people[i], people[j]) == false)
+					network_create_edge(people[i], people[j], type);
+			}
+		}
+
+		if (report != nullptr)
+			report->check_report(cluster_size);
+	}
+}
+
+
 #endif

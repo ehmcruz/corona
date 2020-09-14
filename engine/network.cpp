@@ -193,42 +193,47 @@ pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_
 	return e;
 }
 
-static uint32_t calc_family_size (dist_double_t& dist, region_t *region, uint32_t filled)
-{
-	int32_t r;
-
-	r = (int32_t)(dist.generate() + 0.5);
-	
-	if (unlikely(r < 1))
-		r = 1;
-
-	if (unlikely((filled+r) > region->get_npopulation()))
-		r = region->get_npopulation() - filled;
-	
-	return r;
-}
-
 void region_t::create_families (dist_double_t& dist, report_progress_t *report)
 {
-	uint32_t n, family_size, i, j;
 	std::vector<person_t*> tmp = this->people;
 
 	std::shuffle(tmp.begin(), tmp.end(), rgenerator);
 
-	for (n=0; n<this->get_npopulation(); n+=family_size) {
-		family_size = calc_family_size(dist, this, n);
+	network_create_clusters(tmp, dist, RELATION_FAMILY, 1.0, report);
+}
 
-		// create a fully connected sub-graph for a family_size
+void region_t::create_work_relations (dist_double_t& dist, uint32_t age_ini, uint32_t age_end, double employment_rate, double relation_ratio, report_progress_t *report)
+{
+	uint32_t n = 0, i;
 
-		for (i=n; i<(n+family_size); i++) {
-			for (j=i+1; j<(n+family_size); j++) {
-				network_create_edge(tmp[i], tmp[j], RELATION_FAMILY);
-			}
-		}
-
-		if (report != nullptr)
-			report->check_report(family_size);
+	for (person_t *p: this->people) {
+		if (p->get_age() >= age_ini && p->get_age() <= age_end)
+			n++;
 	}
+
+	n = static_cast<uint32_t>(static_cast<double>(n) * employment_rate);
+
+	std::vector<person_t*> tmp_all = this->people;
+	std::vector<person_t*> tmp_workers;
+	
+	std::shuffle(tmp_all.begin(), tmp_all.end(), rgenerator);
+
+	tmp_workers.reserve(n);
+
+	i = 0;
+	for (person_t *p: tmp_all) {
+		C_ASSERT(i <= n)
+
+		if (unlikely(i == n))
+			break;
+
+		if (p->get_age() >= age_ini && p->get_age() <= age_end) {
+			tmp_workers.push_back(p);
+			i++;
+		}
+	}
+
+	network_create_clusters(tmp_workers, dist, RELATION_WORK, relation_ratio, report);
 }
 
 person_t* region_t::pick_random_person_not_neighbor (person_t *p)

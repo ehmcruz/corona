@@ -115,6 +115,27 @@ public:
 
 /*******************************************/
 
+class lognormal_double_dist_t: public dist_double_mmm_t
+{
+	OO_ENCAPSULATE_RO(double, stddev)
+
+private:
+	std::lognormal_distribution<double> distribution;
+
+protected:
+	double generate_ () override;
+
+public:
+	lognormal_double_dist_t (double mean, double stddev, double min, double max);
+
+	void print_params (FILE *fp) override;
+
+	double calc_log_mean (double mean, double stddev);
+	double calc_log_stddev (double mean, double stddev);
+};
+
+/*******************************************/
+
 class gamma_double_dist_t: public dist_double_mmm_t
 {
 	OO_ENCAPSULATE_RO(double, stddev)
@@ -141,12 +162,6 @@ public:
 };
 
 /*******************************************/
-
-template <typename Tweight, typename Tvalue>
-struct adjust_values_to_fit_mean_t {
-	Tweight weight;
-	Tvalue value;
-};
 
 template <typename T>
 static void adjust_values_to_fit_mean (T& v, double mean)

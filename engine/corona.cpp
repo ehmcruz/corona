@@ -112,6 +112,7 @@ char* relation_type_str (int32_t i)
 		"S2",
 		"S3",
 		"S4",
+		"W",
 		"T",
 		"O",
 	};
@@ -669,6 +670,61 @@ void person_t::recover ()
 		this->health_unit = nullptr;
 	}
 //cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
+}
+
+bool person_t::take_vaccine ()
+{
+	bool r = false;
+
+	switch (this->get_state()) {
+		case ST_HEALTHY:
+			for (auto it=this->sids.begin(); it!=this->sids.end(); ++it) {
+				stats_t& stats = cycle_stats[*it];
+
+				stats.ac_state[ST_HEALTHY]--;
+				stats.ac_state[ST_IMMUNE]++;
+
+				stats.state[ST_IMMUNE]++;
+			}
+
+			this->state = ST_IMMUNE;
+			r = true;
+		break;
+
+		case ST_INFECTED:
+			if (this->get_infected_state() == ST_ASYMPTOMATIC) {
+				this->recover();			
+				r = true;
+			}
+			else if (this->get_infected_state() == ST_INCUBATION) {
+				this->remove_from_infected_list();
+
+				for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+					stats_t& stats = cycle_stats[*it];
+
+					stats.ac_infected_state[ ST_INCUBATION ]--;
+					stats.ac_state[ST_INFECTED]--;
+
+					stats.ac_state[ST_IMMUNE]++;
+
+					stats.state[ST_IMMUNE]++;
+				}
+
+				this->state = ST_IMMUNE;
+				r = true;
+			}
+
+		break;
+
+		case ST_IMMUNE:
+			r = true;
+		break;
+
+		case ST_DEAD:
+		break;
+	}
+
+	return r;
 }
 
 void person_t::cycle_infected ()

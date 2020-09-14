@@ -23,7 +23,7 @@ all: $(ALL_OBJS) $(BINARIES)
 	@echo "Everything compiled! yes!"
 
 test: $(OBJS) test.cpp
-	$(CPP) $(CPPFLAGS) -o test $(OBJS) test.cpp
+	$(CPP) $(CPPFLAGS) -o test $(OBJS) test.cpp $(LDFLAGS)
 	@echo "Test compiled! yes!"
 
 clean:

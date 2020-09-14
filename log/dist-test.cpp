@@ -1,5 +1,7 @@
 #include <random>
-#include <stdio.h>
+#include <iostream>
+
+#include <boost/random.hpp>
 
 std::mt19937 rgenerator;
 
@@ -11,9 +13,9 @@ int main ()
 	std::normal_distribution<double> ndistribution (mean, stddev);
 
 	for (i=0; i<n; i++)
-		printf("normal_distribution: %.2f\n", ndistribution(rgenerator));
+		std::cout << "normal_distribution: " << ndistribution(rgenerator) << std::endl;
 
-	printf("-------------------------------------------\n");
+	std::cout << "-------------------------------------------" << std::endl;
 
 	mean = 4.58;
 	stddev = 3.24;
@@ -25,12 +27,23 @@ int main ()
 	std::gamma_distribution<double> gdistribution (alpha, betha);
 
 	for (i=0; i<n; i++)
-		printf("gamma_distribution alpha=%.2f betha=%.2f: %.2f\n", alpha, betha, gdistribution(rgenerator));
+		std::cout << "gamma_distribution alpha=" << alpha << " betha=" << betha << ": " << gdistribution(rgenerator) << std::endl;
 
-	std::uniform_real_distribution<double> rdistribution(0.0, 1.0);
+	std::uniform_real_distribution<double> udistribution(0.0, 1.0);
 
 	for (i=0; i<5; i++)
-		printf("random_distribution: %.2f\n", rdistribution(rgenerator));
+		std::cout << "uniform_distribution: " << udistribution(rgenerator) << std::endl;
+
+	std::lognormal_distribution<double> lndistribution(2.55, 1.66);
+
+	for (i=0; i<20; i++)
+		std::cout << "lognormal_distribution: " << lndistribution(rgenerator) << std::endl;
+
+/*	boost::lognormal_distribution<double> blndistribution(0.75, 12.4);
+
+	for (i=0; i<20; i++)
+		std::cout << "boost_lognormal_distribution: " << blndistribution(rgenerator) << std::endl;
+*/
 
 	return 0;
 }

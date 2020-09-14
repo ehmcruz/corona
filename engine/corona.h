@@ -154,6 +154,7 @@ enum relation_type_t {
 	RELATION_SCHOOL_2,
 	RELATION_SCHOOL_3,
 	RELATION_SCHOOL_4,
+	RELATION_WORK,
 	RELATION_TRAVEL,
 	RELATION_OTHERS,
 	NUMBER_OF_RELATIONS,
@@ -195,10 +196,10 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_mild)
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
-	OO_ENCAPSULATE_RO(double, infected_cycle);
-	OO_ENCAPSULATE_RO(uint32_t, n_victims);
-	OO_ENCAPSULATE_RO(double, infection_cycles);
-	OO_ENCAPSULATE_RO(double, infection_countdown);
+	OO_ENCAPSULATE_RO(double, infected_cycle)
+	OO_ENCAPSULATE_RO(uint32_t, n_victims)
+	OO_ENCAPSULATE_RO(double, infection_cycles)
+	OO_ENCAPSULATE_RO(double, infection_countdown)
 	OO_ENCAPSULATE(uint32_t, id)
 	OO_ENCAPSULATE(neighbor_list_t*, neighbor_list)
 	OO_ENCAPSULATE(uint32_t, age)
@@ -211,10 +212,10 @@ class person_t
 private:
 	infected_state_t next_infected_state, final_infected_state;
 	double final_countdown;
-	std::array<int32_t, MAX_SIDS_PER_PERSON> sids;
 
 public:
 	pop_vertex_t vertex;
+	std::array<int32_t, MAX_SIDS_PER_PERSON> sids;
 
 public:
 	person_t ();
@@ -228,6 +229,7 @@ public:
 	void pre_infect (person_t *from);
 	void symptoms_arise (bool fast_track);
 	void remove_from_infected_list ();
+	bool take_vaccine ();
 
 	void force_infect ();
 
@@ -291,6 +293,7 @@ public:
 	person_t* pick_random_person_not_neighbor (person_t *p);
 	
 	void create_families (dist_double_t& dist, report_progress_t *report = nullptr);
+	void create_work_relations (dist_double_t& dist, uint32_t age_ini, uint32_t age_end, double employment_rate, double relation_ratio, report_progress_t *report = nullptr);
 	void create_random_connections (dist_double_t& dist, relation_type_t type=RELATION_UNKNOWN, report_progress_t *report = nullptr);
 
 	void add_people (uint64_t n, uint32_t age);
