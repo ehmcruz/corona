@@ -124,9 +124,16 @@ void cfg_t::scenery_setup ()
 
 	this->r0 = 3.0;
 
-	this->probability_asymptomatic = 0.85;
+	// these will be by-passed
+	this->probability_asymptomatic = 0.87;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
+
+	delete this->cycles_severe_in_hospital;
+	delete this->cycles_critical_in_icu;
+
+	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5, 5.5, 1.0, 90.0);
+	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9, 5.5, 1.0, 90.0);
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
@@ -187,7 +194,7 @@ void region_t::setup_population ()
 
 void region_t::setup_health_units ()
 {
-sp_setup_infection_state_rate(); exit(1);
+//sp_setup_infection_state_rate(); exit(1);
 	this->add_health_unit( &uti );
 	this->add_health_unit( &enfermaria );
 }
@@ -515,7 +522,14 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		stages_green++;
 	}
 	else if (cycle == 45.0) {
-		adjust_r_no_school(1.28);
+		adjust_r_no_school(1.3);
+		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//cfg->global_r0_factor = 1.16 / cfg->r0;
+//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+		stages_green++;
+	}
+	else if (cycle == 100.0) {
+		adjust_r_no_school(1.25);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -715,8 +729,8 @@ void sp_setup_infection_state_rate ()
 		48573,	//50-59
 		18245,	//60-69
 		2865,	//70-79
-		3000,	//80-89, was 0
-		1000	//90+, was 273
+		2000,	//80-89, was 0
+		500	//90+, was 273
 	};
 
 	// Total reported mild:
@@ -730,8 +744,8 @@ void sp_setup_infection_state_rate ()
 		62547,	//50-59
 		32554,	//60-69
 		14136,	//70-79
-		6671+3000,	//80-89
-		1933+1000	//90+
+		6671+2000,	//80-89
+		1933+500	//90+
 	};
 
 /*	uint32_t reported_deaths_per_age[AGE_CATS_N] = {
@@ -790,9 +804,15 @@ void sp_setup_infection_state_rate ()
 
 	cprintf("\n");
 
+	uint32_t total_death_severe = 0;
+	uint32_t total_death_critical = 0;
+
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
 		probability_critical_death_per_age[i] = static_cast<double>(reported_uti_deaths_per_age[i]) / static_cast<double>(reported_critical_per_age[i]);
 		probability_severe_death_per_age[i] = static_cast<double>(reported_infirmary_deaths_per_age[i]) / static_cast<double>(reported_severe_per_age[i]);
+
+		total_death_severe += reported_infirmary_deaths_per_age[i];
+		total_death_critical += reported_uti_deaths_per_age[i];
 	}
 
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
@@ -1056,6 +1076,9 @@ void sp_setup_infection_state_rate ()
 	cprintf("cfg->probability_mild: %.4f      (reported %.4f   original %.4f)\n", cfg->probability_mild, cfg->probability_mild / (1.0 - cfg->probability_asymptomatic), (double)total_mild / (double)total_confirmed);
 	cprintf("cfg->probability_severe: %.4f      (reported %.4f   original %.4f)\n", cfg->probability_severe, cfg->probability_severe / (1.0 - cfg->probability_asymptomatic), (double)total_severe / (double)total_confirmed);
 	cprintf("cfg->probability_critical: %.4f      (reported %.4f   original %.4f)\n", cfg->probability_critical, cfg->probability_critical / (1.0 - cfg->probability_asymptomatic), (double)total_critical / (double)total_confirmed);
+
+	CMSG("death rate in icu:" << (static_cast<double>(total_death_critical) / static_cast<double>(total_critical)) << std::endl)
+	CMSG("death rate in infirmary:" << (static_cast<double>(total_death_severe) / static_cast<double>(total_severe)) << std::endl)
 
 	cprintf("setting up infection rates...\n");
 
