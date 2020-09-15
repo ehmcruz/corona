@@ -70,6 +70,32 @@ person_t* pick_random_person (state_t state)
 	return p;
 }
 
+
+/*
+probability to die = death_rate_condition_in_hospital
+
+probability to die = 1 - (probability to live_per_cycle)^n
+
+probability to live_per_cycle = (1 - death_rate_condition_in_hospital_per_cycle)
+
+probability to die = 1 - (1 - death_rate_condition_in_hospital_per_cycle)^n
+1 - (1 - death_rate_condition_in_hospital_per_cycle)^n = probability to die
+- (1 - death_rate_condition_in_hospital_per_cycle)^n = probability to die - 1
+(1 - death_rate_condition_in_hospital_per_cycle)^n = 1 - probability to die
+1 - death_rate_condition_in_hospital_per_cycle = (1 - probability to die)^(1/n)
+- death_rate_condition_in_hospital_per_cycle = (1 - probability to die)^(1/n) - 1
+death_rate_condition_in_hospital_per_cycle = 1 - (1 - probability to die)^(1/n)
+*/
+
+double calc_death_probability_per_cycle_step (double death_prob, double n_tries)
+{
+	double r = 1.0 - pow(1 - death_prob, 1.0 / n_tries);
+
+//DMSG("death prob " << death_prob << " r " << r << std::endl)
+
+	return r;
+}
+
 /**************************************************/
 
 const_double_dist_t::const_double_dist_t (double value)

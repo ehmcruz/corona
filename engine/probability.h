@@ -20,6 +20,8 @@ bool roll_dice (double probability);
 person_t* pick_random_person ();
 person_t* pick_random_person (state_t state);
 
+double calc_death_probability_per_cycle_step (double death_prob, double n_tries);
+
 template <typename T>
 class dist_t
 {

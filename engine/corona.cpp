@@ -556,6 +556,12 @@ person_t::person_t ()
 		sid = -1;
 
 	this->setup_infection_probabilities(cfg->probability_mild, cfg->probability_severe, cfg->probability_critical);
+//DMSG(std::endl)
+	this->set_death_probability_severe_in_hospital_per_cycle_step( cfg->death_rate_severe_in_hospital_ );
+	this->set_death_probability_critical_in_icu_per_cycle_step( cfg->death_rate_critical_in_icu_ );
+
+	this->set_death_probability_severe_outside_hospital_per_cycle_step( cfg->death_rate_severe_outside_hospital_ );
+	this->set_death_probability_critical_outside_icu_per_cycle_step( cfg->death_rate_critical_outside_icu_ );
 
 	this->health_unit = nullptr;
 	this->neighbor_list = nullptr;
@@ -814,9 +820,9 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_SEVERE:
-			if (this->health_unit != nullptr && roll_dice(cfg->death_rate_severe_in_hospital_per_cycle_step))
+			if (this->health_unit != nullptr && roll_dice(this->death_probability_severe_in_hospital_per_cycle))
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(cfg->death_rate_severe_outside_hospital_per_cycle_step))
+			else if (this->health_unit == nullptr && roll_dice(this->death_probability_severe_outside_hospital_per_cycle))
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
@@ -827,9 +833,9 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_CRITICAL:
-			if (this->health_unit != nullptr && roll_dice(cfg->death_rate_critical_in_hospital_per_cycle_step))
+			if (this->health_unit != nullptr && roll_dice(this->death_probability_critical_in_icu_per_cycle))
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(cfg->death_rate_critical_outside_hospital_per_cycle_step))
+			else if (this->health_unit == nullptr && roll_dice(this->death_probability_critical_outside_icu_per_cycle))
 				this->die();
 			else if (this->infection_countdown <= 0.0) {
 				this->infected_state = ST_SEVERE;

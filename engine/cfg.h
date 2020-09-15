@@ -18,9 +18,9 @@ CORONA_CFG(double, "%.4f", global_r0_factor)
 CORONA_CFG(double, "%.4f", probability_summon_per_cycle_)
 
 CORONA_CFG(double, "%.4f", death_rate_severe_in_hospital_)
-CORONA_CFG(double, "%.4f", death_rate_critical_in_hospital_)
+CORONA_CFG(double, "%.4f", death_rate_critical_in_icu_)
 CORONA_CFG(double, "%.4f", death_rate_severe_outside_hospital_)
-CORONA_CFG(double, "%.4f", death_rate_critical_outside_hospital_)
+CORONA_CFG(double, "%.4f", death_rate_critical_outside_icu_)
 
 CORONA_CFG(double, "%.4f", probability_asymptomatic)
 CORONA_CFG(double, "%.4f", probability_mild)
@@ -51,11 +51,6 @@ CORONA_CFG(double, "%.4f", prob_ac_asymptomatic)
 CORONA_CFG(double, "%.4f", prob_ac_mild)
 CORONA_CFG(double, "%.4f", prob_ac_severe)
 CORONA_CFG(double, "%.4f", prob_ac_critical)
-
-CORONA_CFG(double, "%.4f", death_rate_severe_in_hospital_per_cycle_step)
-CORONA_CFG(double, "%.4f", death_rate_critical_in_hospital_per_cycle_step)
-CORONA_CFG(double, "%.4f", death_rate_severe_outside_hospital_per_cycle_step)
-CORONA_CFG(double, "%.4f", death_rate_critical_outside_hospital_per_cycle_step)
 
 CORONA_CFG_VECTOR(uint64_t, PU64, relation_type, relation_type_number, NUMBER_OF_RELATIONS)
 CORONA_CFG_VECTOR(double, "%.4f", relation_type, relation_type_transmit_rate, NUMBER_OF_RELATIONS)
