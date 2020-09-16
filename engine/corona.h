@@ -102,12 +102,17 @@ public:
 	stats_obj_mean_t ();
 	void reset ();
 	void print (FILE *fp);
+	void print (std::ostream& out);
 	void print ();
 
 	template <typename T>
 	inline void acc (T v) {
-		this->sum += (double)v;
+		this->sum += static_cast<double>(v);
 		this->n++;
+	}
+
+	inline double calc () {
+		return (likely(this->n > 0)) ? (this->sum / static_cast<double>(this->n)) : 0.0;
 	}
 };
 
@@ -155,8 +160,11 @@ public:
 class global_stats_t
 {
 public:
-	stats_obj_mean_t days_between_generations;
-	void print (FILE *fp);
+	stats_obj_mean_t cycles_between_generations;
+	stats_obj_mean_t cycles_critical;
+	stats_obj_mean_t cycles_severe;
+
+	void print (std::ostream& out);
 	void print ();
 };
 
@@ -227,6 +235,8 @@ class person_t
 	OO_ENCAPSULATE_RO(double, prob_ac_severe)
 	OO_ENCAPSULATE_RO(double, prob_ac_critical)
 	OO_ENCAPSULATE_RO(double, infected_cycle)
+	OO_ENCAPSULATE_RO(double, critical_start_cycle)
+	OO_ENCAPSULATE_RO(double, severe_start_cycle)
 	OO_ENCAPSULATE_RO(uint32_t, n_victims)
 	OO_ENCAPSULATE_RO(double, infection_cycles)
 	OO_ENCAPSULATE_RO(double, infection_countdown)
@@ -264,6 +274,7 @@ public:
 	void symptoms_arise (bool fast_track);
 	void remove_from_infected_list ();
 	bool take_vaccine ();
+	void try_to_enter_health_unit ();
 
 	void force_infect ();
 

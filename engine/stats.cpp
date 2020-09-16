@@ -13,33 +13,38 @@ void stats_obj_mean_t::reset ()
 
 void stats_obj_mean_t::print (FILE *fp)
 {
-	double v;
-	
-	if (this->n > 0)
-		v = this->sum / (double)this->n;
-	else
-		v = 0.0;
-	
-	fprintf(fp, "%.4f", v);
+	fprintf(fp, "%.4f", this->calc());
+}
+
+void stats_obj_mean_t::print (std::ostream& out)
+{
+	out << this->calc();
 }
 
 void stats_obj_mean_t::print ()
 {
-	this->print(stdout);
+	this->print(std::cout);
 }
 
 /****************************************************/
 
-void global_stats_t::print (FILE *fp)
+void global_stats_t::print (std::ostream& out)
 {
-	fprintf(fp, "global_stats.days_between_generations: ");
-	this->days_between_generations.print(fp);
-	fprintf(fp, "\n");
+	#define myprint(var) \
+		out <<  "global_stats." #var ": "; \
+		this->var.print(out); \
+		out << std::endl;
+
+	myprint(cycles_between_generations)
+	myprint(cycles_critical)
+	myprint(cycles_severe)
+
+	#undef myprint
 }
 
 void global_stats_t::print ()
 {
-	this->print(stdout);
+	this->print(std::cout);
 }
 
 /****************************************************/

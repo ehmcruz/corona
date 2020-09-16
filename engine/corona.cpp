@@ -733,6 +733,15 @@ bool person_t::take_vaccine ()
 	return r;
 }
 
+void person_t::try_to_enter_health_unit ()
+{
+	C_ASSERT(this->health_unit == nullptr)
+	C_ASSERT(this->state == ST_INFECTED)
+	C_ASSERT(this->infected_state == ST_SEVERE || this->infected_state == ST_CRITICAL)
+
+	this->health_unit = this->region->enter_health_unit(this);
+}
+
 void person_t::cycle_infected ()
 {
 	C_ASSERT(this->state == ST_INFECTED)
@@ -789,7 +798,9 @@ void person_t::cycle_infected ()
 
 						this->infected_state = ST_SEVERE;
 
-						this->health_unit = this->region->enter_health_unit(this);
+						this->try_to_enter_health_unit();
+
+						this->severe_start_cycle = current_cycle;
 
 						this->setup_infection_countdown(cfg->cycles_severe_in_hospital->generate());
 					break;
@@ -808,7 +819,9 @@ void person_t::cycle_infected ()
 
 						this->infected_state = ST_CRITICAL;
 
-						this->health_unit = this->region->enter_health_unit(this);
+						this->try_to_enter_health_unit();
+
+						this->critical_start_cycle = current_cycle;
 
 						this->setup_infection_countdown(cfg->cycles_critical_in_icu->generate());
 					break;
@@ -820,25 +833,42 @@ void person_t::cycle_infected ()
 		break;
 
 		case ST_SEVERE:
-			if (this->health_unit != nullptr && roll_dice(this->death_probability_severe_in_hospital_per_cycle))
+			if (this->health_unit != nullptr && roll_dice(this->death_probability_severe_in_hospital_per_cycle)) {
+				global_stats.cycles_severe.acc(current_cycle - this->severe_start_cycle);
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(this->death_probability_severe_outside_hospital_per_cycle))
+			}
+			else if (this->health_unit == nullptr && roll_dice(this->death_probability_severe_outside_hospital_per_cycle)) {
+				global_stats.cycles_severe.acc(current_cycle - this->severe_start_cycle);
 				this->die();
+			}
 			else if (this->infection_countdown <= 0.0) {
 				this->infection_countdown = 0.0;
+
+				global_stats.cycles_severe.acc(current_cycle - this->severe_start_cycle);
 				this->recover();
 			}
 			else if (this->health_unit == nullptr) // yeah, I know I reapeat this condition, but it is easier this way
-				this->health_unit = this->region->enter_health_unit(this);
+				this->try_to_enter_health_unit();
 		break;
 
 		case ST_CRITICAL:
-			if (this->health_unit != nullptr && roll_dice(this->death_probability_critical_in_icu_per_cycle))
+			if (this->health_unit != nullptr && roll_dice(this->death_probability_critical_in_icu_per_cycle)) {
+				global_stats.cycles_critical.acc(current_cycle - this->critical_start_cycle);
 				this->die();
-			else if (this->health_unit == nullptr && roll_dice(this->death_probability_critical_outside_icu_per_cycle))
+			}
+			else if (this->health_unit == nullptr && roll_dice(this->death_probability_critical_outside_icu_per_cycle)) {
+				global_stats.cycles_critical.acc(current_cycle - this->critical_start_cycle);
 				this->die();
+			}
 			else if (this->infection_countdown <= 0.0) {
+				// ok, I got better
+				// so instead of critical, I'm now severe
+
 				this->infected_state = ST_SEVERE;
+
+				global_stats.cycles_critical.acc(current_cycle - this->critical_start_cycle);
+
+				this->severe_start_cycle = current_cycle;
 
 				this->setup_infection_countdown(cfg->cycles_severe_in_hospital->generate());
 
@@ -852,7 +882,7 @@ void person_t::cycle_infected ()
 				}
 			}
 			else if (this->health_unit == nullptr) // yeah, I know I reapeat this condition, but it is easier this way
-				this->health_unit = this->region->enter_health_unit(this);
+				this->try_to_enter_health_unit();
 		break;
 
 		default:
@@ -871,7 +901,7 @@ void person_t::pre_infect (person_t *from)
 	if (likely(from != nullptr)) {
 		from->n_victims++;
 		incub_cycles = cfg->cycles_incubation->generate();
-		global_stats.days_between_generations.acc(current_cycle - from->infected_cycle);
+		global_stats.cycles_between_generations.acc(current_cycle - from->infected_cycle);
 	}
 	else     // forced infection, reduce the delay of incubation as much as possible
 		incub_cycles = cfg->step;
