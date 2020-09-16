@@ -284,8 +284,13 @@ void region_t::setup_relations ()
 		uint32_t age_ini = 4;
 		uint32_t age_end = 18;
 		double school_ratio = 0.9;
-		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
-		const_double_dist_t dist_school_size(2000.0);
+
+//		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
+//		const_double_dist_t dist_school_size(2000.0);
+
+		gamma_double_dist_t dist_school_size(438.9, 449.3, 200.0, 5000.0);
+		gamma_double_dist_t dist_school_class_size(22.1, 10.5, 10.0, 50.0);
+
 
 		struct school_per_age_t {
 			uint32_t age;
@@ -339,8 +344,8 @@ void region_t::setup_relations ()
                                           dist_school_size,
                                           this,
                                           dist_school_prof_age,
-                                          0.35,
-                                          0.002,
+                                          0.5,
+                                          0.005,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL_4,
@@ -516,12 +521,23 @@ void callback_end ()
 		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg->relation_type_number[i]);
 	}
 
-	uint64_t n_relations = 0;
+	uint64_t n_relations;
 
+	n_relations = 0;
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
 		n_relations += cfg->relation_type_number[r];
 
 	cprintf("amount of school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
+
+	n_relations = 0;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_3; r++)
+		n_relations += cfg->relation_type_number[r];
+
+	cprintf("amount of intra-class school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
+
+	n_relations = cfg->relation_type_number[RELATION_SCHOOL_4];
+
+	cprintf("amount of inter-class school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
 
 	uint32_t count_rel_students = 0;
 	network_iterate_over_edges([&count_rel_students, &mask] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {

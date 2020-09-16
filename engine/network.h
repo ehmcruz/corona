@@ -182,11 +182,22 @@ static uint32_t calc_family_size (dist_double_t& dist, region_t *region, uint32_
 }
 
 template <typename T>
-void network_create_clusters (T& people, dist_double_t& dist, relation_type_t type, double ratio=1.0, report_progress_t *report=nullptr)
+void network_create_clusters (T& people, dist_double_t& dist, std::initializer_list<relation_type_t> list_types, double ratio=1.0, report_progress_t *report=nullptr)
 {
 	uint32_t n, cluster_size, i, j;
+	auto type_it = list_types.begin();
+
+	C_ASSERT(list_types.size() > 0);
 
 	for (n=0; n<people.size(); n+=cluster_size) {
+		relation_type_t type;
+
+		if (type_it == list_types.end())
+			type_it = list_types.begin();
+
+		type = *type_it;
+		++type_it;
+
 		cluster_size = (int32_t)(dist.generate() + 0.5); // round to nearest
 
 		if (unlikely(cluster_size < 1))
@@ -209,5 +220,10 @@ void network_create_clusters (T& people, dist_double_t& dist, relation_type_t ty
 	}
 }
 
+template <typename T>
+void network_create_clusters (T& people, dist_double_t& dist, relation_type_t type, double ratio=1.0, report_progress_t *report=nullptr)
+{
+	network_create_clusters(people, dist, {type}, ratio, report);
+}
 
 #endif

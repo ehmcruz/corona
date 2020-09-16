@@ -57,6 +57,9 @@ void cfg_t::set_defaults ()
 	
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
 		this->relation_type_weights[r] = 2.0;
+
+	for (uint32_t r=RELATION_WORK; r<=RELATION_WORK_1; r++)
+		this->relation_type_weights[r] = 1.5;
 	
 	this->relation_type_weights[RELATION_TRAVEL] = 1.0;
 	this->relation_type_weights[RELATION_OTHERS] = 1.0;

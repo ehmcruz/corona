@@ -50,6 +50,8 @@ static double sp_ratio_student_intra_class_contingency = 0.2;
 
 static const uint32_t sp_school_div = 3;
 
+static double sp_work_weight = 1.5;
+
 static double vaccine_cycle = 999999.0; // default no vaccine
 
 static double vaccine_immune_cycles = 14.0;
@@ -122,18 +124,36 @@ void cfg_t::scenery_setup ()
 		this->factor_per_relation_group[r][ST_CRITICAL] = 0.0;
 	}
 
+	for (uint32_t r=RELATION_WORK; r<=RELATION_WORK_1; r++) {
+		this->relation_type_weights[r] = 1.5;
+
+		this->factor_per_relation_group[r][ST_MILD] = 0.0;
+		this->factor_per_relation_group[r][ST_SEVERE] = 0.0;
+		this->factor_per_relation_group[r][ST_CRITICAL] = 0.0;
+	}
+
+	for (uint32_t r: {RELATION_FAMILY}) {
+		this->factor_per_relation_group[r][ST_SEVERE] = 0.0;
+		this->factor_per_relation_group[r][ST_CRITICAL] = 0.0;
+	}
+
 	this->r0 = 3.0;
 
 	// these will be by-passed
-	this->probability_asymptomatic = 0.87;
+	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
-	delete this->cycles_severe_in_hospital;
 	delete this->cycles_critical_in_icu;
+	delete this->cycles_severe_in_hospital;
 
-	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5, 5.5, 1.0, 90.0);
-	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9, 5.5, 1.0, 90.0);
+	/*
+		Although the means are 7.9 and 6.5, respectively,
+		we need to apply a correction to consider the deaths,
+		otherwise the actual ICU and HOSPITAL length of stays would be much lower
+	*/
+	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9+3.0, 5.5, 1.0, 90.0);
+	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5+1.0, 5.5, 1.0, 90.0);
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
@@ -215,6 +235,92 @@ void region_t::setup_relations ()
 		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
 
 		this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
+
+		// ----------------- work relations
+
+		/*
+			According to IBGE
+			source: https://agenciadenoticias.ibge.gov.br/agencia-sala-de-imprensa/2013-agencia-de-noticias/releases/26740-pnad-continua-taxa-de-desocupacao-e-de-11-0-e-taxa-de-subutilizacao-e-de-23-0-no-trimestre-encerrado-em-dezembro
+			pnad continua dez/2019
+
+			the only services affected by the quarentine was the commerce
+			industry, agriculture, etc did not "lockdown"
+
+			- the total amount of formal workers was 33.7 million
+			- the total amount of informal workers was 11.9 million
+			- people that work for themselves was 24.6 million
+			- employers: 4.4 million
+			- domestic workers: 6.4 million
+			- public employees: 11.6 million
+			- TOTAL: 92.6 million
+
+			people that work in places modeled as workplace relations
+			- approximately 18 million people in Brazil work in the commerce
+			- public employees: 11.6 million
+			- industry: 12 million people
+			- TOTAL: 41.6 million, which corresponds to 45% of total workers
+			- the other workers would be considered in the random relations, since they mostly work in open environments or with less people in the same room
+
+			from that amount, people that were affected by the quarentine
+			- approximately 18 million people in Brazil work in the commerce
+			- public employees: 11.6 million
+			- TOTAL: 29.6 million, which corresponds to 71% of workplace relations
+
+			Therefore, we can estimate that fof every 3 workplace relations, 2 were affcted by quarentine.
+			However, we need to remember that several commerce and public employees continnued working normally.
+			This is basically impossible to know.
+			Hence, let's say that 50% of workplace relations were affected by the quarentine.
+
+			Summarizing, 45% of total workers we model as workplace relations.
+			The other workers would be considered in the random relations, since they mostly work in open environments or with less people in the same room.
+			Inside this 45%, only 50% of the relations were affected by quarentine.
+
+			According to IBGE data, 64% of people of age >= 18 work
+		*/
+
+		std::vector<person_t*> people_ = this->people;
+
+		std::shuffle(people_.begin(), people_.end(), rgenerator);
+
+	{
+		gamma_double_dist_t dist_workplace_size(8.0, 7.0, 2.0, 50.0);
+		const double employment_rate = 0.64;
+		const double work_that_is_modeled_as_work_relation = 0.45;
+		const uint32_t age_ini = 18;
+		const uint32_t age_end = 65;
+		const double relation_ratio = 0.5;
+
+		uint32_t n = 0, i;
+
+		for (person_t *p: people_) {
+			if (p->get_age() >= age_ini && p->get_age() <= age_end)
+				n++;
+		}
+
+		n = static_cast<uint32_t>(static_cast<double>(n) * employment_rate * work_that_is_modeled_as_work_relation);
+
+		std::vector<person_t*> tmp_workers;
+
+		tmp_workers.reserve(n);
+
+		i = 0;
+		for (person_t *p: people_) {
+			C_ASSERT(i <= n)
+
+			if (unlikely(i == n))
+				break;
+
+			if (p->get_age() >= age_ini && p->get_age() <= age_end) {
+				tmp_workers.push_back(p);
+				i++;
+			}
+		}
+
+		network_create_clusters(tmp_workers, dist_workplace_size, { RELATION_WORK_0, RELATION_WORK_1 }, relation_ratio, nullptr);
+	}
+
+		// ----------------- school relations
+
 //return;
 		dprintf("creating schools for city %s...\n", this->get_name().c_str());
 
@@ -222,8 +328,8 @@ void region_t::setup_relations ()
 		uint32_t age_ini = 4;
 		uint32_t age_end = 18;
 		double school_ratio = 0.778;
-		const_double_dist_t dist_school_size(2000.0);
-		normal_double_dist_t dist_school_class_size(30.0, 5.0, 10.0, 50.0);
+		gamma_double_dist_t dist_school_size(438.9, 449.3, 200.0, 4500.0);
+		gamma_double_dist_t dist_school_class_size(22.1, 10.5, 10.0, 50.0);
 
 		struct school_per_age_t {
 			uint32_t age;
@@ -233,6 +339,8 @@ void region_t::setup_relations ()
 		std::vector<school_per_age_t> v;
 		v.resize(age_end+1);
 
+		std::shuffle(people_.begin(), people_.end(), rgenerator);
+
 		for (uint32_t age=age_ini; age<=age_end; age++) {
 			v[age].n = (uint32_t)((double)this->get_region_people_per_age(age) * school_ratio);
 			v[age].age = age;
@@ -240,10 +348,6 @@ void region_t::setup_relations ()
 		}
 
 		students.reserve(this->people.size());
-
-		std::vector<person_t*> people_ = this->people;
-
-		std::shuffle(people_.begin(), people_.end(), rgenerator);
 
 		for (person_t *p: people_) {
 			uint32_t age = p->get_age();
@@ -260,36 +364,19 @@ void region_t::setup_relations ()
 		rname += " school loading...";
 		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
 
-		if (sp_school_strategy == SCHOOL_OPEN_100 || sp_school_strategy == SCHOOL_CLOSED) {
-			network_create_school_relation(students,
-			                                  age_ini,
-			                                  age_end,
-			                                  dist_school_class_size,
-	                                          dist_school_size,
-	                                          this,
-	                                          dist_school_prof_age,
-	                                          0.5,
-	                                          0.002,
-	                                          RELATION_SCHOOL,
-	                                          RELATION_SCHOOL,
-	                                          RELATION_SCHOOL,
-	                                          &progress_school);
-		}
-		else if (sp_school_strategy == SCHOOL_OPEN_33 || sp_school_strategy == SCHOOL_OPEN_66 || sp_school_strategy == SCHOOL_OPEN_PLANNED) {
-			network_create_school_relation(students,
-			                                  age_ini,
-			                                  age_end,
-			                                  dist_school_class_size,
-	                                          dist_school_size,
-	                                          this,
-	                                          dist_school_prof_age,
-	                                          0.5,
-	                                          0.002,
-	                                          RELATION_SCHOOL,
-	                                          RELATION_SCHOOL,
-	                                          RELATION_SCHOOL_4,
-	                                          &progress_school);
-		}
+		network_create_school_relation(students,
+		                                  age_ini,
+		                                  age_end,
+		                                  dist_school_class_size,
+                                          dist_school_size,
+                                          this,
+                                          dist_school_prof_age,
+                                          0.5,
+                                          0.005,
+                                          RELATION_SCHOOL,
+                                          RELATION_SCHOOL,
+                                          RELATION_SCHOOL_4,
+                                          &progress_school);
 	}
 }
 
@@ -390,7 +477,7 @@ void setup_extra_relations ()
 
 static double backup_school_r0;
 
-static void adjust_r_no_school (double target_r0)
+static void adjust_r_quarentine (double target_r0)
 {
 	double family_r0, unknown_r0, factor;
 
@@ -398,6 +485,9 @@ static void adjust_r_no_school (double target_r0)
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
 		cfg->relation_type_transmit_rate[r] = 0.0;
+
+	cfg->relation_type_transmit_rate[RELATION_WORK] = 0.0;
+	cfg->relation_type_transmit_rate[RELATION_WORK_0] = 0.0;
 
 	//target_r0 /= cfg->cycles_contagious;
 	//target_r0 *= (double)population.size();
@@ -429,6 +519,8 @@ static void adjust_r_no_school (double target_r0)
 	unknown_r0 *= cfg->cycle_division;
 	unknown_r0 /= (double)population.size();
 
+	cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+
 	printf("r0 cycle %.2f unknown_r0: %.2f\n", current_cycle, unknown_r0);
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
@@ -439,7 +531,8 @@ static void adjust_r_open_schools ()
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
-	cfg->relation_type_transmit_rate[RELATION_SCHOOL] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+		cfg->relation_type_transmit_rate[r] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
@@ -513,7 +606,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 	else if (cycle == warmup) {
 //		cfg->global_r0_factor = 1.05;
 		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
-		adjust_r_no_school(1.5);
+		adjust_r_quarentine(1.5);
 //		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
 //		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
@@ -522,18 +615,22 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		stages_green++;
 	}
 	else if (cycle == 45.0) {
-		adjust_r_no_school(1.3);
+		adjust_r_quarentine(1.35);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
 	else if (cycle == 100.0) {
-		adjust_r_no_school(1.25);
+		adjust_r_quarentine(1.20);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
+	}
+	else if (cycle == 120.0) { // open economic activities
+		cfg->relation_type_transmit_rate[RELATION_WORK_0] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+		cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 	}
 	else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
 		adjust_r_open_schools();
@@ -678,18 +775,32 @@ void callback_end ()
 		cprintf("relation-%s: " PU64 "\n", relation_type_str(i), cfg->relation_type_number[i]);
 	}
 
-	uint64_t n_relations = 0;
+	uint64_t n_relations;
 
+	n_relations = 0;
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
 		n_relations += cfg->relation_type_number[r];
 
-	cprintf("amount of school relations per student: %.2f\n", (double)n_relations / (double)n_students);
+	cprintf("amount of school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
+
+	n_relations = 0;
+	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_3; r++)
+		n_relations += cfg->relation_type_number[r];
+
+	cprintf("amount of intra-class school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
+
+	n_relations = cfg->relation_type_number[RELATION_SCHOOL_4];
+
+	cprintf("amount of inter-class school relations per student: %.2f  (students " PU64 "  rel " PU64 ")\n", (double)n_relations / (double)n_students, n_students, n_relations);
 }
 
 /**************************************************************/
 
 void sp_setup_infection_state_rate ()
 {
+	// date: 2020-09-07
+	// +- 6 months after pandemic start
+
 	uint32_t reported_critical_per_age[AGE_CATS_N] = {
 		239,	//0-9
 		169,	//10-19
@@ -703,7 +814,7 @@ void sp_setup_infection_state_rate ()
 		592	//90+
 	};
 
-	// Total reported critical:
+	// Total reported critical: 22807
 
 	uint32_t reported_severe_per_age[AGE_CATS_N] = {
 		584,	//0-9
@@ -718,7 +829,7 @@ void sp_setup_infection_state_rate ()
 		1068	//90+
 	};
 
-	// Total reported severe:
+	// Total reported severe: 49637
 
 	uint32_t reported_mild_per_age[AGE_CATS_N] = {
 		9925,	//0-9
@@ -733,7 +844,7 @@ void sp_setup_infection_state_rate ()
 		500	//90+, was 273
 	};
 
-	// Total reported mild:
+	// Total reported mild: 376915
 
 	uint32_t reported_confirmed_per_age[AGE_CATS_N] = {
 		10748,	//0-9
@@ -787,6 +898,8 @@ void sp_setup_infection_state_rate ()
 		614	//90+
 	};
 
+	// total deaths: 18718
+
 	double ratio_critical_per_age[AGE_CATS_N];
 	double ratio_severe_per_age[AGE_CATS_N];
 	double ratio_mild_per_age[AGE_CATS_N];
@@ -821,6 +934,8 @@ void sp_setup_infection_state_rate ()
 		ratio_mild_per_age[i] = (double)reported_mild_per_age[i] / (double)reported_confirmed_per_age[i];
 		//ratio_deaths_per_age[i] = (double)reported_deaths_per_age[i] / (double)reported_confirmed_per_age[i];
 	}
+
+	cprintf("Total reported deths: %u\n", (total_death_severe+total_death_critical));
 
 	cprintf("\n");
 
