@@ -140,7 +140,7 @@ void cfg_t::scenery_setup ()
 	this->r0 = 3.0;
 
 	// these will be by-passed
-	this->probability_asymptomatic = 0.85;
+	this->probability_asymptomatic = 0.87;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
@@ -152,8 +152,8 @@ void cfg_t::scenery_setup ()
 		we need to apply a correction to consider the deaths,
 		otherwise the actual ICU and HOSPITAL length of stays would be much lower
 	*/
-	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9+3.0, 5.5, 1.0, 90.0);
-	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5+1.0, 5.5, 1.0, 90.0);
+	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9+4.0, 5.5, 1.0, 90.0);
+	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5+2.0, 5.5, 1.0, 90.0);
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
