@@ -254,6 +254,7 @@ class person_t
 	OO_ENCAPSULATE(region_t*, region)
 	OO_ENCAPSULATE(health_unit_t*, health_unit)
 	OO_ENCAPSULATE(uint32_t, infected_state_vec_pos)
+	OO_ENCAPSULATE(uint32_t, foo)
 
 private:
 	infected_state_t next_infected_state, final_infected_state;
@@ -275,7 +276,7 @@ public:
 	void pre_infect (person_t *from);
 	void symptoms_arise (bool fast_track);
 	void remove_from_infected_list ();
-	bool take_vaccine ();
+	bool take_vaccine (double success_rate);
 	void try_to_enter_health_unit ();
 
 	void force_infect ();

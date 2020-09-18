@@ -210,7 +210,6 @@ static void run_cycle_step ()
 }
 #endif
 
-
 #ifdef SANITY_CHECK
 	sanity_check_infected = 0;
 	sanity_critical = 0;
@@ -680,48 +679,75 @@ void person_t::recover ()
 //cprintf("cycle %.1f my victims: %u\n", current_cycle, this->n_victims);
 }
 
-bool person_t::take_vaccine ()
+bool person_t::take_vaccine (double success_rate)
 {
 	bool r = false;
 
 	switch (this->get_state()) {
 		case ST_HEALTHY:
-			for (auto it=this->sids.begin(); it!=this->sids.end(); ++it) {
-				stats_t& stats = cycle_stats[*it];
-
-				stats.ac_state[ST_HEALTHY]--;
-				stats.ac_state[ST_IMMUNE]++;
-
-				stats.state[ST_IMMUNE]++;
-			}
-
-			this->state = ST_IMMUNE;
-			r = true;
-		break;
-
-		case ST_INFECTED:
-			if (this->get_infected_state() == ST_ASYMPTOMATIC) {
-				this->recover();			
-				r = true;
-			}
-			else if (this->get_infected_state() == ST_INCUBATION) {
-				this->remove_from_infected_list();
-
-				for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+			if (roll_dice(success_rate)) {
+				for (auto it=this->sids.begin(); it!=this->sids.end(); ++it) {
 					stats_t& stats = cycle_stats[*it];
 
-					stats.ac_infected_state[ ST_INCUBATION ]--;
-					stats.ac_state[ST_INFECTED]--;
-
+					stats.ac_state[ST_HEALTHY]--;
 					stats.ac_state[ST_IMMUNE]++;
 
 					stats.state[ST_IMMUNE]++;
 				}
 
 				this->state = ST_IMMUNE;
-				r = true;
 			}
+			r = true;
+		break;
 
+		case ST_INFECTED:
+			switch (this->get_infected_state()) {
+				case ST_ASYMPTOMATIC:
+					if (roll_dice(success_rate))
+						this->recover();			
+					r = true;
+				break;
+			
+				case ST_INCUBATION:
+					if (roll_dice(success_rate)) {
+						this->remove_from_infected_list();
+
+						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+							stats_t& stats = cycle_stats[*it];
+
+							stats.ac_infected_state[ ST_INCUBATION ]--;
+							stats.ac_state[ST_INFECTED]--;
+
+							stats.ac_state[ST_IMMUNE]++;
+
+							stats.state[ST_IMMUNE]++;
+						}
+
+						this->state = ST_IMMUNE;
+					}
+					r = true;
+				break;
+
+				case ST_PRESYMPTOMATIC:
+					if (roll_dice(success_rate)) {
+						this->remove_from_infected_list();
+
+						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+							stats_t& stats = cycle_stats[*it];
+
+							stats.ac_infected_state[ ST_PRESYMPTOMATIC ]--;
+							stats.ac_state[ST_INFECTED]--;
+
+							stats.ac_state[ST_IMMUNE]++;
+
+							stats.state[ST_IMMUNE]++;
+						}
+
+						this->state = ST_IMMUNE;
+					}
+					r = true;
+				break;
+			}
 		break;
 
 		case ST_IMMUNE:
@@ -933,6 +959,8 @@ void person_t::pre_infect (person_t *from)
 void person_t::symptoms_arise (bool fast_track)
 {
 	SANITY_ASSERT(this->state == ST_INFECTED && this->infected_state == ST_PRESYMPTOMATIC)
+
+	C_ASSERT(fast_track == false) // let's disable fast track for now, I think there may be  bug in it
 
 	this->infected_state = this->next_infected_state;
 	this->next_infected_state = this->final_infected_state;

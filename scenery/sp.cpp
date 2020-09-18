@@ -29,6 +29,28 @@ static const char* sp_school_strategy_str (sp_school_strategy_t s)
 	return list[s];
 }
 
+#define X_VACCINE_STRATEGY   \
+	X_VACCINE_STRATEGY_(none) \
+	X_VACCINE_STRATEGY_(random) \
+	X_VACCINE_STRATEGY_(priorities)
+
+enum class vaccine_plan_t {
+	#define X_VACCINE_STRATEGY_(S) S,
+	X_VACCINE_STRATEGY
+	#undef X_VACCINE_STRATEGY_
+};
+
+static const char* vaccine_plan_str (vaccine_plan_t p)
+{
+	static const char *list[] = {
+		#define X_VACCINE_STRATEGY_(S) #S,
+		X_VACCINE_STRATEGY
+		#undef X_VACCINE_STRATEGY_
+	};
+
+	return list[ static_cast<uint32_t>(p) ];
+}
+
 enum class sp_plan_t {
 	phase_0,
 	phase_33,
@@ -51,6 +73,8 @@ static double sp_ratio_student_intra_class_contingency = 0.2;
 static const uint32_t sp_school_div = 3;
 
 static double sp_work_weight = 1.5;
+
+static vaccine_plan_t vaccine_plan = vaccine_plan_t::none;
 
 static double vaccine_cycle = 999999.0; // default no vaccine
 
@@ -88,6 +112,18 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 		("vaccinecycle,v", boost::program_options::value<double>()->notifier( [] (double v) {
 				vaccine_cycle = v;
 			} ), "Cycle to start the vaccines")
+		("vaccinestrat,z", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
+				if (v == "none")
+					vaccine_plan = vaccine_plan_t::none;
+				else if (v == "random")
+					vaccine_plan = vaccine_plan_t::random;
+				else if (v == "priorities")
+					vaccine_plan = vaccine_plan_t::priorities;
+				else {
+					CMSG("vaccinestrat should be none, random or priorities" << std::endl)
+					exit(1);
+				}
+			} ), "Vaccine strategy, should be none, random or priorities")
 		("schoolstrat,s", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
 				if (v == "0")
 					sp_school_strategy = SCHOOL_CLOSED;
@@ -183,6 +219,7 @@ exit(1);*/
 	DMSG("sp_cycle_to_open_school: " << sp_cycle_to_open_school << std::endl)
 	DMSG("sp_cycles_between_phases: " << sp_cycles_between_phases << std::endl)
 	DMSG("sp_ratio_student_intra_class_contingency: " << sp_ratio_student_intra_class_contingency << std::endl)
+	DMSG("vaccine_plan: " << vaccine_plan_str(vaccine_plan) << std::endl)
 	DMSG("vaccine_cycle: " << vaccine_cycle << std::endl)
 }
 
@@ -334,7 +371,7 @@ void region_t::setup_relations ()
 		//gamma_double_dist_t dist_school_size(438.9, 449.3, 200.0, 4500.0);
 		//gamma_double_dist_t dist_school_class_size(22.1, 10.5, 10.0, 50.0);
 
-		gamma_double_dist_t dist_school_size(800.0, 450.0, 400.0, 4500.0);
+		gamma_double_dist_t dist_school_size(500.0, 500.0, 300.0, 4000.0);
 		gamma_double_dist_t dist_school_class_size(30.0, 10.0, 15.0, 50.0);
 
 		struct school_per_age_t {
@@ -378,7 +415,7 @@ void region_t::setup_relations ()
                                           this,
                                           dist_school_prof_age,
                                           0.5,
-                                          0.004,
+                                          0.005,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL_4,
@@ -460,12 +497,12 @@ void setup_extra_relations ()
 		stats_zone_t *zone = create_new_stats_zone();
 		zone->get_name() = "school";
 
-		std::bitset<NUMBER_OF_FLAGS> mask;
+		std::bitset<NUMBER_OF_FLAGS> school_mask;
 		for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
-			mask.set(r);
+			school_mask.set(r);
 
 		for (person_t *p: population) {
-			if ((network_vertex_data(p).flags & mask).any())
+			if ((network_vertex_data(p).flags & school_mask).any())
 				zone->add_person(p);
 		}
 
@@ -476,6 +513,20 @@ void setup_extra_relations ()
 			if (network_vertex_data(p).flags.test(VFLAG_PROFESSOR))
 				zone->add_person(p);
 		}
+
+		zone = create_new_stats_zone();
+		zone->get_name() = "family";
+
+		network_iterate_over_edges([&school_mask, zone] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
+			if (network_edge_data(e).type == RELATION_FAMILY) {
+				if ((network_vertex_data(s).flags & school_mask).any()) {
+					if ((network_vertex_data(t).flags & school_mask).none() )
+						zone->add_person( network_vertex_data(t).p );
+				}
+				else if ((network_vertex_data(t).flags & school_mask).any() )
+					zone->add_person( network_vertex_data(s).p );
+			}
+		});
 	}
 
 	sp_setup_infection_state_rate();
@@ -546,7 +597,7 @@ static void adjust_r_open_schools ()
 
 static void check_vaccine (double cycle)
 {
-	if (cycle >= vaccine_cycle) {
+	if (vaccine_plan != vaccine_plan_t::none && cycle >= vaccine_cycle) {
 		static bool first = false;
 		static std::vector<person_t*>::iterator it;
 		static std::vector<person_t*> pop;
@@ -556,8 +607,72 @@ static void check_vaccine (double cycle)
 		if (!first) {
 			first = true;
 
-			pop = population;
-			std::shuffle(pop.begin(), pop.end(), rgenerator);
+			switch (vaccine_plan) {
+				case vaccine_plan_t::random:
+					pop = population;
+					std::shuffle(pop.begin(), pop.end(), rgenerator);
+				break;
+
+				case vaccine_plan_t::priorities: {
+					static std::vector<person_t*> tmp = population;
+
+					std::shuffle(tmp.begin(), tmp.end(), rgenerator);
+
+					pop.reserve( population.size() );
+
+					std::bitset<NUMBER_OF_FLAGS> mask_school;
+					for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+						mask_school.set(r);
+
+					// set that no one took the vaccine
+
+					for (person_t *p: tmp)
+						p->set_foo(0);
+
+					// first to get the vaccine are the old
+
+					for (person_t *p: tmp) {
+						if (p->get_age() >= 50) {
+							pop.push_back(p);
+							p->set_foo(1);
+						}
+					}
+
+					// now the professors
+
+					for (person_t *p: tmp) {
+						if (p->get_foo() == 0 && (network_vertex_data(p).flags.test(VFLAG_PROFESSOR))) {
+							pop.push_back(p);
+							p->set_foo(1);
+						}
+					}
+
+					// now the students
+
+					for (person_t *p: tmp) {
+						if (p->get_foo() == 0 && (network_vertex_data(p).flags & mask_school).any()) {
+							pop.push_back(p);
+							p->set_foo(1);
+						}
+					}
+
+					// now the rest
+
+					for (person_t *p: tmp) {
+						if (p->get_foo() == 0) {
+							pop.push_back(p);
+							//p->set_foo(1);
+						}
+					}
+				}
+				break;
+
+				default:
+					C_ASSERT(0)
+			}
+
+			C_ASSERT(pop.size() == population.size())
+
 			it = pop.begin();
 		}
 
@@ -570,7 +685,7 @@ static void check_vaccine (double cycle)
 
 			person_t *p = *it;
 
-			i += p->take_vaccine();
+			i += p->take_vaccine(vaccine_immunity_rate);
 
 			++it;
 		}
