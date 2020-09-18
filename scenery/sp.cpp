@@ -140,7 +140,7 @@ void cfg_t::scenery_setup ()
 	this->r0 = 3.0;
 
 	// these will be by-passed
-	this->probability_asymptomatic = 0.87;
+	this->probability_asymptomatic = 0.85;
 	this->probability_mild = 0.809 * (1.0 - this->probability_asymptomatic);
 	this->probability_critical = 0.044 * (1.0 - this->probability_asymptomatic);
 
@@ -223,7 +223,7 @@ void region_t::setup_relations ()
 {
 	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
 		gamma_double_dist_t dist_family_size(3.26, 1.69, 1.0, 10.0);
-		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
+		normal_double_dist_t dist_number_random_connections(15.0, 10.0, 5.0, 100.0);
 
 		dprintf("creating families for city %s...\n", this->get_name().c_str());
 		this->create_families(dist_family_size);
@@ -278,6 +278,8 @@ void region_t::setup_relations ()
 			According to IBGE data, 64% of people of age >= 18 work
 		*/
 
+		CMSG("creating workplace relations for city " << this->get_name() << std::endl);
+
 		std::vector<person_t*> people_ = this->people;
 
 		std::shuffle(people_.begin(), people_.end(), rgenerator);
@@ -328,8 +330,12 @@ void region_t::setup_relations ()
 		uint32_t age_ini = 4;
 		uint32_t age_end = 18;
 		double school_ratio = 0.778;
-		gamma_double_dist_t dist_school_size(438.9, 449.3, 200.0, 4500.0);
-		gamma_double_dist_t dist_school_class_size(22.1, 10.5, 10.0, 50.0);
+
+		//gamma_double_dist_t dist_school_size(438.9, 449.3, 200.0, 4500.0);
+		//gamma_double_dist_t dist_school_class_size(22.1, 10.5, 10.0, 50.0);
+
+		gamma_double_dist_t dist_school_size(800.0, 450.0, 400.0, 4500.0);
+		gamma_double_dist_t dist_school_class_size(30.0, 10.0, 15.0, 50.0);
 
 		struct school_per_age_t {
 			uint32_t age;
@@ -372,7 +378,7 @@ void region_t::setup_relations ()
                                           this,
                                           dist_school_prof_age,
                                           0.5,
-                                          0.005,
+                                          0.004,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL,
                                           RELATION_SCHOOL_4,
@@ -615,14 +621,14 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		stages_green++;
 	}
 	else if (cycle == 45.0) {
-		adjust_r_quarentine(1.35);
+		adjust_r_quarentine(1.3);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 100.0) {
-		adjust_r_quarentine(1.20);
+	else if (cycle == 70.0) {
+		adjust_r_quarentine(1.2);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -840,13 +846,14 @@ void sp_setup_infection_state_rate ()
 		48573,	//50-59
 		18245,	//60-69
 		2865,	//70-79
-		2000,	//80-89, was 0
-		500	//90+, was 273
+		0,	//80-89, was 0
+		273	//90+, was 273
 	};
 
 	// Total reported mild: 376915
 
-	uint32_t reported_confirmed_per_age[AGE_CATS_N] = {
+	uint32_t reported_confirmed_per_age[AGE_CATS_N];
+	/* = {
 		10748,	//0-9
 		23922,	//10-19
 		81316,	//20-29
@@ -857,7 +864,7 @@ void sp_setup_infection_state_rate ()
 		14136,	//70-79
 		6671+2000,	//80-89
 		1933+500	//90+
-	};
+	};*/
 
 /*	uint32_t reported_deaths_per_age[AGE_CATS_N] = {
 		25,	//0-9
@@ -914,6 +921,66 @@ void sp_setup_infection_state_rate ()
 	double probability_mild_per_age[AGE_CATS_N];
 	double probability_severe_per_age[AGE_CATS_N];
 	double probability_critical_per_age[AGE_CATS_N];
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		//C_ASSERT(reported_confirmed_per_age[i] == (reported_critical_per_age[i]+reported_severe_per_age[i]+reported_mild_per_age[i]))
+		reported_confirmed_per_age[i] =
+			reported_critical_per_age[i] +
+			reported_severe_per_age[i] +
+			reported_mild_per_age[i];
+	}
+
+	/*
+		we need to manipulate this a bit to get the same amount during the simulation
+	*/
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		reported_critical_per_age[i] = multiply_int_by_double(reported_critical_per_age[i], 1.15);
+		reported_severe_per_age[i] = multiply_int_by_double(reported_severe_per_age[i], 1.15);
+
+		reported_uti_deaths_per_age[i] = multiply_int_by_double(reported_uti_deaths_per_age[i], 0.9);
+		probability_severe_death_per_age[i] = multiply_int_by_double(probability_severe_death_per_age[i], 0.9);
+	}
+	
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		int32_t v;
+
+		v = static_cast<int32_t>(reported_confirmed_per_age[i])
+			- static_cast<int32_t>(reported_critical_per_age[i] + reported_severe_per_age[i]);
+
+		if (i <= 7) {
+			C_ASSERT (v > 500);
+			reported_mild_per_age[i] = v;
+		}
+		else if (i == 8) {
+			if (v < 2000) {
+				reported_mild_per_age[i] = 2000;
+
+				reported_confirmed_per_age[i] =
+					reported_critical_per_age[i] +
+					reported_severe_per_age[i] +
+					reported_mild_per_age[i];
+			}
+			else
+				reported_mild_per_age[i] = v;
+		}
+		else if (i == 9) {
+			if (v < 500) {
+				reported_mild_per_age[i] = 500;
+
+				reported_confirmed_per_age[i] =
+					reported_critical_per_age[i] +
+					reported_severe_per_age[i] +
+					reported_mild_per_age[i];
+			}
+			else
+				reported_mild_per_age[i] = v;
+		}
+	}
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		C_ASSERT(reported_confirmed_per_age[i] == (reported_critical_per_age[i]+reported_severe_per_age[i]+reported_mild_per_age[i]))
+	}
 
 	cprintf("\n");
 

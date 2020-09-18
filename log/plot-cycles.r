@@ -164,3 +164,18 @@ plot(data$cycle, data$ac_total_infected_state_ST_SEVERE, xlab="Dias desde pacien
 grid(col = "gray", lwd=2)
 
 legend(150, 10000, labels, cex=0.8, col=c("pink"), pch=21:22, lty=1:2);
+
+# -----------------------------------------------------
+
+#pdf(file=paste0(prefix, "-mild.pdf"), width=11)
+png(filename = paste0(prefix, "-deaths.png"),
+	    width = 1300, height = 700, units = "px", pointsize = 12,
+	     bg = "white",  res = NA)
+
+labels = c("sim-deaths")
+
+plot(data$cycle, data$ac_state_ST_DEAD, xlab="Dias desde paciente zero", ylab="Mortes", type="o", col="blue")
+
+grid(col = "gray", lwd=2)
+
+legend(150, 10000, labels, cex=0.8, col=c("pink"), pch=21:22, lty=1:2);

@@ -15,7 +15,8 @@ library(ggplot2)
 
 # https://stackoverflow.com/questions/38470111/how-to-graph-with-geom-ribbon
 
-counters <- list("ac_state_ST_INFECTED", "ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL", "ac_state_ST_DEAD", "ac_state_ST_HEALTHY", "r", "reproductive", "g_reported", "ac_total_infected_state_ST_CRITICAL", "ac_total_infected_state_ST_SEVERE", "ac_reported")
+#counters <- list("ac_state_ST_INFECTED")
+counters <- list("ac_state_ST_INFECTED", "ac_infected_state_ST_MILD", "ac_infected_state_ST_SEVERE", "ac_infected_state_ST_CRITICAL", "ac_state_ST_DEAD", "ac_state_ST_HEALTHY", "g_reported", "ac_total_infected_state_ST_CRITICAL", "ac_total_infected_state_ST_SEVERE", "ac_reported", "r", "reproductive")
 
 colors <- c("purple", "yellow", "orange", "red", "blue", "green", "cyan", "cyan", "gray")
 
@@ -45,8 +46,8 @@ for (counter in counters) {
 	data$lower_bound <- data$mean - data$error
 	data$upper_bound <- data$mean + data$error
 
-	#print(data)
-	#stop()
+#	print(data)
+#	stop()
 
 	# h <- ggplot(huron, aes(year))
 
@@ -73,7 +74,11 @@ for (counter in counters) {
 	p <- p + scale_x_continuous(breaks = round(seq(0, max(data$cycle), by = 30),1))
 
 	if (counter == "reproductive") {
-		p <- p + scale_y_continuous(breaks = round(seq(0, max(data$upper_bound), by = 0.5),1))
+		if (is.na(max(data$upper_bound)) || max(data$upper_bound) > 5)
+			the_max = 5
+		else
+			the_max = max(data$upper_bound)
+		p <- p + scale_y_continuous(breaks = round(seq(0, the_max, by = 0.5),1))
 		p <- p + geom_hline(yintercept=1, color = "black")
 		p <- p + geom_hline(yintercept=2, color = "black")
 		p <- p + geom_hline(yintercept=3, color = "black")

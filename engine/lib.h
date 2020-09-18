@@ -100,6 +100,12 @@
 	}
 
 template <typename T>
+inline T multiply_int_by_double (T v, double f)
+{
+	return static_cast<T>( static_cast<double>(v) * f );
+}
+
+template <typename T>
 T** matrix_malloc (uint32_t nrows, uint32_t ncols)
 {
 	T **p;
