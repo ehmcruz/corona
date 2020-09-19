@@ -169,6 +169,15 @@ bool try_to_summon ()
 	return r;
 }
 
+static void rm_infected (person_t *p)
+{
+	C_ASSERT(pop_infected_n > 0)
+
+	pop_infected[ p->get_infected_state_vec_pos() ] = pop_infected[ --pop_infected_n ];
+	pop_infected[ p->get_infected_state_vec_pos() ]->set_infected_state_vec_pos( p->get_infected_state_vec_pos() );
+	pop_infected[ pop_infected_n ] = nullptr;
+}
+
 static void run_cycle_step ()
 {
 	uint64_t i;
@@ -256,13 +265,11 @@ static void run_cycle_step ()
 	}
 #endif
 
-	SANITY_ASSERT(sanity_check_infected == prev_cycle_stats[GLOBAL_STATS].ac_state[ST_INFECTED])
+	//SANITY_ASSERT(sanity_check_infected == prev_cycle_stats[GLOBAL_STATS].ac_state[ST_INFECTED])
 
 	for (person_t *p: to_recover_die_in_cycle) {
 		//dprintf("tracker remove pid %i\n", p->get_id());
-		pop_infected[ p->get_infected_state_vec_pos() ] = pop_infected[ --pop_infected_n ];
-		pop_infected[ p->get_infected_state_vec_pos() ]->set_infected_state_vec_pos( p->get_infected_state_vec_pos() );
-		pop_infected[ pop_infected_n ] = nullptr;
+		rm_infected(p);
 	}
 
 	to_recover_die_in_cycle.clear();
@@ -578,11 +585,13 @@ void person_t::add_sid (int32_t sid)
 	uint32_t i = 0;
 
 	for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
-		C_ASSERT(*it != sid)
+		if (*it == sid) // trying to add twice to the same zone
+			return;
 		i++;
 	}
 
 	C_ASSERT(i < this->sids.size())
+
 	this->sids[i] = sid;
 }
 
@@ -686,7 +695,7 @@ bool person_t::take_vaccine (double success_rate)
 	switch (this->get_state()) {
 		case ST_HEALTHY:
 			if (roll_dice(success_rate)) {
-				for (auto it=this->sids.begin(); it!=this->sids.end(); ++it) {
+				for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 					stats_t& stats = cycle_stats[*it];
 
 					stats.ac_state[ST_HEALTHY]--;
@@ -703,14 +712,28 @@ bool person_t::take_vaccine (double success_rate)
 		case ST_INFECTED:
 			switch (this->get_infected_state()) {
 				case ST_ASYMPTOMATIC:
-					if (roll_dice(success_rate))
-						this->recover();			
+					if (roll_dice(success_rate)) {
+						rm_infected(this);
+
+						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
+							stats_t& stats = cycle_stats[*it];
+
+							stats.ac_infected_state[ ST_ASYMPTOMATIC ]--;
+							stats.ac_state[ST_INFECTED]--;
+
+							stats.ac_state[ST_IMMUNE]++;
+
+							stats.state[ST_IMMUNE]++;
+						}
+
+						this->state = ST_IMMUNE;
+					}
 					r = true;
 				break;
 			
 				case ST_INCUBATION:
 					if (roll_dice(success_rate)) {
-						this->remove_from_infected_list();
+						rm_infected(this);
 
 						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 							stats_t& stats = cycle_stats[*it];
@@ -730,7 +753,7 @@ bool person_t::take_vaccine (double success_rate)
 
 				case ST_PRESYMPTOMATIC:
 					if (roll_dice(success_rate)) {
-						this->remove_from_infected_list();
+						rm_infected(this);
 
 						for (auto it=this->sids.begin(); it!=this->sids.end() && *it!=-1; ++it) {
 							stats_t& stats = cycle_stats[*it];

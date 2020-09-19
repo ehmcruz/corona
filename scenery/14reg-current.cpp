@@ -16,6 +16,29 @@ static int32_t stages_green = 0;
 
 /**********************************************************************/
 
+void check_vaccine (double cycle);
+
+#define X_VACCINE_STRATEGY   \
+	X_VACCINE_STRATEGY_(none) \
+	X_VACCINE_STRATEGY_(random) \
+	X_VACCINE_STRATEGY_(priorities)
+
+enum class vaccine_plan_t {
+	#define X_VACCINE_STRATEGY_(S) S,
+	X_VACCINE_STRATEGY
+	#undef X_VACCINE_STRATEGY_
+};
+
+static vaccine_plan_t vaccine_plan = vaccine_plan_t::random;
+
+static double vaccine_cycle = 30.0; // default no vaccine
+
+static double vaccine_immune_cycles = 14.0;
+
+static double vaccine_immunity_rate = 0.9;
+
+static uint32_t vaccine_per_cycle = 200;
+
 static void sp_reconfigure_class_room (std::vector<person_t*>& school_people, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end, uint32_t& rm)
 {
 	uint32_t n_students = it_end - it_begin;
@@ -460,6 +483,7 @@ static void adjust_r_open_schools ()
 void callback_before_cycle (double cycle)
 {
 //	static double backup;
+	check_vaccine(cycle);
 
 	if (cycle == 0.0) {
 		region_t::get("Paranavai")->pick_random_person()->force_infect();
@@ -566,4 +590,101 @@ void callback_end ()
 
 	DMSG("there are " << count_students << " students and " << count_rel_students << " students relations, relations per student: " << rel_per_student << std::endl)
 	DMSG("there are " << count_school << " school people and " << count_rel_school << " school relations, relations per school people: " << rel_per_school << std::endl)
+}
+
+void check_vaccine (double cycle)
+{
+	if (vaccine_plan != vaccine_plan_t::none && cycle >= vaccine_cycle) {
+		static bool first = false;
+		static std::vector<person_t*>::iterator it;
+		static std::vector<person_t*> pop;
+
+		uint32_t i;
+
+		if (!first) {
+			first = true;
+
+			switch (vaccine_plan) {
+				case vaccine_plan_t::random:
+					pop = population;
+					std::shuffle(pop.begin(), pop.end(), rgenerator);
+				break;
+
+				case vaccine_plan_t::priorities: {
+					static std::vector<person_t*> tmp = population;
+
+					std::shuffle(tmp.begin(), tmp.end(), rgenerator);
+
+					pop.reserve( population.size() );
+
+					std::bitset<NUMBER_OF_FLAGS> mask_school;
+					for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
+						mask_school.set(r);
+
+					// set that no one took the vaccine
+
+					for (person_t *p: tmp)
+						p->set_foo(0);
+
+					// first to get the vaccine are the old
+
+					for (person_t *p: tmp) {
+						if (p->get_age() >= 50) {
+							pop.push_back(p);
+							p->set_foo(1);
+						}
+					}
+
+					// now the professors
+
+					for (person_t *p: tmp) {
+						if (p->get_foo() == 0 && (network_vertex_data(p).flags.test(VFLAG_PROFESSOR))) {
+							pop.push_back(p);
+							p->set_foo(1);
+						}
+					}
+
+					// now the students
+
+					for (person_t *p: tmp) {
+						if (p->get_foo() == 0 && (network_vertex_data(p).flags & mask_school).any()) {
+							pop.push_back(p);
+							p->set_foo(1);
+						}
+					}
+
+					// now the rest
+
+					for (person_t *p: tmp) {
+						if (p->get_foo() == 0) {
+							pop.push_back(p);
+							//p->set_foo(1);
+						}
+					}
+				}
+				break;
+
+				default:
+					C_ASSERT(0)
+			}
+
+			C_ASSERT(pop.size() == population.size())
+
+			it = pop.begin();
+		}
+
+		i = 0;
+		while (it != pop.end()) {
+			C_ASSERT(i <= vaccine_per_cycle)
+
+			if (unlikely(i == vaccine_per_cycle))
+				break;
+
+			person_t *p = *it;
+
+			i += p->take_vaccine(vaccine_immunity_rate);
+
+			++it;
+		}
+	}
 }
