@@ -4,6 +4,8 @@
 #include <random>
 #include <algorithm>
 #include <numeric>
+#include <fstream>
+#include <iomanip>
 
 #define X_SP_SCHOOL_STRATEGY   \
 	X_SP_SCHOOL_STRATEGY_(SCHOOL_CLOSED) \
@@ -94,6 +96,8 @@ static health_unit_t enfermaria(1000000000, ST_SEVERE);
 
 static int32_t stages_green = 0;
 
+static bool latex_print = false;
+
 void sp_setup_infection_state_rate ();
 void sp_configure_school ();
 
@@ -142,7 +146,10 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 			} ), "School opening strategy, should be 0, 33, 66, 100 or planned")
 		("schoolnewintraprob,p", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_ratio_student_intra_class_contingency = v;
-			} ), "For partial school opening strategies (33, 66 and planned), the new probability of 2 students of the same class to interact with each other");
+			} ), "For partial school opening strategies (33, 66 and planned), the new probability of 2 students of the same class to interact with each other")
+		("latex", boost::program_options::value<int>()->notifier( [] (int v) {
+				latex_print = (v != 0);
+			} ), "Print latex table");
 }
 
 void cfg_t::scenery_setup ()
@@ -251,7 +258,9 @@ void region_t::setup_population ()
 
 void region_t::setup_health_units ()
 {
-//sp_setup_infection_state_rate(); exit(1);
+	if (unlikely(latex_print))
+		sp_setup_infection_state_rate();
+
 	this->add_health_unit( &uti );
 	this->add_health_unit( &enfermaria );
 }
@@ -1374,6 +1383,119 @@ void sp_setup_infection_state_rate ()
 
 	CMSG("death rate in icu:" << (static_cast<double>(total_death_critical) / static_cast<double>(total_critical)) << std::endl)
 	CMSG("death rate in infirmary:" << (static_cast<double>(total_death_severe) / static_cast<double>(total_severe)) << std::endl)
+
+	if (unlikely(latex_print)) {
+		static const char fname_symp[] = "latex-tb-probs-per-infect-state.tex";
+		static const char fname_death[] = "latex-tb-probs-death.tex";
+
+		std::ofstream fp;
+
+		fp.open(fname_symp);
+
+		fp << "\\begin{tabularx}{\\linewidth}{XXXXX}" << std::endl;
+
+		fp << "\\toprule" << std::endl;
+
+		fp << "Age";
+		fp << " & " << "Asymtomatic";
+		fp << " & " << "Mild";
+		fp << " & " << "Severe";
+		fp << " & " << "Critical";
+
+		fp << " \\\\" << std::endl;
+		fp << "\\midrule" << std::endl;
+
+		fp << std::setprecision(4) << std::fixed;
+
+		for (uint32_t i=0; i<AGE_CATS_N; i++) {
+			if (i != 9) {
+				fp << (i*10);
+				fp << "-";
+				fp << ((i+1)*10);
+
+				if (i == 0)
+					fp << " ";
+			}
+			else
+				fp << "90+  ";
+
+			fp << " & " << probability_asymp_per_age[i];
+			fp << " & " << probability_mild_per_age[i];
+			fp << " & " << probability_severe_per_age[i];
+			fp << " & " << probability_critical_per_age[i];
+
+			fp << " \\\\" << std::endl;
+		}
+
+		fp << "\\midrule" << std::endl;
+
+		fp << "Mean";
+		fp << " & " << cfg->probability_asymptomatic;
+		fp << " & " << cfg->probability_mild;
+		fp << " & " << cfg->probability_severe;
+		fp << " & " << cfg->probability_critical;
+
+		fp << " \\\\" << std::endl;
+
+		fp << "\\bottomrule" << std::endl;
+
+		fp << "\\end{tabularx}" << std::endl;
+
+		fp.close();
+
+		CMSG("printed latex output to file " << fname_symp << std::endl)
+
+		fp.open(fname_death);
+
+		fp << "\\begin{tabularx}{\\linewidth}{XXX}" << std::endl;
+
+		fp << "\\toprule" << std::endl;
+
+		fp << "Age";
+		fp << " & " << "Death (Severe)";
+		fp << " & " << "Death (Critical)";
+
+		fp << " \\\\" << std::endl;
+		fp << "\\midrule" << std::endl;
+
+		fp << std::setprecision(4) << std::fixed;
+
+		for (uint32_t i=0; i<AGE_CATS_N; i++) {
+			if (i != 9) {
+				fp << (i*10);
+				fp << "-";
+				fp << ((i+1)*10);
+
+				if (i == 0)
+					fp << " ";
+			}
+			else
+				fp << "90+  ";
+
+			fp << " & " << probability_severe_death_per_age[i];
+			fp << " & " << probability_critical_death_per_age[i];
+
+			fp << " \\\\" << std::endl;
+		}
+
+		fp << "\\midrule" << std::endl;
+
+		fp << "Mean";
+		fp << " & " << (static_cast<double>(total_death_severe) / static_cast<double>(total_severe));
+		fp << " & " << (static_cast<double>(total_death_critical) / static_cast<double>(total_critical));
+
+		fp << " \\\\" << std::endl;
+
+		fp << "\\bottomrule" << std::endl;
+
+		fp << "\\end{tabularx}" << std::endl;
+
+		fp.close();
+
+		CMSG("printed latex output to file " << fname_death << std::endl)
+
+		exit(1);
+	}
 
 	cprintf("setting up infection rates...\n");
 
