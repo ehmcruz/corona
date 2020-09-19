@@ -700,7 +700,7 @@ void callback_before_cycle (double cycle)
 	static double sp_plan_next_cycle_target;
 	double intpart;
 
-	// target is 49000 infected after 47 days
+	check_vaccine(cycle);
 
 	if (cycle < warmup) {
 		static bool test = false;
@@ -865,8 +865,6 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		if (day >= (sp_school_div))
 			day = 0;
 	}
-
-	check_vaccine(cycle);
 }
 
 void callback_after_cycle (double cycle)
