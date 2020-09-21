@@ -268,8 +268,8 @@ void region_t::setup_health_units ()
 void region_t::setup_relations ()
 {
 	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
-		gamma_double_dist_t dist_family_size(3.26, 1.69, 1.0, 10.0);
-		normal_double_dist_t dist_number_random_connections(15.0, 10.0, 5.0, 100.0);
+		gamma_double_dist_t dist_family_size(3.3, 1.7, 1.0, 10.0);
+		normal_double_dist_t dist_number_random_connections(15.0, 10.0, 5.0, 50.0);
 
 		dprintf("creating families for city %s...\n", this->get_name().c_str());
 		this->create_families(dist_family_size);
@@ -373,7 +373,7 @@ void region_t::setup_relations ()
 		dprintf("creating schools for city %s...\n", this->get_name().c_str());
 
 		std::vector<person_t*> students;
-		uint32_t age_ini = 4;
+		uint32_t age_ini = 1;
 		uint32_t age_end = 18;
 		double school_ratio = 0.778;
 
@@ -410,7 +410,7 @@ void region_t::setup_relations ()
 			}
 		}
 
-		gamma_double_dist_t dist_school_prof_age(41.15, 9.87, 20.0, 70.0);
+		gamma_double_dist_t dist_school_prof_age(41.2, 9.9, 20.0, 70.0);
 
 		rname = this->get_name();
 		rname += " school loading...";
@@ -1076,6 +1076,7 @@ void sp_setup_infection_state_rate ()
 		}
 		else if (i == 8) {
 			if (v < 2000) {
+				// here we force some infections, since the official reported data is wrong and show too few mild cases
 				reported_mild_per_age[i] = 2000;
 
 				reported_confirmed_per_age[i] =
@@ -1088,6 +1089,7 @@ void sp_setup_infection_state_rate ()
 		}
 		else if (i == 9) {
 			if (v < 500) {
+				// here we force some infections, since the official reported data is wrong and show too few mild cases
 				reported_mild_per_age[i] = 500;
 
 				reported_confirmed_per_age[i] =
@@ -1299,6 +1301,14 @@ void sp_setup_infection_state_rate ()
 		//probability_critical_per_age[i] = (ratio_critical_per_age[i] * (double)population.size()) / (double)people_per_age_cat[i];
 		cprintf("probability_critical_per_age[%s]: %.4f    ratio_critical_per_age[%s]: %.4f\n", critical_per_age_str(i), probability_critical_per_age[i], critical_per_age_str(i), ratio_critical_per_age[i]);
 	}
+
+	cprintf("\n");
+
+/*	CMSG("ratio_asymptomatic_per_age:" << std::endl);
+
+	for (uint32_t i=0; i<AGE_CATS_N; i++) {
+		CMSG(critical_per_age_str(i) << ": " << ratio_asymptomatic_per_age[i] << std::endl);
+	}*/
 
 	cprintf("\n");
 

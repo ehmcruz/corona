@@ -31,7 +31,7 @@ void cfg_t::set_defaults ()
 	this->cycles_to_simulate = 180.0;
 	this->cycle_division = 1.0;
 
-	this->cycles_incubation = new gamma_double_dist_t(4.58, 3.24, 1.0, 14.0);
+	this->cycles_incubation = new gamma_double_dist_t(4.6, 3.2, 1.0, 14.0);
 
 	this->cycles_severe_in_hospital = new const_double_dist_t(8.0);
 	this->cycles_critical_in_icu = new const_double_dist_t(8.0);
