@@ -746,6 +746,16 @@ void neighbor_list_network_t::iterator_network_t::calc ()
 		double p;
 		bool end = false;
 
+		/*
+			This spread method is statistically less precise than rolling the dice once per neighbor.
+			However, it is way faster.
+			Considering a normal population graph, with an average of 30 connections per people, this code will be at least 30 times faster.
+			Other work that use networks limit their population to a small sample, usually much less than 1 million.
+			We are able to easily simulate 50 million people if you have enought main memory.
+
+			Therefore, we accept a little loss in precision to be able to simulate large populations.
+		*/
+
 		do {
 			if (this->prob <= 1.0) {
 				p = this->prob;

@@ -195,8 +195,8 @@ void cfg_t::scenery_setup ()
 		we need to apply a correction to consider the deaths,
 		otherwise the actual ICU and HOSPITAL length of stays would be much lower
 	*/
-	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9+4.0, 5.5, 1.0, 90.0);
-	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5+2.0, 5.5, 1.0, 90.0);
+	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9+3.0, 5.5, 1.0, 60.0);
+	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5+1.5, 5.5, 1.0, 60.0);
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
@@ -541,13 +541,16 @@ void setup_extra_relations ()
 	sp_setup_infection_state_rate();
 }
 
-static double backup_school_r0;
+static double backup_school_r0 = -1.0; // flag
 
 static void adjust_r_quarentine (double target_r0)
 {
 	double family_r0, unknown_r0, factor;
 
-	backup_school_r0 = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+	if (backup_school_r0 == -1.0)
+		backup_school_r0 = get_affective_r0( {RELATION_SCHOOL} );
+	
+	//backup_school_r0 = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
 		cfg->relation_type_transmit_rate[r] = 0.0;
@@ -595,6 +598,7 @@ static void adjust_r_quarentine (double target_r0)
 static void adjust_r_open_schools ()
 {
 	printf("r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
+	printf("r0 cycle %.2f backup-schools: %.2f\n", current_cycle, backup_school_r0);
 	printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++)
