@@ -678,7 +678,7 @@ void check_vaccine (double cycle)
 		while (it != pop.end()) {
 			C_ASSERT(i <= vaccine_per_cycle)
 
-			if (unlikely(i == vaccine_per_cycle))
+			if (bunlikely(i == vaccine_per_cycle))
 				break;
 
 			person_t *p = *it;

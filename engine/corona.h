@@ -114,7 +114,7 @@ public:
 	}
 
 	inline double calc () {
-		return (likely(this->n > 0)) ? (this->sum / static_cast<double>(this->n)) : 0.0;
+		return (blikely(this->n > 0)) ? (this->sum / static_cast<double>(this->n)) : 0.0;
 	}
 };
 

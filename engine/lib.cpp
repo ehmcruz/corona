@@ -10,7 +10,7 @@ void report_progress_t::check_report (uint64_t inc)
 	after = this->i / this->step;
 	done = ((double)this->i / (double)this->n) * 100.0;
 
-	if (unlikely(before != after))
+	if (bunlikely(before != after))
 		cprintf("%s " PU64 " of " PU64 " - %.2f%%\n", this->msg, this->i, this->n, done);
 }
 
@@ -52,7 +52,7 @@ neighbor_list_t::iterator_t neighbor_list_fully_connected_t::begin ()
 
 	C_ASSERT(this->get_person()->get_state() == ST_INFECTED)
 
-	if (likely(population.size() > 0)) {
+	if (blikely(population.size() > 0)) {
 		it.prob = cfg->probability_infect_per_cycle_step;
 
 //cprintf("total %.4f\n", it.prob);

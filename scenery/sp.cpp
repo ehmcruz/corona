@@ -259,7 +259,7 @@ void region_t::setup_population ()
 
 void region_t::setup_health_units ()
 {
-	if (unlikely(latex_print))
+	if (bunlikely(latex_print))
 		sp_setup_infection_state_rate();
 
 	this->add_health_unit( &uti );
@@ -356,7 +356,7 @@ void region_t::setup_relations ()
 		for (person_t *p: people_) {
 			C_ASSERT(i <= n)
 
-			if (unlikely(i == n))
+			if (bunlikely(i == n))
 				break;
 
 			if (p->get_age() >= age_ini && p->get_age() <= age_end) {
@@ -477,7 +477,7 @@ void setup_inter_region_relations ()
 				region_t *t = *jt;
 				uint32_t n;
 
-				if (unlikely(s == t))
+				if (bunlikely(s == t))
 					continue;
 
 				n = moving_people[t->get_id()].value;
@@ -694,7 +694,7 @@ static void check_vaccine (double cycle)
 		while (it != pop.end()) {
 			C_ASSERT(i <= vaccine_per_cycle)
 
-			if (unlikely(i == vaccine_per_cycle))
+			if (bunlikely(i == vaccine_per_cycle))
 				break;
 
 			person_t *p = *it;
@@ -1399,7 +1399,7 @@ void sp_setup_infection_state_rate ()
 	CMSG("death rate in icu:" << (static_cast<double>(total_death_critical) / static_cast<double>(total_critical)) << std::endl)
 	CMSG("death rate in infirmary:" << (static_cast<double>(total_death_severe) / static_cast<double>(total_severe)) << std::endl)
 
-	if (unlikely(latex_print)) {
+	if (bunlikely(latex_print)) {
 		static const char fname_symp[] = "latex-tb-probs-per-infect-state.tex";
 		static const char fname_death[] = "latex-tb-probs-death.tex";
 

@@ -224,7 +224,7 @@ void region_t::create_work_relations (dist_double_t& dist, uint32_t age_ini, uin
 	for (person_t *p: tmp_all) {
 		C_ASSERT(i <= n)
 
-		if (unlikely(i == n))
+		if (bunlikely(i == n))
 			break;
 
 		if (p->get_age() >= age_ini && p->get_age() <= age_end) {
@@ -791,7 +791,7 @@ neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 	it.prob *= cfg->global_r0_factor;
 	it.prob *= cfg->r0_factor_per_group[ this->get_person()->get_infected_state() ];
 
-	if (likely(it.prob > 0.0))
+	if (blikely(it.prob > 0.0))
 		it.calc();
 	else
 		it.current = nullptr;

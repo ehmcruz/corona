@@ -46,7 +46,7 @@ person_t* pick_random_person (state_t state)
 		total += (p->get_state() == state);
 	}
 
-	if (likely(total > 0)) {
+	if (blikely(total > 0)) {
 		uint64_t random;
 
 		std::uniform_int_distribution<uint64_t> distribution(0, total-1);
@@ -55,7 +55,7 @@ person_t* pick_random_person (state_t state)
 
 		for (auto it=population.begin(); it!=population.end(); ++it) {
 			if ((*it)->get_state() == state) {
-				if (unlikely(random == 0)) {{
+				if (bunlikely(random == 0)) {{
 					p = *it;
 					break;
 				}

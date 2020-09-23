@@ -235,7 +235,7 @@ static void run_cycle_step ()
 
 #if 1
 	for (person_t *p: pop_infected) {
-		if (unlikely(p == nullptr))
+		if (bunlikely(p == nullptr))
 			break;
 		//dprintf("tracker cycle pid %i\n", p->get_id());
 
@@ -372,7 +372,7 @@ void region_t::add_people (uint64_t n, uint32_t age)
 	uint64_t i;
 	person_t *p;
 
-	if (unlikely(age >= AGES_N))
+	if (bunlikely(age >= AGES_N))
 		age = AGES_N - 1;
 
 	C_ASSERT( (this->people.size() + n) <= this->npopulation )
@@ -949,7 +949,7 @@ void person_t::pre_infect (person_t *from)
 
 //printf("tracker add pid %i\n", this->get_id());
 
-	if (likely(from != nullptr)) {
+	if (blikely(from != nullptr)) {
 		from->n_victims++;
 		incub_cycles = cfg->cycles_incubation->generate();
 		global_stats.cycles_between_generations.acc(current_cycle - from->infected_cycle);
@@ -1026,7 +1026,7 @@ void person_t::infect ()
 		double tmp_contagious = cfg->cycles_contagious->generate();
 		double tmp_pre_symptomatic = cfg->cycles_pre_symptomatic->generate();
 
-		if (likely(tmp_contagious > tmp_pre_symptomatic))
+		if (blikely(tmp_contagious > tmp_pre_symptomatic))
 			this->final_countdown = tmp_contagious - tmp_pre_symptomatic;
 		else
 			this->final_countdown = 0.0;

@@ -181,10 +181,10 @@ static uint32_t calc_family_size (dist_double_t& dist, region_t *region, uint32_
 
 	r = (int32_t)(dist.generate() + 0.5);
 	
-	if (unlikely(r < 1))
+	if (bunlikely(r < 1))
 		r = 1;
 
-	if (unlikely((filled+r) > region->get_npopulation()))
+	if (bunlikely((filled+r) > region->get_npopulation()))
 		r = region->get_npopulation() - filled;
 	
 	return r;
@@ -209,10 +209,10 @@ void network_create_clusters (T& people, dist_double_t& dist, std::initializer_l
 
 		cluster_size = (int32_t)(dist.generate() + 0.5); // round to nearest
 
-		if (unlikely(cluster_size < 1))
+		if (bunlikely(cluster_size < 1))
 			cluster_size = 1;
 
-		if (unlikely((n+cluster_size) > people.size()))
+		if (bunlikely((n+cluster_size) > people.size()))
 			cluster_size = people.size() - n;
 
 		// create a fully connected sub-graph for a family_size

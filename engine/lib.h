@@ -15,14 +15,14 @@
 #define C_ASSERT(V) C_ASSERT_PRINTF(V, "bye!\n")
 
 #define C_ASSERT_PRINTF(V, ...) \
-	{ if (unlikely(!(V))) { \
+	{ if (bunlikely(!(V))) { \
 		cprintf("sanity error!\nfile %s at line %u assertion failed!\n%s\n", __FILE__, __LINE__, #V); \
 		cprintf(__VA_ARGS__); \
 		exit(1); \
 	} }
 
 #define C_ASSERT_P(V, STR) \
-	{ if (unlikely(!(V))) { \
+	{ if (bunlikely(!(V))) { \
 		std::cout << "sanity error!" << std::endl << "file " << __FILE__ << " at line " << __LINE__ << " assertion failed!" << std::endl << #V << std::endl; \
 		std::cout << STR << std::endl; \
 		exit(1); \
@@ -44,8 +44,8 @@
 	#define DMSG(STR)
 #endif
 
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
+#define blikely(x)       __builtin_expect((x),1)
+#define bunlikely(x)     __builtin_expect((x),0)
 
 #define PU64 "%" PRIu64
 
