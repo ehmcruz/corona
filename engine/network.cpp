@@ -669,6 +669,76 @@ double network_get_affective_r0_fast ()
 
 //double blah = 0.0;
 
+neighbor_list_t::iterator_t neighbor_list_network_simple_t::begin ()
+{
+	neighbor_list_network_simple_t::iterator_network_simple_t it;
+
+	it.list = this;
+
+	boost::tie(it.edge_i, it.edge_i_end) = out_edges(this->get_person()->vertex, *pop_graph);
+
+	it.calc();
+
+	return it;
+}
+
+neighbor_list_network_simple_t::iterator_network_simple_t::iterator_network_simple_t ()
+{
+	static_assert(sizeof(neighbor_list_network_simple_t::iterator_network_simple_t) == sizeof(neighbor_list_t::iterator_t));
+
+	this->ptr_check_probability = (prob_func_t) &neighbor_list_network_simple_t::iterator_network_simple_t::check_probability_;
+	this->ptr_get_person = (person_func_t) &neighbor_list_network_simple_t::iterator_network_simple_t::get_person_;
+	this->ptr_next = (next_func_t) &neighbor_list_network_simple_t::iterator_network_simple_t::next_;
+
+	this->current = nullptr;
+}
+
+void neighbor_list_network_simple_t::iterator_network_simple_t::calc ()
+{
+	this->current = nullptr;
+
+	while (this->edge_i != this->edge_i_end && this->current == nullptr) {
+		person_t *neighbor = get_neighbor(this->list->get_person(), *this->edge_i);
+
+		if (neighbor->get_state() == ST_HEALTHY) {
+			relation_type_t type;
+			double infect_prob;
+
+			type = edesc(*this->edge_i).type;
+
+			infect_prob = cfg->relation_type_transmit_rate[type] * cfg->get_factor_per_relation_group(type, this->list->get_person());
+			infect_prob *= cfg->global_r0_factor;
+			infect_prob *= cfg->r0_factor_per_group[ this->list->get_person()->get_infected_state() ];
+
+			if (roll_dice(infect_prob))
+				this->current = neighbor;
+		}
+
+		++this->edge_i;
+	}
+}
+
+bool neighbor_list_network_simple_t::iterator_network_simple_t::check_probability_ ()
+{
+	return (this->current != nullptr);
+}
+
+person_t* neighbor_list_network_simple_t::iterator_network_simple_t::get_person_ ()
+{
+	return this->current;
+}
+
+neighbor_list_t::iterator_t& neighbor_list_network_simple_t::iterator_network_simple_t::next_ ()
+{
+	this->calc();
+
+	return *this;
+}
+
+// -----------------------------------------------------------------------
+
+//double blah = 0.0;
+
 neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 {
 	neighbor_list_network_t::iterator_network_t it;
@@ -746,16 +816,6 @@ void neighbor_list_network_t::iterator_network_t::calc ()
 		double p;
 		bool end = false;
 
-		/*
-			This spread method is statistically less precise than rolling the dice once per neighbor.
-			However, it is way faster.
-			Considering a normal population graph, with an average of 30 connections per people, this code will be at least 30 times faster.
-			Other work that use networks limit their population to a small sample, usually much less than 1 million.
-			We are able to easily simulate 50 million people if you have enought main memory.
-
-			Therefore, we accept a little loss in precision to be able to simulate large populations.
-		*/
-
 		do {
 			if (this->prob <= 1.0) {
 				p = this->prob;
@@ -767,7 +827,7 @@ void neighbor_list_network_t::iterator_network_t::calc ()
 			}
 
 			if (roll_dice(p)) { // ok, I will infect someone, let's find someone
-				person_t *p = this->list->pick_random_person();
+				person_t *p = static_cast<neighbor_list_network_t*>(this->list)->pick_random_person();
 
 				if (p->get_state() == ST_HEALTHY) {
 					this->current = p;

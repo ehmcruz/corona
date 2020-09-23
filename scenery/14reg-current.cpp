@@ -224,6 +224,7 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 
 void cfg_t::scenery_setup ()
 {
+	//this->network_type = NETWORK_TYPE_NETWORK_SIMPLE;
 	this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 540.0;
 	this->relation_type_weights[RELATION_SCHOOL] = 2.0;
@@ -287,7 +288,7 @@ void region_t::setup_health_units ()
 
 void region_t::setup_relations ()
 {
-	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
+	if (check_if_network()) {
 		dprintf("setting up %s relations...\n", this->get_name().c_str());
 
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
@@ -378,7 +379,7 @@ void region_t::setup_relations ()
 
 void setup_inter_region_relations ()
 {
-	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
+	if (check_if_network()) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
 			for (auto jt=it+1; jt!=regions.end(); ++jt) {
 				region_t *s, *t;
@@ -404,7 +405,7 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
-	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
+	if (check_if_network()) {
 		stats_zone_t *zone = create_new_stats_zone();
 		zone->get_name() = "school";
 

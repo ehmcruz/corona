@@ -156,7 +156,8 @@ void cfg_t::scenery_setup ()
 {
 	C_ASSERT(sp_school_weight >= 0.0)
 
-	this->network_type = NETWORK_TYPE_NETWORK;
+	this->network_type = NETWORK_TYPE_NETWORK_SIMPLE;
+	//this->network_type = NETWORK_TYPE_NETWORK;
 	this->cycles_to_simulate = 360.0;
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++) {
@@ -267,7 +268,7 @@ void region_t::setup_health_units ()
 
 void region_t::setup_relations ()
 {
-	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
+	if (check_if_network()) {
 		gamma_double_dist_t dist_family_size(3.3, 1.7, 1.0, 10.0);
 		normal_double_dist_t dist_number_random_connections(15.0, 10.0, 5.0, 50.0);
 
@@ -446,7 +447,7 @@ void setup_inter_region_relations ()
 
 	moving_people.resize(cfg->n_regions);
 
-	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
+	if (check_if_network()) {
 		for (auto it=regions.begin(); it!=regions.end(); ++it) {
 			region_t *s = *it;
 
@@ -502,7 +503,7 @@ void setup_inter_region_relations ()
 
 void setup_extra_relations ()
 {
-	if (cfg->network_type == NETWORK_TYPE_NETWORK) {
+	if (check_if_network()) {
 		stats_zone_t *zone = create_new_stats_zone();
 		zone->get_name() = "school";
 

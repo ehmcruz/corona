@@ -223,6 +223,7 @@ public:
 extern cfg_t *cfg;
 
 class health_unit_t;
+class neighbor_list_t;
 
 #define MAX_SIDS_PER_PERSON 8
 

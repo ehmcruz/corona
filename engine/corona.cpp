@@ -1103,6 +1103,7 @@ double get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)
 			r0 = cfg->r0 * cfg->global_r0_factor;
 		break;
 
+		case NETWORK_TYPE_NETWORK_SIMPLE:
 		case NETWORK_TYPE_NETWORK:
 			r0 = network_get_affective_r0(flags);
 		break;
@@ -1127,6 +1128,7 @@ double get_affective_r0_fast ()
 		break;
 
 		case NETWORK_TYPE_NETWORK:
+		case NETWORK_TYPE_NETWORK_SIMPLE:
 			r0 = network_get_affective_r0_fast();
 		break;
 
@@ -1222,6 +1224,15 @@ static void load_regions ()
 	if (cfg->network_type == NETWORK_TYPE_FULLY_CONNECTED) {
 		neighbor_list_fully_connected_t *v;
 		v = new neighbor_list_fully_connected_t[ population.size() ];
+
+		for (i=0; i<population.size(); i++) {
+			v[i].set_person( population[i] );
+			population[i]->set_neighbor_list( v+i );
+		}
+	}
+	else if (cfg->network_type == NETWORK_TYPE_NETWORK_SIMPLE) {
+		neighbor_list_network_simple_t *v;
+		v = new neighbor_list_network_simple_t[ population.size() ];
 
 		for (i=0; i<population.size(); i++) {
 			v[i].set_person( population[i] );

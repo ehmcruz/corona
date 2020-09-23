@@ -100,10 +100,19 @@ static inline pop_edge_t network_create_edge (person_t *p1, person_t *p2, relati
 	return network_create_edge(p1->vertex, p2->vertex, edge_data);
 }
 
+#define NETWORK_TYPE_MASK             (0x08)
+#define CHECK_IS_NETWORK_TYPE(T)      ((T) & NETWORK_TYPE_MASK)
+
 enum {
-	NETWORK_TYPE_FULLY_CONNECTED,
-	NETWORK_TYPE_NETWORK
+	NETWORK_TYPE_FULLY_CONNECTED =  0,
+	NETWORK_TYPE_NETWORK_SIMPLE  = (1 | NETWORK_TYPE_MASK),
+	NETWORK_TYPE_NETWORK         = (2 | NETWORK_TYPE_MASK)
 };
+
+inline bool check_if_network ()
+{
+	return CHECK_IS_NETWORK_TYPE(cfg->network_type);
+}
 
 template <typename T>
 static void network_create_connection_one_to_all (person_t *spreader, T it_begin, T it_end, relation_type_t type, double ratio=1.0)
@@ -225,5 +234,126 @@ void network_create_clusters (T& people, dist_double_t& dist, relation_type_t ty
 {
 	network_create_clusters(people, dist, {type}, ratio, report);
 }
+
+class neighbor_list_network_simple_t;
+class neighbor_list_network_t;
+
+class neighbor_list_t
+{
+public:
+	typedef std::pair<double, person_t*> pair_t;
+
+	class iterator_t {
+		friend class neighbor_list_t;
+		friend class neighbor_list_fully_connected_t;
+		friend class neighbor_list_network_t;
+	private:
+		bool check_probability_ ();
+		person_t* get_person_ ();
+		iterator_t& next_ ();
+	protected:
+		person_t *current;
+		double prob;
+		neighbor_list_t *list;
+		boost::graph_traits<pop_graph_t>::out_edge_iterator edge_i, edge_i_end;
+
+		typedef bool (neighbor_list_t::iterator_t::*prob_func_t)();
+		typedef person_t* (neighbor_list_t::iterator_t::*person_func_t)();
+		typedef iterator_t& (neighbor_list_t::iterator_t::*next_func_t)();
+
+		prob_func_t ptr_check_probability;
+		person_func_t ptr_get_person;
+		next_func_t ptr_next;
+
+	public:
+		iterator_t();
+
+		inline bool check_probability () {
+			return (this->*ptr_check_probability)();
+		}
+
+		inline person_t* operator* () {
+			return (this->*ptr_get_person)();
+		}
+
+		inline iterator_t& operator++ () {
+			return (this->*ptr_next)();
+		}
+	};
+
+private:
+	OO_ENCAPSULATE(person_t*, person)
+
+public:
+	neighbor_list_t ();
+
+	virtual iterator_t begin () = 0;
+};
+
+class neighbor_list_fully_connected_t: public neighbor_list_t
+{
+public:
+	class iterator_fully_connected_t: public neighbor_list_t::iterator_t {
+		friend class neighbor_list_fully_connected_t;
+	private:
+		bool check_probability_ ();
+		person_t* get_person_ ();
+		iterator_t& next_ ();
+
+		void calc ();
+	public:
+		iterator_fully_connected_t ();
+	};
+
+public:
+	using neighbor_list_t::neighbor_list_t;
+	iterator_t begin () override;
+};
+
+class neighbor_list_network_simple_t: public neighbor_list_t
+{
+public:
+	class iterator_network_simple_t: public neighbor_list_t::iterator_t {
+		friend class neighbor_list_network_simple_t;
+	private:
+		bool check_probability_ ();
+		person_t* get_person_ ();
+		iterator_t& next_ ();
+
+		void calc ();
+	public:
+		iterator_network_simple_t ();
+	};
+
+public:
+	using neighbor_list_t::neighbor_list_t;
+	iterator_t begin () override;
+};
+
+class neighbor_list_network_t: public neighbor_list_t
+{
+public:
+	class iterator_network_t: public neighbor_list_t::iterator_t {
+		friend class neighbor_list_network_t;
+	private:
+		bool check_probability_ ();
+		person_t* get_person_ ();
+		iterator_t& next_ ();
+
+		void calc ();
+	public:
+		iterator_network_t ();
+	};
+
+private:
+	std::vector< pair_t > connected;
+	uint32_t nconnected;
+
+	person_t* pick_random_person ();
+
+public:
+	using neighbor_list_t::neighbor_list_t;
+	iterator_t begin () override;
+};
 
 #endif
