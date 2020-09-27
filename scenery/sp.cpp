@@ -66,11 +66,11 @@ static sp_school_strategy_t sp_school_strategy = SCHOOL_CLOSED;
 
 static double sp_school_weight = 2.0;
 
-static double sp_cycle_to_open_school = 210.0;
+static double sp_cycle_to_open_school = 224.0;
 
-static double sp_cycles_between_phases = 7.0 * 6.0; // 6 weeks default
+static double sp_cycles_between_phases = 7.0 * 4.0; // 28 days default
 
-static double sp_ratio_student_intra_class_contingency = 0.2;
+static double sp_ratio_student_intra_class_contingency = 0.5;
 
 static const uint32_t sp_school_div = 3;
 
@@ -88,11 +88,13 @@ static uint32_t vaccine_per_cycle = 300000;
 
 static csv_ages_t *csv;
 
+static uint32_t sp_icu = 100000000;
+
 //static health_unit_t santa_casa_uti(100000, ST_CRITICAL);
 //static health_unit_t santa_casa_enfermaria(20000000, ST_SEVERE);
 
-static health_unit_t uti(1000000000, ST_CRITICAL);
-static health_unit_t enfermaria(1000000000, ST_SEVERE);
+static health_unit_t *uti;
+static health_unit_t *enfermaria;
 
 static int32_t stages_green = 0;
 
@@ -147,6 +149,9 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 		("schoolnewintraprob,p", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_ratio_student_intra_class_contingency = v;
 			} ), "For partial school opening strategies (33, 66 and planned), the new probability of 2 students of the same class to interact with each other")
+		("spicu", boost::program_options::value<double>()->notifier( [] (uint32_t v) {
+				sp_icu = v;
+			} ), "Amount of ICUs (default unlimited)")
 		("latex", boost::program_options::value<int>()->notifier( [] (int v) {
 				latex_print = (v != 0);
 			} ), "Print latex table");
@@ -158,7 +163,7 @@ void cfg_t::scenery_setup ()
 
 	this->network_type = NETWORK_TYPE_NETWORK_SIMPLE;
 	//this->network_type = NETWORK_TYPE_NETWORK;
-	this->cycles_to_simulate = 360.0;
+	this->cycles_to_simulate = 420.0;
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++) {
 		this->relation_type_weights[r] = 2.0;
@@ -192,12 +197,20 @@ void cfg_t::scenery_setup ()
 	delete this->cycles_severe_in_hospital;
 
 	/*
-		Although the means are 7.9 and 6.5, respectively,
+		Although the means are 15 and 6.5, respectively,
 		we need to apply a correction to consider the deaths,
 		otherwise the actual ICU and HOSPITAL length of stays would be much lower
+
+		The expected number of days is given by:
+
+		expected = distribution_mean * (1 - mean_death_rate)
+
+		distribution_mean = expected / (1 - mean_death_rate)
 	*/
-	this->cycles_critical_in_icu = new gamma_double_dist_t(7.9+3.0, 5.5, 1.0, 60.0);
-	this->cycles_severe_in_hospital = new gamma_double_dist_t(6.5+1.5, 5.5, 1.0, 60.0);
+
+	this->cycles_critical_in_icu = new gamma_double_dist_t(23.4, 15, 1.0, 60.0);
+	
+	this->cycles_severe_in_hospital = new gamma_double_dist_t(7.6, 5.5, 1.0, 60.0);
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
@@ -219,6 +232,9 @@ void cfg_t::scenery_setup ()
 		cprintf("RELATION_SCHOOL_%i = %u    %u\n", i++, r, r - RELATION_SCHOOL_0);
 exit(1);*/
 
+	uti = new health_unit_t(sp_icu, ST_CRITICAL);
+	enfermaria = new health_unit_t(100000000, ST_SEVERE);
+
 	vaccine_cycle += vaccine_immune_cycles;
 	vaccine_per_cycle /= this->cycle_division;
 
@@ -229,6 +245,7 @@ exit(1);*/
 	DMSG("sp_ratio_student_intra_class_contingency: " << sp_ratio_student_intra_class_contingency << std::endl)
 	DMSG("vaccine_plan: " << vaccine_plan_str(vaccine_plan) << std::endl)
 	DMSG("vaccine_cycle: " << vaccine_cycle << std::endl)
+	DMSG("sp_icu: " << sp_icu << std::endl)
 }
 
 void region_t::setup_population ()
@@ -262,15 +279,15 @@ void region_t::setup_health_units ()
 	if (bunlikely(latex_print))
 		sp_setup_infection_state_rate();
 
-	this->add_health_unit( &uti );
-	this->add_health_unit( &enfermaria );
+	this->add_health_unit( uti );
+	this->add_health_unit( enfermaria );
 }
 
 void region_t::setup_relations ()
 {
 	if (check_if_network()) {
 		gamma_double_dist_t dist_family_size(3.3, 1.7, 1.0, 10.0);
-		normal_double_dist_t dist_number_random_connections(15.0, 10.0, 5.0, 50.0);
+		gamma_double_dist_t dist_number_random_connections(15.0, 10.0, 5.0, 50.0);
 
 		dprintf("creating families for city %s...\n", this->get_name().c_str());
 		this->create_families(dist_family_size);
@@ -740,7 +757,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 	}
 	else if (cycle == warmup) {
 //		cfg->global_r0_factor = 1.05;
-		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0());
+		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0_fast());
 		adjust_r_quarentine(1.5);
 //		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
 //		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
@@ -756,14 +773,14 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 70.0) {
-		adjust_r_quarentine(1.2);
+	else if (cycle == 100.0) {
+		adjust_r_quarentine(1.13);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 120.0) { // open economic activities
+	else if (cycle == 106.0) { // open economic activities
 		cfg->relation_type_transmit_rate[RELATION_WORK_0] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 		cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 	}
@@ -1062,8 +1079,8 @@ void sp_setup_infection_state_rate ()
 	*/
 
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
-		reported_critical_per_age[i] = multiply_int_by_double(reported_critical_per_age[i], 1.15);
-		reported_severe_per_age[i] = multiply_int_by_double(reported_severe_per_age[i], 1.15);
+		reported_critical_per_age[i] = multiply_int_by_double(reported_critical_per_age[i], 1.1);
+		reported_severe_per_age[i] = multiply_int_by_double(reported_severe_per_age[i], 1.1);
 
 		reported_uti_deaths_per_age[i] = multiply_int_by_double(reported_uti_deaths_per_age[i], 0.9);
 		probability_severe_death_per_age[i] = multiply_int_by_double(probability_severe_death_per_age[i], 0.9);

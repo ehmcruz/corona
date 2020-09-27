@@ -8,7 +8,7 @@ cmd="$1"
 sceneries="sp"
 
 run_ini="1"
-run_end="1"
+run_end="10"
 
 run_list=`seq $run_ini 1 $run_end`
 
@@ -22,6 +22,7 @@ vp="0.5"
 vo="210"
 vv="5000"
 vz="none"
+vicu="100000000"
 
 function exec_exp () {
 	vc="$1"
@@ -32,14 +33,15 @@ function exec_exp () {
 	vo="$6"
 	vv="$7"
 	vz="$8"
+	vicu="$9"
 
-	echo "vc=$vc   vw=$vw   vb=$vb   vs=$vs   vp=$vp   vo=$vo   vv=$vv   vz=$vz"
+	echo "vc=$vc   vw=$vw   vb=$vb   vs=$vs   vp=$vp   vo=$vo   vv=$vv   vz=$vz   vicu=$vicu"
 
 	for test in $sceneries
 	do
 		mkdir -p log/results/
 
-		base="$test-c$vc-w$vw-b$vb-s$vs-p$vp-o$vo-v$vv-z$vz"
+		base="$test-c$vc-w$vw-b$vb-s$vs-p$vp-o$vo-v$vv-z$vz-icu$vicu"
 
 		#rm -rf log/results/all-results-$base
 		mkdir log/results/all-results-$base
@@ -52,15 +54,15 @@ function exec_exp () {
 		for i in $run_list
 		do
 			fresults="log/results/all-results-$base/results-$base-$i"
-			cmdline="./scenery/$test.exec --fresults $fresults -c $vc -w $vw -b $vb -s $vs -p $vp -o $vo -v $vv -z $vz"
+			cmdline="./scenery/$test.exec --fresults $fresults -c $vc -w $vw -b $vb -s $vs -p $vp -o $vo -v $vv -z $vz --spicu $vicu"
 
 			if [ "$cmd" == "blaise" ]; then
 				echo "" >> $fout
 				echo "$cmdline &" >> $fout
 			elif [ "$cmd" == "run" ]; then
 				if [ ! -f "$fresults-global.csv" ]; then
-					sbatch run-shared.sbatch "$cmdline"
 					#echo "$cmdline"
+					sbatch run-shared.sbatch "$cmdline"
 				fi
 			else
 				echo "error cmd $cmd not found"
@@ -94,15 +96,15 @@ fi
 # no schools
 
 vc="420"
-vb="30"
+vb="28"
 vs="0"
 vp="0.5"
-vo="210"
+vo="224"
 vv="5000"
 vw="2"
 vz="none"
 
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 
 ################################################################
 
@@ -110,16 +112,16 @@ exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
 # all students go
 
 vc="420"
-vb="30"
+vb="28"
 vs="100"
 vp="0.5"
-vo="210"
+vo="224"
 vv="5000"
 vz="none"
 
 for vw in 2 4
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 done
 
 ################################################################
@@ -128,16 +130,16 @@ done
 # sp plan
 
 vc="420"
-vb="30"
+vb="28"
 vs="planned"
 vp="0.5"
-vo="210"
+vo="224"
 vv="5000"
 vz="none"
 
 for vw in 2 4
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 done
 
 #exit
@@ -148,9 +150,9 @@ done
 # sp plan varying social distance
 
 vc="420"
-vb="30"
+vb="28"
 vs="planned"
-vo="210"
+vo="224"
 vv="5000"
 vz="none"
 
@@ -159,7 +161,7 @@ for vp in 0.0 0.2 0.4 0.6 0.8 1.0
 do
 	for vw in 2 4
 	do
-		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 	done
 done
 
@@ -171,36 +173,44 @@ done
 # no schools
 
 vc="600"
-vb="30"
+vb="28"
 vs="0"
 vp="0.5"
-vo="330"         # open in feb/2021 = 11*30
-vv="300"         # vaccine in january
+vo="341"         # open in feb/2021 = 11*30
+vv="310"         # vaccine in january
 vw="2"
 vz="none"
 
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+
+# vaccine
+# no schools
+
+vz="priorities"
+
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 
 # no vaccine
 # all students go
 
+vz="none"
 vs="100"
 
 for vw in 2 4
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 done
 
 # vaccine - random
 # all students go
 
-vz="random"
-vs="100"
+# vz="random"
+# vs="100"
 
-for vw in 2 4
-do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
-done
+# for vw in 2 4
+# do
+# 	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+# done
 
 # vaccine - priorities
 # all students go
@@ -210,6 +220,6 @@ vs="100"
 
 for vw in 2 4
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 done
 
