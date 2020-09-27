@@ -208,9 +208,9 @@ void cfg_t::scenery_setup ()
 		distribution_mean = expected / (1 - mean_death_rate)
 	*/
 
-	this->cycles_critical_in_icu = new gamma_double_dist_t(23.4, 15, 1.0, 60.0);
+	this->cycles_critical_in_icu = new gamma_double_dist_t(23.9, 15, 1.0, 60.0);
 	
-	this->cycles_severe_in_hospital = new gamma_double_dist_t(7.6, 5.5, 1.0, 60.0);
+	this->cycles_severe_in_hospital = new gamma_double_dist_t(7.7, 5.5, 1.0, 60.0);
 
 	csv = new csv_ages_t((char*)"data/sp-grande-sp.csv");
 	csv->dump();
