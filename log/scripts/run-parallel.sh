@@ -16,10 +16,10 @@ run_list=`seq $run_ini 1 $run_end`
 
 vc="420"
 vw="2"
-vb="30"
+vb="28"
 vs="0"
 vp="0.5"
-vo="210"
+vo="224"
 vv="5000"
 vz="none"
 vicu="100000000"
