@@ -14,7 +14,7 @@ run_list=`seq $run_ini 1 $run_end`
 
 #run_list="3"
 
-vc="420"
+vc="730"
 vw="2"
 vb="28"
 vs="0"
@@ -95,7 +95,7 @@ fi
 # exp baseline
 # no schools
 
-vc="420"
+vc="730"
 vb="28"
 vs="0"
 vp="0.5"
@@ -111,7 +111,7 @@ exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 # exp figure 1
 # all students go
 
-vc="420"
+vc="730"
 vb="28"
 vs="100"
 vp="0.5"
@@ -129,7 +129,7 @@ done
 # exp figure 2
 # sp plan
 
-vc="420"
+vc="730"
 vb="28"
 vs="planned"
 vp="0.5"
@@ -149,7 +149,7 @@ done
 # exp figure 3
 # sp plan varying social distance
 
-vc="420"
+vc="730"
 vb="28"
 vs="planned"
 vo="224"
@@ -172,7 +172,7 @@ done
 # no vaccine
 # no schools
 
-vc="600"
+vc="730"
 vb="28"
 vs="0"
 vp="0.5"
@@ -217,6 +217,21 @@ done
 
 vz="priorities"
 vs="100"
+
+for vw in 2 4
+do
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+done
+
+# sp plan with vaccines
+
+vc="730"
+vb="28"
+vs="planned"
+vp="0.5"
+vo="224"
+vv="310"
+vz="priorities"
 
 for vw in 2 4
 do
