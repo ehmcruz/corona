@@ -773,8 +773,8 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 100.0) {
-		adjust_r_quarentine(1.13);
+	else if (cycle == 95.0) {
+		adjust_r_quarentine(1.16);
 		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 		//cfg->global_r0_factor = 1.16 / cfg->r0;
 //printf("r0 cycle 51: %.2f\n", get_affective_r0());
