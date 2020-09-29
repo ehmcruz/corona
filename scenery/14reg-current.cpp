@@ -71,7 +71,7 @@ static std::vector< std::pair<person_t*, person_t*> > original_school_relations;
 
 static void sp_reconfigure_class_room_phase_33 (std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
 {
-	uint32_t n_students = it_end - it_begin;
+	uint32_t n_students = it_end - it_begin - 1; // 1 professor
 
 //	DMSG("TAG0: sp_reconfigure_class_room phase 33: " << (network_vertex_data(*it_begin).school_class_room) << " students " << n_students << std::endl)
 
@@ -96,11 +96,13 @@ static void sp_reconfigure_class_room_phase_33 (std::vector<person_t*>::iterator
 
 	C_ASSERT(*it_begin == prof)
 
+	++it_begin;
+
 	// if the class room is already small, no need to divide
 	if (n_students < 10) {
-		network_create_connection_between_people(it_begin+1, it_end, RELATION_SCHOOL, sp_ratio_student_intra_class_contingency);
+		network_create_connection_between_people(it_begin, it_end, RELATION_SCHOOL, sp_ratio_student_intra_class_contingency);
 
-		network_create_connection_one_to_all(prof, it_begin+1, it_end, RELATION_SCHOOL);
+		network_create_connection_one_to_all(prof, it_begin, it_end, RELATION_SCHOOL);
 
 		return;
 	}
@@ -109,15 +111,92 @@ static void sp_reconfigure_class_room_phase_33 (std::vector<person_t*>::iterator
 
 	uint32_t new_room_size = n_students / 3;
 
-	network_create_connection_between_people(it_begin+1, it_begin+new_room_size, RELATION_SCHOOL_0, sp_ratio_student_intra_class_contingency);
+	network_create_connection_between_people(it_begin, it_begin+new_room_size, RELATION_SCHOOL_0, sp_ratio_student_intra_class_contingency);
 	network_create_connection_between_people(it_begin+new_room_size, it_begin+new_room_size*2, RELATION_SCHOOL_1, sp_ratio_student_intra_class_contingency);
 	network_create_connection_between_people(it_begin+new_room_size*2, it_end, RELATION_SCHOOL_2, sp_ratio_student_intra_class_contingency);
 
 	// re-create connections for professor
 
-	network_create_connection_one_to_all(prof, it_begin+1, it_begin+new_room_size, RELATION_SCHOOL_0);
+	network_create_connection_one_to_all(prof, it_begin, it_begin+new_room_size, RELATION_SCHOOL_0);
 	network_create_connection_one_to_all(prof, it_begin+new_room_size, it_begin+new_room_size*2, RELATION_SCHOOL_1);
 	network_create_connection_one_to_all(prof, it_begin+new_room_size*2, it_end, RELATION_SCHOOL_2);
+}
+
+static void sp_reconfigure_class_room_phase_66 (std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
+{
+	static std::vector<person_t*> last_room;
+	uint32_t n_students = it_end - it_begin - 1; // 1 professor
+	uint32_t i;
+
+//	DMSG("TAG0: sp_reconfigure_class_room phase 66: " << (network_vertex_data(*it_begin).school_class_room) << " students " << n_students << std::endl)
+
+	// find professor
+
+	std::vector<person_t*>::iterator it_prof = school_people.end();
+
+	for (auto it=it_begin; it!=it_end; ++it) {
+		if (network_vertex_data(*it).flags.test(VFLAG_PROFESSOR))
+			it_prof = it;
+	}
+
+	C_ASSERT(it_prof != school_people.end())
+
+	// move professor to the head
+
+	person_t *tmp = *it_begin;
+	person_t *prof = *it_prof;
+
+	*it_begin = prof;
+	*it_prof = tmp;
+
+	C_ASSERT(*it_begin == prof)
+
+	++it_begin;
+
+	// if the class room is already small, no need to divide
+	if (n_students < 10) {
+		network_create_connection_between_people(it_begin, it_end, RELATION_SCHOOL, sp_ratio_student_intra_class_contingency);
+
+		network_create_connection_one_to_all(prof, it_begin, it_end, RELATION_SCHOOL);
+
+		return;
+	}
+
+	// re-create connections between students
+
+	uint32_t div = n_students / 3;
+
+	i = 0;
+
+	for (auto it=it_begin+div*2; it!=it_end; ++it) {
+		if (i >= last_room.size())
+			last_room.resize((last_room.size()+1) * 2); // increase the vector size exponentially
+
+		C_ASSERT(i < last_room.size())
+
+		last_room[i] = *it;
+	}
+
+	for (auto it=it_begin+1; it!=it_begin+div; ++it) {
+		if (i >= last_room.size())
+			last_room.resize((last_room.size()+1) * 2); // increase the vector size exponentially
+
+		C_ASSERT(i < last_room.size())
+
+		last_room[i] = *it;
+	}
+
+	network_create_connection_between_people(it_begin, it_begin+div*2, RELATION_SCHOOL_0, sp_ratio_student_intra_class_contingency);
+
+	network_create_connection_between_people(it_begin+div, it_end, RELATION_SCHOOL_1, sp_ratio_student_intra_class_contingency);
+
+	network_create_connection_between_people(last_room.begin(), last_room.end(), RELATION_SCHOOL_2, sp_ratio_student_intra_class_contingency);
+
+	// re-create connections for professor
+
+	network_create_connection_one_to_all(prof, it_begin, it_begin+div*2, RELATION_SCHOOL_0);
+	network_create_connection_one_to_all(prof, it_begin+div, it_end, RELATION_SCHOOL_1);
+	network_create_connection_one_to_all(prof, last_room.begin(), last_room.end(), RELATION_SCHOOL_2);
 }
 
 static void sp_reconfigure_class_room (sp_plan_t phase, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
@@ -128,7 +207,7 @@ static void sp_reconfigure_class_room (sp_plan_t phase, std::vector<person_t*>::
 		break;
 
 		case sp_plan_t::phase_66:
-			C_ASSERT(0)
+			sp_reconfigure_class_room_phase_66(it_begin, it_end);
 		break;
 
 		case sp_plan_t::phase_100:
@@ -324,7 +403,7 @@ void sp_configure_school (sp_plan_t phase)
 
 	DMSG("TAG0: after re-organizing, there are " << count_intra_class << " intra-class school relations, with other rooms: " << count_other_rooms << std::endl)
 
-	printf("TAG0: r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
+//	printf("TAG0: r0 cycle %.2f: %.2f\n", current_cycle, get_affective_r0_fast());
 	//printf("r0 cycle %.2f-student: %.2f\n", current_cycle, get_affective_r0( {RELATION_SCHOOL} ));
 //exit(1);
 }
@@ -636,7 +715,7 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 	}
 	else if (cycle == 181.0) {
 		//adjust_r_open_schools();
-		//sp_configure_school(sp_plan_t::phase_66);
+		sp_configure_school(sp_plan_t::phase_66);
 		stages_green++;
 	}
 	else if (cycle == 182.0) {
