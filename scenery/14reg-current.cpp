@@ -186,17 +186,17 @@ static void sp_reconfigure_class_room_phase_66 (std::vector<person_t*>::iterator
 		last_room[i] = *it;
 	}
 
-	network_create_connection_between_people(it_begin, it_begin+div*2, RELATION_SCHOOL_0, sp_ratio_student_intra_class_contingency);
+	network_create_connection_between_people_allow_rep(it_begin, it_begin+div*2, RELATION_SCHOOL_0, sp_ratio_student_intra_class_contingency);
 
-	network_create_connection_between_people(it_begin+div, it_end, RELATION_SCHOOL_1, sp_ratio_student_intra_class_contingency);
+	network_create_connection_between_people_allow_rep(it_begin+div, it_end, RELATION_SCHOOL_1, sp_ratio_student_intra_class_contingency);
 
-	network_create_connection_between_people(last_room.begin(), last_room.end(), RELATION_SCHOOL_2, sp_ratio_student_intra_class_contingency);
+	network_create_connection_between_people_allow_rep(last_room.begin(), last_room.end(), RELATION_SCHOOL_2, sp_ratio_student_intra_class_contingency);
 
 	// re-create connections for professor
 
-	network_create_connection_one_to_all(prof, it_begin, it_begin+div*2, RELATION_SCHOOL_0);
-	network_create_connection_one_to_all(prof, it_begin+div, it_end, RELATION_SCHOOL_1);
-	network_create_connection_one_to_all(prof, last_room.begin(), last_room.end(), RELATION_SCHOOL_2);
+	network_create_connection_one_to_all_allow_rep(prof, it_begin, it_begin+div*2, RELATION_SCHOOL_0);
+	network_create_connection_one_to_all_allow_rep(prof, it_begin+div, it_end, RELATION_SCHOOL_1);
+	network_create_connection_one_to_all_allow_rep(prof, last_room.begin(), last_room.end(), RELATION_SCHOOL_2);
 }
 
 static void sp_reconfigure_class_room (sp_plan_t phase, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)

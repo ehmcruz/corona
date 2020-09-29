@@ -89,13 +89,13 @@ static inline bool network_check_if_people_are_neighbors (person_t *p1, person_t
 	return network_check_if_people_are_neighbors(p1->vertex, p2->vertex, edge);
 }
 
-pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data, bool unique = true);
+pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data, bool allow_rep = false);
 
-static inline pop_edge_t network_create_edge (person_t *p1, person_t *p2, relation_type_t type, bool unique = true)
+static inline pop_edge_t network_create_edge (person_t *p1, person_t *p2, relation_type_t type, bool allow_rep = false)
 {
 	pop_edge_data_t edge_data;
 	edge_data.type = type;
-	return network_create_edge(p1->vertex, p2->vertex, edge_data, unique);
+	return network_create_edge(p1->vertex, p2->vertex, edge_data, allow_rep);
 }
 
 #define NETWORK_TYPE_MASK             (0x08)
@@ -110,6 +110,21 @@ enum {
 inline bool check_if_network ()
 {
 	return CHECK_IS_NETWORK_TYPE(cfg->network_type);
+}
+
+template <typename T>
+static void network_create_connection_one_to_all_allow_rep (person_t *spreader, T it_begin, T it_end, relation_type_t type, double ratio=1.0)
+{
+	for (auto it=it_begin; it!=it_end; ++it) {
+		person_t *pi = *it;
+
+		if (pi == nullptr)
+			break;
+
+		if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio)) {
+			network_create_edge(spreader, pi, type, true);
+		}
+	}
 }
 
 template <typename T>
@@ -131,6 +146,28 @@ template <typename T>
 static void network_create_connection_one_to_all (person_t *spreader, T& people, relation_type_t type, double ratio=1.0)
 {
 	network_create_connection_one_to_all(spreader, people.begin(), people.end(), type, ratio);
+}
+
+template <typename T>
+static void network_create_connection_between_people_allow_rep (T it_begin, T it_end, relation_type_t type, double ratio=1.0)
+{
+	for (auto it=it_begin; it!=it_end; ) {
+		person_t *pi = *it;
+
+		if (pi == nullptr)
+			break;
+
+		for (auto jt=++it; jt!=it_end; ++jt) {
+			person_t *pj = *jt;
+
+			if (pj == nullptr)
+				break;
+
+			if ((ratio >= 1.0 || generate_random_between_0_and_1() <= ratio)) {
+				network_create_edge(pi, pj, type, true);
+			}
+		}
+	}
 }
 
 template <typename T>

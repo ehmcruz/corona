@@ -206,13 +206,13 @@ void network_delete_edges_by_type (std::bitset<NUMBER_OF_FLAGS>& mask, uint32_t 
 	boost::remove_edge_if(has_relation_mask(mask, count), *pop_graph);
 }
 
-pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data, bool unique)
+pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data, bool allow_rep)
 {
 	pop_edge_t e;
 	bool r;
 
-	SANITY_ASSERT( unique == false || network_check_if_people_are_neighbors(vertex1, vertex2) == false )
-	SANITY_ASSERT( unique == false || network_check_if_people_are_neighbors(vertex2, vertex1) == false )
+	SANITY_ASSERT( allow_rep == true || network_check_if_people_are_neighbors(vertex1, vertex2) == false )
+	SANITY_ASSERT( allow_rep == true || network_check_if_people_are_neighbors(vertex2, vertex1) == false )
 
 	boost::tie(e, r) = add_edge(vertex1, vertex2, edge_data, *pop_graph);
 
