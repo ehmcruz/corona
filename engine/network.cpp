@@ -14,6 +14,29 @@ pop_graph_t *pop_graph;
 #define vdesc(v) network_vertex_data(v)
 #define edesc(e) network_edge_data(e)
 
+static inline pop_vertex_t get_neighbor (pop_vertex_t v, pop_edge_t e)
+{
+	pop_vertex_t s = boost::source(e, *pop_graph);
+	pop_vertex_t t = boost::target(e, *pop_graph);
+	pop_vertex_t r;
+
+	if (v == s)
+		r = t;
+	else if (v == t)
+		r = s;
+	else {
+		C_ASSERT(0)
+		r = s; // whatever, just to avoid warning
+	}
+
+	return r;
+}
+
+static inline person_t* get_neighbor (person_t *p, pop_edge_t e)
+{
+	return vdesc(get_neighbor(p->vertex, e)).p;
+}
+
 void network_start_population_graph ()
 {
 	int32_t i;
@@ -77,9 +100,8 @@ static inline uint32_t get_number_of_neighbors (person_t *p, relation_type_t typ
 
 static void print_vertex_neighbors (pop_vertex_t v, std::bitset<NUMBER_OF_FLAGS>& flags)
 {
-	boost::graph_traits<pop_graph_t>::adjacency_iterator vi, vi_end;
+	boost::graph_traits<pop_graph_t>::out_edge_iterator ei, ei_end;
 	pop_edge_t e;
-	bool exist;
 
 	cprintf("%u (city %u, age %u) (%u,%u,%u) -> ",
 		vdesc(v).p->get_id(),
@@ -90,21 +112,15 @@ static void print_vertex_neighbors (pop_vertex_t v, std::bitset<NUMBER_OF_FLAGS>
 		get_number_of_neighbors(v, RELATION_UNKNOWN)
 		);
 
-	for (boost::tie(vi, vi_end) = adjacent_vertices(v, *pop_graph); vi != vi_end; ++vi) {
+	for (boost::tie(ei, ei_end) = out_edges(v, *pop_graph); ei != ei_end; ++ei) {
+		e = *ei;
 
-		boost::tie(e, exist) = boost::edge(v, *vi, *pop_graph);
-		C_ASSERT(exist)
-
-	#ifdef SANITY_CHECK
-		pop_vertex_t source = boost::source(e, *pop_graph);
-		pop_vertex_t target = boost::target(e, *pop_graph);
-
-		SANITY_ASSERT((source == v && target == *vi) || (source == *vi && target == v))
-	#endif
+		person_t *n = vdesc(get_neighbor(v, e)).p;
 
 		if (flags.test(edesc(e).type))
-			cprintf("%u%s%u(%u),", vdesc(*vi).p->get_id(), relation_type_str(edesc(e).type), vdesc(*vi).p->get_region()->get_id(), vdesc(*vi).p->get_age());
+			cprintf("%u%s%u(%u),", vdesc(n).p->get_id(), relation_type_str(edesc(e).type), vdesc(n).p->get_region()->get_id(), vdesc(n).p->get_age());
 	}
+
 	cprintf("\n");
 }
 
@@ -165,14 +181,41 @@ void network_delete_edge (pop_edge_t e)
 	boost::remove_edge(e, *pop_graph);
 }
 
-pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data)
+void network_delete_edges_by_type (std::bitset<NUMBER_OF_FLAGS>& mask, uint32_t *count)
+{
+	uint32_t fake;
+
+	struct has_relation_mask {
+		std::bitset<NUMBER_OF_FLAGS>& mask;
+		uint32_t *count;
+
+		has_relation_mask (std::bitset<NUMBER_OF_FLAGS>& mask_, uint32_t *count_) : mask(mask_), count(count_) { }
+
+		bool operator() (pop_edge_t e) {
+			bool r = this->mask.test(network_edge_data(e).type);
+			*this->count += r;
+			return r;
+		}
+	};
+
+	if (count == nullptr)
+		count = &fake;
+
+	*count = 0;
+
+	boost::remove_edge_if(has_relation_mask(mask, count), *pop_graph);
+}
+
+pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data, bool unique)
 {
 	pop_edge_t e;
 	bool r;
 
-	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex1, vertex2) == false )
-	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex2, vertex1) == false )
+	SANITY_ASSERT( unique == false || network_check_if_people_are_neighbors(vertex1, vertex2) == false )
+	SANITY_ASSERT( unique == false || network_check_if_people_are_neighbors(vertex2, vertex1) == false )
+
 	boost::tie(e, r) = add_edge(vertex1, vertex2, edge_data, *pop_graph);
+
 	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex1, vertex2) == true )
 	SANITY_ASSERT( network_check_if_people_are_neighbors(vertex2, vertex1) == true )
 
@@ -588,29 +631,6 @@ void network_after_all_regular_connetions ()
 	cprintf("end\n");
 //	exit(0);
 #endif
-}
-
-static inline pop_vertex_t get_neighbor (pop_vertex_t v, pop_edge_t e)
-{
-	pop_vertex_t s = boost::source(e, *pop_graph);
-	pop_vertex_t t = boost::target(e, *pop_graph);
-	pop_vertex_t r;
-
-	if (v == s)
-		r = t;
-	else if (v == t)
-		r = s;
-	else {
-		C_ASSERT(0)
-		r = s; // whatever, just to avoid warning
-	}
-
-	return r;
-}
-
-static inline person_t* get_neighbor (person_t *p, pop_edge_t e)
-{
-	return vdesc(get_neighbor(p->vertex, e)).p;
 }
 
 double network_get_affective_r0 (std::bitset<NUMBER_OF_FLAGS>& flags)

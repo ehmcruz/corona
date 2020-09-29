@@ -60,6 +60,20 @@ enum class sp_plan_t {
 	phase_100
 };
 
+static const char* sp_plan_phase_str (sp_plan_t phase)
+{
+	static const char *list[] = {
+		"phase_0",
+		"phase_33",
+		"phase_66",
+		"phase_100"
+	};
+
+	C_ASSERT(static_cast<uint32_t>(phase) < 4)
+
+	return list[ static_cast<uint32_t>(phase) ];
+}
+
 static sp_plan_t sp_plan = sp_plan_t::phase_0;
 
 static sp_school_strategy_t sp_school_strategy = SCHOOL_CLOSED;

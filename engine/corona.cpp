@@ -112,6 +112,7 @@ char* relation_type_str (int32_t i)
 		"S2",
 		"S3",
 		"S4",
+		"Sfoo",
 		"W",
 		"W0",
 		"W1",

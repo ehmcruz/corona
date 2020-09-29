@@ -64,6 +64,31 @@ void region_t::setup_relations ()
 		
 		network_create_school_relation(school, 20, 20, dist_school_class_size);
 	#else
+
+//boost::write_graphviz(std::cout, graph);
+//exit(1);
+		auto e1 = network_create_edge(population[0], population[1], RELATION_TRAVEL);
+		auto e2 = network_create_edge(population[0], population[1], RELATION_BUDDY, false);
+		//network_create_edge(population[0], population[1], RELATION_BUDDY, false);
+
+network_print_population_graph();
+
+	std::bitset<NUMBER_OF_FLAGS> mask;
+	mask.set(RELATION_TRAVEL);
+	mask.set(RELATION_BUDDY);
+
+uint32_t count;
+network_delete_edges_by_type(mask, &count);
+
+//std::cout << e1 << std::endl << e2 << std::endl;
+//exit(1);
+
+		network_print_population_graph();
+
+		CMSG("deleted " << count << " edges" << std::endl);
+		exit(1);
+
+
 		std::vector<person_t*> students;
 		uint32_t age_ini = 20;
 		uint32_t age_end = 20;

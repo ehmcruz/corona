@@ -11,8 +11,10 @@ void network_create_inter_city_relation (region_t *s, region_t *t, uint64_t n, r
 void network_iterate_over_edges (std::function<void (pop_vertex_t s, pop_vertex_t t, pop_edge_t e)> callback);
 void network_iterate_over_vertices (std::function<void (pop_vertex_t v)> callback);
 pop_edge_t network_get_edge (pop_vertex_t vertex1, pop_vertex_t vertex2);
+
 void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2);
 void network_delete_edge (pop_edge_t e);
+void network_delete_edges_by_type (std::bitset<NUMBER_OF_FLAGS>& mask, uint32_t *count = nullptr);
 
 inline void network_delete_edge (person_t *s, person_t *t)
 {
@@ -80,10 +82,6 @@ inline void network_print_population_graph ()
 	network_print_population_graph(flags);
 }
 
-void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2);
-
-pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data);
-
 bool network_check_if_people_are_neighbors (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_t *edge=nullptr);
 
 static inline bool network_check_if_people_are_neighbors (person_t *p1, person_t *p2, pop_edge_t *edge=nullptr)
@@ -91,13 +89,13 @@ static inline bool network_check_if_people_are_neighbors (person_t *p1, person_t
 	return network_check_if_people_are_neighbors(p1->vertex, p2->vertex, edge);
 }
 
-pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data);
+pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_edge_data_t& edge_data, bool unique = true);
 
-static inline pop_edge_t network_create_edge (person_t *p1, person_t *p2, relation_type_t type)
+static inline pop_edge_t network_create_edge (person_t *p1, person_t *p2, relation_type_t type, bool unique = true)
 {
 	pop_edge_data_t edge_data;
 	edge_data.type = type;
-	return network_create_edge(p1->vertex, p2->vertex, edge_data);
+	return network_create_edge(p1->vertex, p2->vertex, edge_data, unique);
 }
 
 #define NETWORK_TYPE_MASK             (0x08)
