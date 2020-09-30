@@ -194,6 +194,7 @@ void network_delete_edges_by_type (std::bitset<NUMBER_OF_FLAGS>& mask, uint32_t 
 		bool operator() (pop_edge_t e) {
 			bool r = this->mask.test(network_edge_data(e).type);
 			*this->count += r;
+			cfg->relation_type_number[edesc(e).type] -= r << 1;
 			return r;
 		}
 	};
