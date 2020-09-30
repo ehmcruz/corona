@@ -82,7 +82,8 @@ static double sp_school_weight = 2.0;
 
 static double sp_cycle_to_open_school = 224.0;
 
-static double sp_cycles_between_phases = 7.0 * 4.0; // 28 days default
+static double sp_cycles_between_phases_33_66 = 7.0 * 4.0;
+static double sp_cycles_between_phases_66_100 = 7.0 * 4.0; // 28 days default
 
 static double sp_ratio_student_intra_class_contingency = 0.5;
 
@@ -128,8 +129,8 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 				sp_cycle_to_open_school = v;
 			} ), "Cycle to open schools")
 		("schoolcyclesbetweenphases,b", boost::program_options::value<double>()->notifier( [] (double v) {
-				sp_cycles_between_phases = v;
-			} ), "Cycles between phases of SP plan to open schools")
+				sp_cycles_between_phases_66_100 = v;
+			} ), "Cycles between phases 2 and 3 of SP plan to open schools")
 		("vaccinecycle,v", boost::program_options::value<double>()->notifier( [] (double v) {
 				vaccine_cycle = v;
 			} ), "Cycle to start the vaccines")
@@ -256,7 +257,7 @@ exit(1);*/
 	DMSG("sp_school_weight: " << sp_school_weight << std::endl)
 	DMSG("sp_school_strategy: " << sp_school_strategy_str(sp_school_strategy) << std::endl)
 	DMSG("sp_cycle_to_open_school: " << sp_cycle_to_open_school << std::endl)
-	DMSG("sp_cycles_between_phases: " << sp_cycles_between_phases << std::endl)
+	DMSG("sp_cycles_between_phases_66_100: " << sp_cycles_between_phases_66_100 << std::endl)
 	DMSG("sp_ratio_student_intra_class_contingency: " << sp_ratio_student_intra_class_contingency << std::endl)
 	DMSG("vaccine_plan: " << vaccine_plan_str(vaccine_plan) << std::endl)
 	DMSG("vaccine_cycle: " << vaccine_cycle << std::endl)
@@ -858,7 +859,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 		switch (sp_plan) {
 			case sp_plan_t::phase_0:
 				sp_configure_school(sp_plan_t::phase_33);
-				sp_plan_next_cycle_target = cycle + sp_cycles_between_phases;
+				sp_plan_next_cycle_target = cycle + sp_cycles_between_phases_33_66;
 				sp_plan = sp_plan_t::phase_33;
 			break;
 
@@ -869,7 +870,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 				if (cycle >= sp_plan_next_cycle_target) {
 					sp_configure_school(sp_plan_t::phase_66);
-					sp_plan_next_cycle_target = cycle + sp_cycles_between_phases;
+					sp_plan_next_cycle_target = cycle + sp_cycles_between_phases_66_100;
 					sp_plan = sp_plan_t::phase_66;
 				}
 			break;
@@ -881,7 +882,6 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 				if (cycle >= sp_plan_next_cycle_target) {
 					sp_configure_school(sp_plan_t::phase_100);
-					sp_plan_next_cycle_target = cycle + sp_cycles_between_phases;
 					sp_plan = sp_plan_t::phase_100;
 				}
 			}
