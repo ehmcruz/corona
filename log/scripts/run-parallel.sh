@@ -130,7 +130,7 @@ done
 # sp plan
 
 vc="730"
-vb="28"
+vb="119"
 vs="planned"
 vp="0.5"
 vo="224"
@@ -150,7 +150,7 @@ done
 # sp plan varying social distance
 
 vc="730"
-vb="28"
+vb="119"
 vs="planned"
 vo="224"
 vv="5000"
