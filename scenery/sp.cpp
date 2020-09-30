@@ -1684,7 +1684,7 @@ static void sp_reconfigure_class_room_phase_66 (std::vector<person_t*>::iterator
 		last_room[i] = *it;
 	}
 
-	for (auto it=it_begin+1; it!=it_begin+div; ++it) {
+	for (auto it=it_begin; it!=it_begin+div; ++it) {
 		if (i >= last_room.size())
 			last_room.resize((last_room.size()+1) * 2); // increase the vector size exponentially
 

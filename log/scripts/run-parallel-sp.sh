@@ -92,45 +92,11 @@ fi
 
 ################################################################
 
-# exp baseline
-# no schools
-
-vc="730"
-vb="28"
-vs="0"
-vp="0.5"
-vo="224"
-vv="5000"
-vw="2"
-vz="none"
-
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-
-################################################################
-
-# exp figure 1
-# all students go
-
-vc="730"
-vb="28"
-vs="100"
-vp="0.5"
-vo="224"
-vv="5000"
-vz="none"
-
-for vw in 2 4
-do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-done
-
-################################################################
-
 # exp figure 2
 # sp plan
 
 vc="730"
-vb="28"
+vb="119"
 vs="planned"
 vp="0.5"
 vo="224"
@@ -150,7 +116,7 @@ done
 # sp plan varying social distance
 
 vc="730"
-vb="28"
+vb="119"
 vs="planned"
 vo="224"
 vv="5000"
@@ -164,77 +130,4 @@ do
 		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
 	done
 done
-
-################################################################
-
-# exp 4 - vaccine
-
-# no vaccine
-# no schools
-
-vc="730"
-vb="28"
-vs="0"
-vp="0.5"
-vo="341"         # open in feb/2021 = 11*30
-vv="310"         # vaccine in january
-vw="2"
-vz="none"
-
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-
-# vaccine
-# no schools
-
-vz="priorities"
-
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-
-# no vaccine
-# all students go
-
-vz="none"
-vs="100"
-
-for vw in 2 4
-do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-done
-
-# vaccine - random
-# all students go
-
-# vz="random"
-# vs="100"
-
-# for vw in 2 4
-# do
-# 	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-# done
-
-# vaccine - priorities
-# all students go
-
-vz="priorities"
-vs="100"
-
-for vw in 2 4
-do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-done
-
-# sp plan with vaccines
-
-#vc="730"
-#vb="28"
-#vs="planned"
-#vp="0.5"
-#vo="224"
-#vv="310"
-#vz="priorities"
-
-#for vw in 2 4
-#do
-#	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
-#done
 
