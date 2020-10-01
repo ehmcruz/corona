@@ -116,7 +116,6 @@ static int32_t stages_green = 0;
 static bool latex_print = false;
 
 void sp_setup_infection_state_rate ();
-void sp_backup_original_school_intra_class_relations ();
 void sp_configure_school (sp_plan_t phase);
 
 void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
@@ -570,8 +569,6 @@ void setup_extra_relations ()
 					zone->add_person( network_vertex_data(s).p );
 			}
 		});
-
-		sp_backup_original_school_intra_class_relations();
 	}
 
 	sp_setup_infection_state_rate();
@@ -889,9 +886,6 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 
 			case sp_plan_t::phase_100:
 				DMSG("SP school phase 100" << std::endl)
-
-				for (uint32_t r=RELATION_SCHOOL_0; r<=RELATION_SCHOOL_3; r++)
-					cfg->relation_type_transmit_rate[r] = sp_school_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
 			break;
 
 			default:
@@ -1574,7 +1568,6 @@ void sp_setup_infection_state_rate ()
 /**************************************************************/
 
 static std::vector<person_t*> school_people;
-static std::vector< std::pair<person_t*, person_t*> > original_school_relations;
 
 static void sp_reconfigure_class_room_phase_33 (std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
 {
@@ -1706,6 +1699,38 @@ static void sp_reconfigure_class_room_phase_66 (std::vector<person_t*>::iterator
 	network_create_connection_one_to_all_allow_rep(prof, last_room.begin(), last_room.end(), RELATION_SCHOOL_2);
 }
 
+static void sp_reconfigure_class_room_phase_100 (std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
+{
+//	DMSG("TAG0: sp_reconfigure_class_room phase 100: " << (network_vertex_data(*it_begin).school_class_room) << " students " << n_students << std::endl)
+
+	// find professor
+
+	std::vector<person_t*>::iterator it_prof = school_people.end();
+
+	for (auto it=it_begin; it!=it_end; ++it) {
+		if (network_vertex_data(*it).flags.test(VFLAG_PROFESSOR))
+			it_prof = it;
+	}
+
+	C_ASSERT(it_prof != school_people.end())
+
+	// move professor to the head
+
+	person_t *tmp = *it_begin;
+	person_t *prof = *it_prof;
+
+	*it_begin = prof;
+	*it_prof = tmp;
+
+	C_ASSERT(*it_begin == prof)
+
+	++it_begin;
+
+	network_create_connection_between_people(it_begin, it_end, RELATION_SCHOOL, sp_ratio_student_intra_class_contingency);
+
+	network_create_connection_one_to_all(prof, it_begin, it_end, RELATION_SCHOOL);
+}
+
 static void sp_reconfigure_class_room (sp_plan_t phase, std::vector<person_t*>::iterator& it_begin, std::vector<person_t*>::iterator& it_end)
 {
 	switch (phase) {
@@ -1718,31 +1743,12 @@ static void sp_reconfigure_class_room (sp_plan_t phase, std::vector<person_t*>::
 		break;
 
 		case sp_plan_t::phase_100:
-			C_ASSERT(0)
+			sp_reconfigure_class_room_phase_100(it_begin, it_end);
 		break;
 
 		default:
 			C_ASSERT(0)
 	}
-}
-
-void sp_backup_original_school_intra_class_relations ()
-{
-	uint32_t n = 0;
-
-	network_iterate_over_edges ([&n] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
-		n += (network_edge_data(e).type == RELATION_SCHOOL);
-	});
-
-	original_school_relations.reserve(n);
-
-	network_iterate_over_edges ([] (pop_vertex_t s, pop_vertex_t t, pop_edge_t e) {
-		if (network_edge_data(e).type == RELATION_SCHOOL) {
-			original_school_relations.push_back( std::make_pair( network_vertex_data(s).p, network_vertex_data(t).p ) );
-		}
-	});
-
-	DMSG("TAG0: backed up " << n << " original intra-class relations" << std::endl)
 }
 
 void sp_configure_school (sp_plan_t phase)
@@ -1832,39 +1838,22 @@ void sp_configure_school (sp_plan_t phase)
 
 	// now we recreate class relations
 
-	switch (phase) {
-		case sp_plan_t::phase_33:
-		case sp_plan_t::phase_66: {
-			auto it = school_people.begin() + 1;
-			auto it_begin = school_people.begin();
+	auto it = school_people.begin() + 1;
+	auto it_begin = school_people.begin();
 
-			// reconfigure class rooms
+	// reconfigure class rooms
 
-			while (true) {
-				if (it == school_people.end()) {
-					sp_reconfigure_class_room(phase, it_begin, it);
-					break;
-				}
-				else if (network_vertex_data(*it).school_class_room != network_vertex_data(*it_begin).school_class_room) {
-					sp_reconfigure_class_room(phase, it_begin, it);
-					it_begin = it;
-				}
-
-				++it;
-			}
+	while (true) {
+		if (it == school_people.end()) {
+			sp_reconfigure_class_room(phase, it_begin, it);
+			break;
 		}
-		break;
+		else if (network_vertex_data(*it).school_class_room != network_vertex_data(*it_begin).school_class_room) {
+			sp_reconfigure_class_room(phase, it_begin, it);
+			it_begin = it;
+		}
 
-		case sp_plan_t::phase_100:
-			DMSG("TAG0: restoring original intra-class relations..." << std::endl)
-
-			for (auto& pair: original_school_relations) {
-				network_create_edge(pair.first, pair.second, RELATION_SCHOOL);
-			}
-		break;
-
-		default:
-			C_ASSERT(0)
+		++it;
 	}
 
 	double pcent_to_rm = 0.0;
