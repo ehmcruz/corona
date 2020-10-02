@@ -14,3 +14,4 @@ Just type **make** to compile.
 
 Each simulation is stored in the **scenery** folder.
 After compiling, there will be an executable file for each .cpp file.
+You can pass the **-h** ou **--help** parameter to check the scenery parameter.
