@@ -474,19 +474,71 @@ void network_create_school_relation (std::vector<person_t*>& students,
 		uint32_t i;
 	};
 
+	class school_t
+	{
+	private:
+		dist_double_t& dist_school_size;
+		std::vector<person_t*> students;
+		relation_type_t type_other_room;
+		double inter_class_ratio;
+		uint32_t i;
+		uint32_t n;
+
+	public:
+		void reset ()
+		{
+			this->i = 0;
+			this->n = static_cast<uint32_t>(this->dist_school_size.generate());
+
+			for (auto& p: this->students)
+				p = nullptr;
+		}
+
+		school_t (dist_double_t& dist_school_size_, relation_type_t type_other_room, double inter_class_ratio)
+			: dist_school_size(dist_school_size_)
+		{
+			this->type_other_room = type_other_room;
+			this->inter_class_ratio = inter_class_ratio;
+
+			this->students.resize( static_cast<uint32_t>(this->dist_school_size.get_max()) * 2, nullptr );
+			this->reset();
+		}
+
+		void commit ()
+		{
+//			DMSG("creating school with " << this->i << " students" << std::endl)
+			network_create_connection_between_people(this->students, this->type_other_room, this->inter_class_ratio);
+			this->reset();
+		}
+
+		void end ()
+		{
+			if (this-> i > 0)
+				this->commit();
+		}
+
+		void add_classroom (network_school_room_t& room)
+		{
+			for (person_t *p: room.students) {
+				if (p == nullptr)
+					break;
+
+				C_ASSERT(this->i < this->students.size())
+
+				this->students[ this->i++ ] = p;
+			}
+
+			if (this->i >= this->n)
+				this->commit();
+		}
+	};
+
 	static uint32_t class_room_id = 0;
 
-	std::vector<person_t*> school_students;
-
-	uint32_t school_i = 0;
-	uint32_t school_size = (uint32_t)dist_school_size.generate();
+	school_t school (dist_school_size, type_other_room, inter_class_ratio);
 
 	std::vector<network_school_room_t> class_students;
-	
-	school_students.resize( (uint32_t)dist_school_size.get_max(), nullptr );
-
-	C_ASSERT(school_size <= school_students.size())
-	
+		
 	class_students.resize( age_end + 1 );
 
 	dprintf("total amount of students to go to school: " PU64 "\n", students.size());
@@ -510,20 +562,15 @@ void network_create_school_relation (std::vector<person_t*>& students,
 		uint32_t age = p->get_age();
 
 		C_ASSERT(age >= age_ini && age <= age_end)
-
 		C_ASSERT(class_students[age].i < class_students[age].size)
-		C_ASSERT(school_i < school_size)
-
 		C_ASSERT(class_students[age].i < class_students[age].students.size())
-		C_ASSERT(school_i < school_students.size())
-
+	
 		class_students[age].students[ class_students[age].i++ ] = p;
-		school_students[ school_i++ ] = p;
 
 		if (report != nullptr)
 			report->check_report(1);
 
-		if (class_students[age].i == class_students[age].size || school_i == school_size) {
+		if (class_students[age].i == class_students[age].size) {
 		#ifdef SANITY_ASSERT
 		{
 			bool was_null = false;
@@ -560,6 +607,8 @@ panic("in\n");
 
 			network_vertex_data(prof).school_class_room = class_room_id;
 
+			school.add_classroom(class_students[age]);
+
 			class_room_id++;
 
 #if 0
@@ -577,20 +626,6 @@ panic("in\n");
 			class_students[age].i = 0;
 
 			C_ASSERT(class_students[age].size <= class_students[age].students.size())
-
-			if (school_i == school_size) {
-				//dprintf("created school with %u students\n", school_i);
-				network_create_connection_between_people(school_students, type_other_room, inter_class_ratio);
-
-				// clear school
-				for (auto& p: school_students)
-					p = nullptr;
-
-				school_i = 0;
-				school_size = (uint32_t)dist_school_size.generate();
-
-				C_ASSERT(school_size <= school_students.size())
-			}
 		}
 	}
 
@@ -611,14 +646,13 @@ panic("in\n");
 
 			network_vertex_data(prof).school_class_room = class_room_id;
 
+			school.add_classroom(class_students[age]);
+
 			class_room_id++;
 		}
 	}
 
-	if (school_i > 0) {
-		//dprintf("created school with %u students\n", school_i);
-		network_create_connection_between_people(school_students, type_other_room, inter_class_ratio);
-	}
+	school.end();
 }
 
 void network_after_all_regular_connetions ()

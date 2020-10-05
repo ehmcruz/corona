@@ -311,7 +311,7 @@ void region_t::setup_relations ()
 
 		std::string rname(this->get_name());
 		rname += " random loading...";
-		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
+		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 100000);
 
 		this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
 
@@ -447,7 +447,7 @@ void region_t::setup_relations ()
 
 		rname = this->get_name();
 		rname += " school loading...";
-		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
+		report_progress_t progress_school(rname.c_str(), students.size(), 100000);
 
 		network_create_school_relation(students,
 		                                  age_ini,
