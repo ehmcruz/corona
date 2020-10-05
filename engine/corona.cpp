@@ -561,7 +561,7 @@ person_t::person_t ()
 	this->infected_cycle = -1.0;
 	this->n_victims = 0;
 
-	for (int32_t& sid: this->sids)
+	for (auto& sid: this->sids)
 		sid = -1;
 
 	this->setup_infection_probabilities(cfg->probability_mild, cfg->probability_severe, cfg->probability_critical);

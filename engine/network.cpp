@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <random>
+#include <limits>
 
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
@@ -59,6 +60,10 @@ void network_start_population_graph ()
 		vdesc(*vi).p = population[i];
 		vdesc(*vi).flags.reset();
 		vdesc(*vi).school_class_room = UNDEFINED32;
+
+		for (auto& v: vdesc(*vi).n_relations)
+			v = 0;
+
 		population[i]->vertex = *vi;
 		i++;
 	}
@@ -158,16 +163,16 @@ pop_edge_t network_get_edge (pop_vertex_t vertex1, pop_vertex_t vertex2)
 void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2)
 {
 	pop_edge_t e;
-
-	e = network_get_edge(vertex1, vertex2);
-	
-	cfg->relation_type_number[edesc(e).type] -= 2;
-	
-	boost::remove_edge(vertex1, vertex2, *pop_graph);
-
-#ifdef SANITY_CHECK
 	bool b;
 
+	do {
+		boost::tie(e, b) = boost::edge(vertex1, vertex2, *pop_graph);
+	
+		if (b)
+			network_delete_edge(e);
+	} while (b);
+
+#ifdef SANITY_CHECK
 	boost::tie(e, b) = boost::edge(vertex1, vertex2, *pop_graph);
 
 	C_ASSERT(b == false)
@@ -176,7 +181,19 @@ void network_delete_edge (pop_vertex_t vertex1, pop_vertex_t vertex2)
 
 void network_delete_edge (pop_edge_t e)
 {
-	cfg->relation_type_number[edesc(e).type] -= 2;
+	pop_vertex_t source = boost::source(e, *pop_graph);
+	pop_vertex_t target = boost::target(e, *pop_graph);
+
+	relation_type_t type = edesc(e).type;
+
+	C_ASSERT(cfg->relation_type_number[type] >= 2)
+	C_ASSERT(vdesc(source).n_relations[type] >= 1)
+	C_ASSERT(vdesc(target).n_relations[type] >= 1)
+
+	cfg->relation_type_number[type] -= 2;
+
+	vdesc(source).n_relations[type]--;
+	vdesc(target).n_relations[type]--;
 	
 	boost::remove_edge(e, *pop_graph);
 }
@@ -193,8 +210,22 @@ void network_delete_edges_by_type (std::bitset<NUMBER_OF_FLAGS>& mask, uint32_t 
 
 		bool operator() (pop_edge_t e) {
 			bool r = this->mask.test(network_edge_data(e).type);
+
+			pop_vertex_t source = boost::source(e, *pop_graph);
+			pop_vertex_t target = boost::target(e, *pop_graph);
+			relation_type_t type = edesc(e).type;
+
 			*this->count += r;
-			cfg->relation_type_number[edesc(e).type] -= r << 1;
+
+			C_ASSERT(cfg->relation_type_number[type] >= r << 1)
+			C_ASSERT(vdesc(source).n_relations[type] >= r)
+			C_ASSERT(vdesc(target).n_relations[type] >= r)
+			
+			cfg->relation_type_number[type] -= r << 1;
+			
+			vdesc(source).n_relations[type] -= r;
+			vdesc(target).n_relations[type] -= r;
+			
 			return r;
 		}
 	};
@@ -231,6 +262,14 @@ pop_edge_t network_create_edge (pop_vertex_t vertex1, pop_vertex_t vertex2, pop_
 
 	vdesc(vertex1).flags.set(edge_data.type);
 	vdesc(vertex2).flags.set(edge_data.type);
+
+	C_ASSERT(vdesc(vertex1).n_relations[edge_data.type] <= (std::numeric_limits<uint16_t>::max() - 1))
+	C_ASSERT(vdesc(vertex2).n_relations[edge_data.type] <= (std::numeric_limits<uint16_t>::max() - 1))
+
+	C_ASSERT(cfg->relation_type_number[edge_data.type] <= (std::numeric_limits<uint64_t>::max() - 2))
+
+	vdesc(vertex1).n_relations[edge_data.type]++;
+	vdesc(vertex2).n_relations[edge_data.type]++;
 
 	cfg->relation_type_number[edge_data.type] += 2;
 
@@ -315,6 +354,34 @@ void region_t::create_random_connections (dist_double_t& dist, relation_type_t t
 	}
 }
 
+void region_t::create_random_connections_fast (dist_double_t& dist, relation_type_t type, report_progress_t *report)
+{
+	person_t *neighbor;
+	int32_t i, n;
+
+	/*
+		For the fast variant, we relax some restrictions.
+		We allow parallel edges.
+	*/
+
+	for (person_t *p: this->people) {
+		n = static_cast<int32_t>(dist.generate() + 0.5);
+
+		if (report != nullptr)
+			report->check_report(1);
+
+		n -= static_cast<int32_t>( vdesc(p).n_relations[RELATION_UNKNOWN] );
+
+		if (n <= 0)
+			continue;
+
+		for (i=0; i<n; i++) {
+			neighbor = this->pick_random_person();
+			network_create_edge(p, neighbor, type, true);
+		}
+	}
+}
+
 uint64_t get_n_population_per_relation_flag (std::bitset<NUMBER_OF_FLAGS>& flags)
 {
 	uint64_t n = 0;
@@ -357,45 +424,17 @@ static void calibrate_rate_per_type ()
 #ifdef SANITY_CHECK
 {
 	uint64_t test[NUMBER_OF_RELATIONS];
-	boost::graph_traits<pop_graph_t>::adjacency_iterator vin, vin_end;
 	boost::graph_traits<pop_graph_t>::vertex_iterator vi, vend;
-	pop_edge_t e;
-	bool exist;
+	boost::graph_traits<pop_graph_t>::out_edge_iterator ei, ei_end;
 
 	// now we verify
-
-	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		test[i] = 0;
-	}
-
-	for (boost::tie(ei,ei_end) = edges(*pop_graph); ei != ei_end; ++ei) {
-		edesc(*ei).foo = 0;
-	}
-
-	for (boost::tie(ei,ei_end) = edges(*pop_graph); ei != ei_end; ++ei) {
-		C_ASSERT( edesc(*ei).foo == 0 )
-		edesc(*ei).foo = 1;
-
-		test[ edesc(*ei).type ] += 2; // we add two to count for both
-	}
-
-	for (i=0; i<NUMBER_OF_RELATIONS; i++) {
-		SANITY_ASSERT(test[i] == cfg->relation_type_number[i])
-	}
-	
-	// now we verify again
-	// yeah, I'm super concerned about sanity
-	// and I'm not very familiar with boost graph library
 
 	for (i=0; i<NUMBER_OF_RELATIONS; i++)
 		test[i] = 0;
 
 	for (boost::tie(vi,vend) = vertices(*pop_graph); vi != vend; ++vi) {
-		for (boost::tie(vin, vin_end) = adjacent_vertices(*vi, *pop_graph); vin != vin_end; ++vin) {
-			boost::tie(e, exist) = boost::edge(*vi, *vin, *pop_graph);
-			C_ASSERT(exist)
-
-			test[ edesc(e).type ]++;
+		for (boost::tie(ei, ei_end) = out_edges(*vi, *pop_graph); ei != ei_end; ++ei) {
+			test[ edesc(*ei).type ]++;
 		}
 	}
 

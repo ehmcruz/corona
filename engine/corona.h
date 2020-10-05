@@ -181,6 +181,7 @@ class person_t;
 struct pop_vertex_data_t {
 	person_t *p;
 	std::bitset<NUMBER_OF_FLAGS> flags;
+	std::array<uint16_t, NUMBER_OF_RELATIONS> n_relations;
 	uint32_t school_class_room;
 };
 
@@ -376,6 +377,7 @@ public:
 	void create_families (dist_double_t& dist, report_progress_t *report = nullptr);
 	void create_work_relations (dist_double_t& dist, uint32_t age_ini, uint32_t age_end, double employment_rate, double relation_ratio, report_progress_t *report = nullptr);
 	void create_random_connections (dist_double_t& dist, relation_type_t type=RELATION_UNKNOWN, report_progress_t *report = nullptr);
+	void create_random_connections_fast (dist_double_t& dist, relation_type_t type=RELATION_UNKNOWN, report_progress_t *report = nullptr);
 
 	void add_people (uint64_t n, uint32_t age);
 	void set_population_number (uint64_t npopulation);

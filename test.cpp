@@ -68,7 +68,7 @@ void region_t::setup_relations ()
 //boost::write_graphviz(std::cout, graph);
 //exit(1);
 		auto e1 = network_create_edge(population[0], population[1], RELATION_TRAVEL);
-		auto e2 = network_create_edge(population[0], population[1], RELATION_BUDDY, false);
+		auto e2 = network_create_edge(population[0], population[1], RELATION_BUDDY, true);
 		//network_create_edge(population[0], population[1], RELATION_BUDDY, false);
 
 network_print_population_graph();
@@ -78,8 +78,9 @@ network_print_population_graph();
 	mask.set(RELATION_BUDDY);
 
 uint32_t count;
-network_delete_edges_by_type(mask, &count);
+//network_delete_edges_by_type(mask, &count);
 
+network_delete_edge(population[0], population[1]);
 //std::cout << e1 << std::endl << e2 << std::endl;
 //exit(1);
 

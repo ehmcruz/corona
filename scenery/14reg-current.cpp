@@ -481,16 +481,16 @@ void region_t::setup_relations ()
 
 		normal_double_dist_t dist_family_size(3.0, 1.0, 1.0, 10.0);
 
-
-		normal_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
+		gamma_double_dist_t dist_number_random_connections(20.0, 5.0, 5.0, 100.0);
 
 		this->create_families(dist_family_size);
 
 		std::string rname(this->get_name());
 		rname += " random loading...";
-		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 10000);
+		report_progress_t progress_random(rname.c_str(), this->get_npopulation(), 50000);
 
-		this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
+		//this->create_random_connections(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
+		this->create_random_connections_fast(dist_number_random_connections, RELATION_UNKNOWN, &progress_random);
 //return;
 		std::vector<person_t*> students;
 		uint32_t age_ini = 4;
@@ -537,7 +537,7 @@ void region_t::setup_relations ()
 
 		rname = this->get_name();
 		rname += " school loading...";
-		report_progress_t progress_school(rname.c_str(), students.size(), 10000);
+		report_progress_t progress_school(rname.c_str(), students.size(), 50000);
 
 		/*
 			30*(30/2) * p = 7*30;
