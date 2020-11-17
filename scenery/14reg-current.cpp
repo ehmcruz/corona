@@ -672,7 +672,7 @@ static void adjust_r_open_schools ()
 void callback_before_cycle (double cycle)
 {
 //	static double backup;
-	check_vaccine(cycle);
+//	check_vaccine(cycle);
 
 	if (cycle == 0.0) {
 		region_t::get("Paranavai")->pick_random_person()->force_infect();
@@ -702,17 +702,17 @@ printf("r0 cycle 0-student: %.2f\n", get_affective_r0( {RELATION_SCHOOL} ));
 	}
 	else if (cycle == 180.0) {
 		//adjust_r_open_schools();
-		sp_configure_school(sp_plan_t::phase_33);
+//		sp_configure_school(sp_plan_t::phase_33);
 		stages_green++;
 	}
 	else if (cycle == 181.0) {
 		//adjust_r_open_schools();
-		sp_configure_school(sp_plan_t::phase_66);
+//		sp_configure_school(sp_plan_t::phase_66);
 		stages_green++;
 	}
 	else if (cycle == 182.0) {
 		//adjust_r_open_schools();
-		sp_configure_school(sp_plan_t::phase_100);
+//		sp_configure_school(sp_plan_t::phase_100);
 		stages_green++;
 	}
 }

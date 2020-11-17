@@ -678,6 +678,9 @@ void person_t::recover ()
 		stats.ac_infected_state[ this->infected_state ]--;
 
 		stats.r.acc(this->n_victims);
+
+		stats.reported_recovered += (this->infected_state != ST_ASYMPTOMATIC);
+		stats.ac_total_reported_recovered += (this->infected_state != ST_ASYMPTOMATIC);
 	}
 
 	this->state = ST_IMMUNE;
@@ -984,7 +987,7 @@ void person_t::symptoms_arise (bool fast_track)
 {
 	SANITY_ASSERT(this->state == ST_INFECTED && this->infected_state == ST_PRESYMPTOMATIC)
 
-	C_ASSERT(fast_track == false) // let's disable fast track for now, I think there may be  bug in it
+	C_ASSERT(fast_track == false) // let's disable fast track for now, I think there may be bug in it
 
 	this->infected_state = this->next_infected_state;
 	this->next_infected_state = this->final_infected_state;
@@ -1002,7 +1005,7 @@ void person_t::symptoms_arise (bool fast_track)
 			stats.ac_infected_state[ this->infected_state ]++;
 
 			stats.reported++;
-			stats.ac_reported++;
+			stats.ac_total_reported++;
 		}
 	}
 }
