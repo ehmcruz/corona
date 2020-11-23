@@ -481,20 +481,25 @@ void callback_before_cycle (double cycle)
 {
 	const uint32_t people_warmup = 50;
 
-	if (cycle == 0.0) {
-dprintf("cycle %.2f summon %u\n", cycle, people_warmup);
+	if (cycle == 1.0) {
+		apply_vaccine(cycle);
+	}
+	else if (cycle == 2.0) {
+		std::vector<person_t*> tmp = population;
+		uint32_t i = 0;
 
-		for (uint32_t i=0; i<people_warmup; ) {
-			person_t *p = pick_random_person();
+		std::shuffle(tmp.begin(), tmp.end(), rgenerator);
 
+		dprintf("cycle %.2f summon %u\n", cycle, people_warmup);
+
+		for (person_t *p: tmp) {
+			if (i >= people_warmup)
+				break;
 			if (p->get_state() == ST_HEALTHY) {
 				p->force_infect();
 				i++;
 			}
 		}
-	}
-	else if (cycle == 1.0) {
-		apply_vaccine(cycle);
 	}
 }
 
