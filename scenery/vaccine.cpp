@@ -162,6 +162,7 @@ exit(1);*/
 void region_t::setup_population ()
 {
 	uint32_t i, n;
+	uint32_t extrapolate = 1000000, total;
 
 	std::string name;
 
@@ -170,14 +171,27 @@ void region_t::setup_population ()
 
 	this->set_name(name);
 
-	this->set_population_number( csv->get_population(this->get_name()) );
+	std::vector<uint32_t> people_age;
+	double ratio = static_cast<double>(extrapolate) / static_cast<double>( csv->get_population(this->get_name()) );
+
+	people_age.resize(csv->get_last_age()+1, 0);
+
+	total = 0;
+	for (i=csv->get_first_age(); i<=csv->get_last_age(); i++) {
+		n = csv->get_population_per_age(this->get_name(), i);
+		people_age[i] = static_cast<uint32_t>( static_cast<double>(n) * ratio );
+		total += people_age[i];
+	}
+
+	this->set_population_number( total );
 
 	cprintf("%s total de habitantes: " PU64 "\n", this->get_name().c_str(), this->get_npopulation());
 
-	for (i=csv->get_first_age(); i<=csv->get_last_age(); i++) {
-		n = csv->get_population_per_age(this->get_name(), i);
+	for (i=0; i<people_age.size(); i++) {
+		n = people_age[i];
 		//cprintf("%s habitantes idade %i -> %i\n", this->get_name().c_str(), i, n);
-		this->add_people(n, i);
+		if (n > 0)
+			this->add_people(n, i);
 	}
 	//exit(1);
 
@@ -482,7 +496,7 @@ void callback_before_cycle (double cycle)
 	const uint32_t people_warmup = 50;
 
 	if (cycle == 1.0) {
-		apply_vaccine(cycle);
+//		apply_vaccine(cycle);
 	}
 	else if (cycle == 2.0) {
 		std::vector<person_t*> tmp = population;
