@@ -53,6 +53,28 @@ static const char* vaccine_plan_str (vaccine_plan_t p)
 	return list[ static_cast<uint32_t>(p) ];
 }
 
+#define X_ASYMP_CFG   \
+	X_ASYMP_CFG_(homogeneous) \
+	X_ASYMP_CFG_(children) \
+	X_ASYMP_CFG_(asymp)
+
+enum class asymp_cfg_t {
+	#define X_ASYMP_CFG_(S) S,
+	X_ASYMP_CFG
+	#undef X_ASYMP_CFG_
+};
+
+static const char* asymp_cfg_str (asymp_cfg_t v)
+{
+	static const char *list[] = {
+		#define X_ASYMP_CFG_(S) #S,
+		X_ASYMP_CFG
+		#undef X_ASYMP_CFG_
+	};
+
+	return list[ static_cast<uint32_t>(v) ];
+}
+
 enum class sp_plan_t {
 	phase_0,
 	phase_33,
@@ -75,6 +97,8 @@ static const char* sp_plan_phase_str (sp_plan_t phase)
 }
 
 static sp_plan_t sp_plan = sp_plan_t::phase_0;
+
+static asymp_cfg_t asymp_cfg = asymp_cfg_t::homogeneous;
 
 static sp_school_strategy_t sp_school_strategy = SCHOOL_CLOSED;
 
@@ -161,6 +185,18 @@ void setup_cmd_line_args (boost::program_options::options_description& cmd_line_
 					exit(1);
 				}
 			} ), "School opening strategy, should be 0, 33, 66, 100 or planned")
+		("asymp,a", boost::program_options::value<std::string>()->notifier( [] (std::string v) {
+				if (v == "homogeneous")
+					asymp_cfg = asymp_cfg_t::homogeneous;
+				else if (v == "children")
+					asymp_cfg = asymp_cfg_t::children;
+				else if (v == "asymp")
+					asymp_cfg = asymp_cfg_t::asymp;
+				else {
+					CMSG("asymp should be homogeneous, children or asymp" << std::endl)
+					exit(1);
+				}
+			} ), "asymp should be homogeneous, children or asymp")
 		("schoolnewintraprob,p", boost::program_options::value<double>()->notifier( [] (double v) {
 				sp_ratio_student_intra_class_contingency = v;
 			} ), "For partial school opening strategies (33, 66 and planned), the new probability of 2 students of the same class to interact with each other")
@@ -255,12 +291,14 @@ exit(1);*/
 
 	DMSG("sp_school_weight: " << sp_school_weight << std::endl)
 	DMSG("sp_school_strategy: " << sp_school_strategy_str(sp_school_strategy) << std::endl)
+	DMSG("asymp_cfg: " << asymp_cfg_str(asymp_cfg) << std::endl)
 	DMSG("sp_cycle_to_open_school: " << sp_cycle_to_open_school << std::endl)
 	DMSG("sp_cycles_between_phases_66_100: " << sp_cycles_between_phases_66_100 << std::endl)
 	DMSG("sp_ratio_student_intra_class_contingency: " << sp_ratio_student_intra_class_contingency << std::endl)
 	DMSG("vaccine_plan: " << vaccine_plan_str(vaccine_plan) << std::endl)
 	DMSG("vaccine_cycle: " << vaccine_cycle << std::endl)
 	DMSG("sp_icu: " << sp_icu << std::endl)
+//exit(1);
 }
 
 void region_t::setup_population ()
@@ -572,6 +610,42 @@ void setup_extra_relations ()
 	}
 
 	sp_setup_infection_state_rate();
+
+	switch (asymp_cfg) {
+		case asymp_cfg_t::homogeneous:
+		break;
+
+		case asymp_cfg_t::children:
+			CMSG( "unimplemented" << std::endl )
+		break;
+
+		case asymp_cfg_t::asymp: {
+			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.7;
+
+			/*
+				asymp_trans = factor * symp_trans
+
+				asymp_rate * symp_trans + (1.0 - asymp_rate) * symp_trans) = 1
+
+				k * [ asymp_rate * factor * symp_trans + (1.0 - asymp_rate) * symp_trans) ] = 1
+				k = 1 / [ asymp_rate * factor * symp_trans + (1.0 - asymp_rate) * symp_trans) ]
+			*/
+
+			double k = 1.0 / ( cfg->probability_asymptomatic * cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] 
+			         + (1.0 - cfg->probability_asymptomatic));
+
+			CMSG( "cfg->probability_asymptomatic: " << cfg->probability_asymptomatic << std::endl )
+			CMSG( "k: " << k << std::endl )
+
+			cfg->global_r0_factor = k;
+
+			//exit(1);
+		}
+		break;
+
+		default:
+			C_ASSERT(0);
+	}
 }
 
 static double backup_school_r0 = -1.0; // flag
@@ -738,6 +812,80 @@ static void check_vaccine (double cycle)
 	}
 }
 
+static bool sp_calibrate (double cycle)
+{
+	bool sp_calibrate_r = false;
+
+	switch (asymp_cfg) {
+		case asymp_cfg_t::homogeneous:
+			if (cycle == 45.0) {
+				adjust_r_quarentine(1.3);
+				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+				//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 95.0) {
+				adjust_r_quarentine(1.16);
+				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+				//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 106.0) { // open economic activities
+				cfg->relation_type_transmit_rate[RELATION_WORK_0] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+				cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+				sp_calibrate_r = true;
+			}
+			else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
+				adjust_r_open_schools();
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+		break;
+
+		case asymp_cfg_t::children:
+			CMSG( "unimplemented" << std::endl )
+		break;
+
+		case asymp_cfg_t::asymp:
+			if (cycle == 45.0) {
+				adjust_r_quarentine(1.3);
+				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+				//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 95.0) {
+				adjust_r_quarentine(1.16);
+				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+				//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 106.0) { // open economic activities
+				cfg->relation_type_transmit_rate[RELATION_WORK_0] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+				cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+				sp_calibrate_r = true;
+			}
+			else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
+				adjust_r_open_schools();
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+		break;
+
+		default:
+			C_ASSERT(0);
+	}
+
+	return sp_calibrate_r;
+}
+
 void callback_before_cycle (double cycle)
 {
 	const uint64_t people_warmup = 500;
@@ -781,23 +929,7 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 //printf("r0 cycle 30: %.2f\n", get_affective_r0());
 		stages_green++;
 	}
-	else if (cycle == 45.0) {
-		adjust_r_quarentine(1.3);
-		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
-		//cfg->global_r0_factor = 1.16 / cfg->r0;
-//printf("r0 cycle 51: %.2f\n", get_affective_r0());
-		stages_green++;
-	}
-	else if (cycle == 95.0) {
-		adjust_r_quarentine(1.16);
-		//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
-		//cfg->global_r0_factor = 1.16 / cfg->r0;
-//printf("r0 cycle 51: %.2f\n", get_affective_r0());
-		stages_green++;
-	}
-	else if (cycle == 106.0) { // open economic activities
-		cfg->relation_type_transmit_rate[RELATION_WORK_0] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
-		cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+	else if (sp_calibrate(cycle)) { // looks ugly, I know, but easier this way
 	}
 	else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
 		adjust_r_open_schools();
