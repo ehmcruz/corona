@@ -114,7 +114,7 @@ png(filename = paste0(prefix, "-total-reported.png"),
 
 labels = c("sim-infected")
 
-plot(data$cycle, data$ac_reported, xlab="Dias desde paciente zero", ylab="Total acumulado de infectados reportados", type="o", col="pink")
+plot(data$cycle, data$ac_total_reported, xlab="Dias desde paciente zero", ylab="Total acumulado de infectados reportados", type="o", col="pink")
 
 grid(col = "gray", lwd=2)
 

@@ -214,7 +214,7 @@ void cfg_t::scenery_setup ()
 
 	this->network_type = NETWORK_TYPE_NETWORK_SIMPLE;
 	//this->network_type = NETWORK_TYPE_NETWORK;
-	this->cycles_to_simulate = 420.0;
+	this->cycles_to_simulate = 730.0;
 
 	for (uint32_t r=RELATION_SCHOOL; r<=RELATION_SCHOOL_4; r++) {
 		this->relation_type_weights[r] = 2.0;
@@ -620,7 +620,7 @@ void setup_extra_relations ()
 		break;
 
 		case asymp_cfg_t::asymp: {
-			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.7;
+			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.4;
 
 			/*
 				asymp_trans = factor * symp_trans
@@ -634,8 +634,8 @@ void setup_extra_relations ()
 			double k = 1.0 / ( cfg->probability_asymptomatic * cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] 
 			         + (1.0 - cfg->probability_asymptomatic));
 
-			CMSG( "cfg->probability_asymptomatic: " << cfg->probability_asymptomatic << std::endl )
-			CMSG( "k: " << k << std::endl )
+			CMSG( "mark1 cfg->probability_asymptomatic: " << cfg->probability_asymptomatic << std::endl )
+			CMSG( "mark1 k: " << k << std::endl )
 
 			cfg->global_r0_factor = k;
 
@@ -812,13 +812,25 @@ static void check_vaccine (double cycle)
 	}
 }
 
-static bool sp_calibrate (double cycle)
+static bool sp_calibrate (double cycle, double warmup)
 {
 	bool sp_calibrate_r = false;
 
 	switch (asymp_cfg) {
 		case asymp_cfg_t::homogeneous:
-			if (cycle == 45.0) {
+			if (cycle == warmup) {
+		//		cfg->global_r0_factor = 1.05;
+				printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0_fast());
+				adjust_r_quarentine(1.5);
+		//		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+		//		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+		//		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//		cfg->global_r0_factor = 0.9 / cfg->r0;
+		//printf("r0 cycle 30: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 31.0) {
 				adjust_r_quarentine(1.3);
 				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 				//cfg->global_r0_factor = 1.16 / cfg->r0;
@@ -827,7 +839,7 @@ static bool sp_calibrate (double cycle)
 				sp_calibrate_r = true;
 			}
 			else if (cycle == 95.0) {
-				adjust_r_quarentine(1.16);
+				adjust_r_quarentine(1.14);
 				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 				//cfg->global_r0_factor = 1.16 / cfg->r0;
 		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -851,7 +863,19 @@ static bool sp_calibrate (double cycle)
 		break;
 
 		case asymp_cfg_t::asymp:
-			if (cycle == 45.0) {
+			if (cycle == warmup) {
+		//		cfg->global_r0_factor = 1.05;
+				printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0_fast());
+				adjust_r_quarentine(1.5);
+		//		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+		//		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+		//		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//		cfg->global_r0_factor = 0.9 / cfg->r0;
+		//printf("r0 cycle 30: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 31.0) {
 				adjust_r_quarentine(1.3);
 				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 				//cfg->global_r0_factor = 1.16 / cfg->r0;
@@ -860,7 +884,7 @@ static bool sp_calibrate (double cycle)
 				sp_calibrate_r = true;
 			}
 			else if (cycle == 95.0) {
-				adjust_r_quarentine(1.16);
+				adjust_r_quarentine(1.14);
 				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 				//cfg->global_r0_factor = 1.16 / cfg->r0;
 		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -877,6 +901,9 @@ static bool sp_calibrate (double cycle)
 				stages_green++;
 				sp_calibrate_r = true;
 			}
+
+			if (sp_calibrate_r)
+				CMSG( "mark1 cycle " << cycle << std::endl )
 		break;
 
 		default:
@@ -918,18 +945,8 @@ dprintf("cycle %.2f summon_per_cycle %u\n", cycle, summon_per_cycle);
 			stages_green++;
 		}
 	}
-	else if (cycle == warmup) {
-//		cfg->global_r0_factor = 1.05;
-		printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0_fast());
-		adjust_r_quarentine(1.5);
-//		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
-//		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
-//		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
-//		cfg->global_r0_factor = 0.9 / cfg->r0;
-//printf("r0 cycle 30: %.2f\n", get_affective_r0());
-		stages_green++;
-	}
-	else if (sp_calibrate(cycle)) { // looks ugly, I know, but easier this way
+	else if (sp_calibrate(cycle, warmup)) { // looks ugly, I know, but easier this way
+		CMSG("Calibrated at cycle " << cycle << std::endl)
 	}
 	else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
 		adjust_r_open_schools();
@@ -1215,8 +1232,8 @@ void sp_setup_infection_state_rate ()
 		reported_critical_per_age[i] = multiply_int_by_double(reported_critical_per_age[i], 1.1);
 		reported_severe_per_age[i] = multiply_int_by_double(reported_severe_per_age[i], 1.1);
 
-		reported_uti_deaths_per_age[i] = multiply_int_by_double(reported_uti_deaths_per_age[i], 0.9);
-		probability_severe_death_per_age[i] = multiply_int_by_double(probability_severe_death_per_age[i], 0.9);
+		reported_uti_deaths_per_age[i] = multiply_int_by_double(reported_uti_deaths_per_age[i], 0.85);
+		probability_severe_death_per_age[i] = multiply_int_by_double(probability_severe_death_per_age[i], 0.85);
 	}
 	
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
