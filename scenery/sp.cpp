@@ -121,7 +121,7 @@ static double vaccine_cycle = 999999.0; // default no vaccine
 
 static double vaccine_immune_cycles = 14.0;
 
-static double vaccine_immunity_rate = 0.9;
+static double vaccine_immunity_rate = 0.8;
 
 static uint32_t vaccine_per_cycle = 300000;
 
@@ -139,7 +139,7 @@ static int32_t stages_green = 0;
 
 static bool latex_print = false;
 
-void sp_setup_infection_state_rate ();
+void sp_setup_infection_state_rate (double factor_critical, double factor_severe, double factor_death_critical, double factor_death_severe);
 void sp_configure_school (sp_plan_t phase);
 
 void setup_cmd_line_args (boost::program_options::options_description& cmd_line_args)
@@ -327,10 +327,12 @@ void region_t::setup_population ()
 //		this->track_stats();
 }
 
+#define setup_initial_infection_rates { sp_setup_infection_state_rate(1.1, 1.1, 0.9, 0.9); }
+
 void region_t::setup_health_units ()
 {
 	if (bunlikely(latex_print))
-		sp_setup_infection_state_rate();
+		setup_initial_infection_rates
 
 	this->add_health_unit( uti );
 	this->add_health_unit( enfermaria );
@@ -609,18 +611,32 @@ void setup_extra_relations ()
 		});
 	}
 
-	sp_setup_infection_state_rate();
+	setup_initial_infection_rates
 
 	switch (asymp_cfg) {
 		case asymp_cfg_t::homogeneous:
 		break;
 
-		case asymp_cfg_t::children:
-			CMSG( "unimplemented" << std::endl )
+		case asymp_cfg_t::children: {
+			cfg->r0_factor_per_age_cat[0] = 0.63;
+			cfg->r0_factor_per_age_cat[1] = cfg->r0_factor_per_age_cat[0];
+
+			uint32_t amount_children = people_per_age_cat[0] + people_per_age_cat[1];
+
+			double probability_children = static_cast<double>(amount_children) / static_cast<double>(population.size());
+
+			double k = 1.0 / ( probability_children * cfg->r0_factor_per_age_cat[0] 
+			         + (1.0 - probability_children));
+
+			CMSG( "mark2 probability_children: " << probability_children << std::endl )
+			CMSG( "mark2 k: " << k << std::endl )
+
+			cfg->global_r0_factor = k;
+		}
 		break;
 
 		case asymp_cfg_t::asymp: {
-			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.4;
+			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.60;
 
 			/*
 				asymp_trans = factor * symp_trans
@@ -840,6 +856,7 @@ static bool sp_calibrate (double cycle, double warmup)
 			}
 			else if (cycle == 95.0) {
 				adjust_r_quarentine(1.14);
+				//sp_setup_infection_state_rate(1.1, 1.1, 0.9, 0.9);
 				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 				//cfg->global_r0_factor = 1.16 / cfg->r0;
 		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -859,7 +876,47 @@ static bool sp_calibrate (double cycle, double warmup)
 		break;
 
 		case asymp_cfg_t::children:
-			CMSG( "unimplemented" << std::endl )
+			if (cycle == warmup) {
+		//		cfg->global_r0_factor = 1.05;
+				printf("r0 cycle %.2f: %.2f\n", cycle, get_affective_r0_fast());
+				adjust_r_quarentine(1.5);
+		//		backup = cfg->relation_type_transmit_rate[RELATION_SCHOOL];
+		//		cfg->relation_type_transmit_rate[RELATION_SCHOOL] = 0.0;
+		//		cfg->global_r0_factor = 0.9 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+		//		cfg->global_r0_factor = 0.9 / cfg->r0;
+		//printf("r0 cycle 30: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 31.0) {
+				adjust_r_quarentine(1.35);
+				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+				//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 95.0) {
+				adjust_r_quarentine(1.14);
+				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
+				//cfg->global_r0_factor = 1.16 / cfg->r0;
+		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+			else if (cycle == 106.0) { // open economic activities
+				cfg->relation_type_transmit_rate[RELATION_WORK_0] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+				cfg->relation_type_transmit_rate[RELATION_WORK_1] = sp_work_weight * cfg->relation_type_transmit_rate[RELATION_UNKNOWN];
+				sp_calibrate_r = true;
+			}
+			else if (sp_school_strategy == SCHOOL_OPEN_100 && cycle == sp_cycle_to_open_school) {
+				adjust_r_open_schools();
+				stages_green++;
+				sp_calibrate_r = true;
+			}
+
+			if (sp_calibrate_r)
+				CMSG( "mark2 cycle " << cycle << std::endl )
 		break;
 
 		case asymp_cfg_t::asymp:
@@ -876,7 +933,7 @@ static bool sp_calibrate (double cycle, double warmup)
 				sp_calibrate_r = true;
 			}
 			else if (cycle == 31.0) {
-				adjust_r_quarentine(1.3);
+				adjust_r_quarentine(1.32);
 				//cfg->global_r0_factor = 1.15 / (network_get_affective_r0_fast() / cfg->global_r0_factor);
 				//cfg->global_r0_factor = 1.16 / cfg->r0;
 		//printf("r0 cycle 51: %.2f\n", get_affective_r0());
@@ -1096,7 +1153,7 @@ void callback_end ()
 
 /**************************************************************/
 
-void sp_setup_infection_state_rate ()
+void sp_setup_infection_state_rate (double factor_critical, double factor_severe, double factor_death_critical, double factor_death_severe)
 {
 	// date: 2020-09-07
 	// +- 6 months after pandemic start
@@ -1229,11 +1286,11 @@ void sp_setup_infection_state_rate ()
 	*/
 
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
-		reported_critical_per_age[i] = multiply_int_by_double(reported_critical_per_age[i], 1.1);
-		reported_severe_per_age[i] = multiply_int_by_double(reported_severe_per_age[i], 1.1);
+		reported_critical_per_age[i] = multiply_int_by_double(reported_critical_per_age[i], factor_critical);
+		reported_severe_per_age[i] = multiply_int_by_double(reported_severe_per_age[i], factor_severe);
 
-		reported_uti_deaths_per_age[i] = multiply_int_by_double(reported_uti_deaths_per_age[i], 0.85);
-		probability_severe_death_per_age[i] = multiply_int_by_double(probability_severe_death_per_age[i], 0.85);
+		reported_uti_deaths_per_age[i] = multiply_int_by_double(reported_uti_deaths_per_age[i], factor_death_critical);
+		reported_infirmary_deaths_per_age[i] = multiply_int_by_double(reported_infirmary_deaths_per_age[i], factor_death_severe);
 	}
 	
 	for (uint32_t i=0; i<AGE_CATS_N; i++) {
@@ -1243,7 +1300,7 @@ void sp_setup_infection_state_rate ()
 			- static_cast<int32_t>(reported_critical_per_age[i] + reported_severe_per_age[i]);
 
 		if (i <= 7) {
-			C_ASSERT (v > 500);
+			C_ASSERT_PRINTF (v > 10, "v=%i   i=%i\n", v, i);
 			reported_mild_per_age[i] = v;
 		}
 		else if (i == 8) {

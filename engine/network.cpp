@@ -803,6 +803,7 @@ void neighbor_list_network_simple_t::iterator_network_simple_t::calc ()
 			infect_prob = cfg->relation_type_transmit_rate[type] * cfg->get_factor_per_relation_group(type, this->list->get_person());
 			infect_prob *= cfg->global_r0_factor;
 			infect_prob *= cfg->r0_factor_per_group[ this->list->get_person()->get_infected_state() ];
+			infect_prob *= cfg->r0_factor_per_age_cat[ this->list->get_person()->age_cat() ];
 
 			if (roll_dice(infect_prob))
 				this->current = neighbor;
@@ -884,6 +885,7 @@ neighbor_list_t::iterator_t neighbor_list_network_t::begin ()
 
 	it.prob *= cfg->global_r0_factor;
 	it.prob *= cfg->r0_factor_per_group[ this->get_person()->get_infected_state() ];
+	it.prob *= cfg->r0_factor_per_age_cat[ this->get_person()->age_cat() ];
 
 	if (blikely(it.prob > 0.0))
 		it.calc();

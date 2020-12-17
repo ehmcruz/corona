@@ -10,8 +10,6 @@ sceneries="sp"
 run_ini="1"
 run_end="10"
 
-run_list=`seq $run_ini 1 $run_end`
-
 #run_list="3"
 
 vc="730"
@@ -23,6 +21,14 @@ vo="224"
 vv="5000"
 vz="none"
 vicu="100000000"
+va="homogeneous"
+
+if [ "$cmd" == "cmd" ]; then
+	run_ini="1"
+	run_end="1"
+fi
+
+run_list=`seq $run_ini 1 $run_end`
 
 function exec_exp () {
 	vc="$1"
@@ -34,14 +40,15 @@ function exec_exp () {
 	vv="$7"
 	vz="$8"
 	vicu="$9"
+	va="${10}"
 
-	echo "vc=$vc   vw=$vw   vb=$vb   vs=$vs   vp=$vp   vo=$vo   vv=$vv   vz=$vz   vicu=$vicu"
+	echo "vc=$vc   vw=$vw   vb=$vb   vs=$vs   vp=$vp   vo=$vo   vv=$vv   vz=$vz   vicu=$vicu   va=$va"
 
 	for test in $sceneries
 	do
 		mkdir -p log/results/
 
-		base="$test-c$vc-w$vw-b$vb-s$vs-p$vp-o$vo-v$vv-z$vz-icu$vicu"
+		base="$test-c$vc-w$vw-b$vb-s$vs-p$vp-o$vo-v$vv-z$vz-icu$vicu-a$va"
 
 		#rm -rf log/results/all-results-$base
 		mkdir log/results/all-results-$base
@@ -54,7 +61,7 @@ function exec_exp () {
 		for i in $run_list
 		do
 			fresults="log/results/all-results-$base/results-$base-$i"
-			cmdline="./scenery/$test.exec --fresults $fresults -c $vc -w $vw -b $vb -s $vs -p $vp -o $vo -v $vv -z $vz --spicu $vicu"
+			cmdline="./scenery/$test.exec --fresults $fresults -c $vc -w $vw -b $vb -s $vs -p $vp -o $vo -v $vv -z $vz --spicu $vicu -a $va"
 
 			if [ "$cmd" == "blaise" ]; then
 				echo "" >> $fout
@@ -64,6 +71,8 @@ function exec_exp () {
 					#echo "$cmdline"
 					sbatch run-shared.sbatch "$cmdline"
 				fi
+			elif [ "$cmd" == "cmd" ]; then
+				echo "$cmdline"
 			else
 				echo "error cmd $cmd not found"
 				exit
@@ -104,7 +113,10 @@ vv="5000"
 vw="2"
 vz="none"
 
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+for va in homogeneous children asymp
+do
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+done
 
 ################################################################
 
@@ -119,9 +131,12 @@ vo="224"
 vv="5000"
 vz="none"
 
-for vw in 2 4
+for va in homogeneous children asymp
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+	for vw in 2 4
+	do
+		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+	done
 done
 
 ################################################################
@@ -130,16 +145,19 @@ done
 # sp plan
 
 vc="730"
-vb="119"
+vb="140"
 vs="planned"
 vp="0.5"
 vo="224"
 vv="5000"
 vz="none"
 
-for vw in 2 4
+for va in homogeneous children asymp
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+	for vw in 2 4
+	do
+		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+	done
 done
 
 #exit
@@ -150,24 +168,25 @@ done
 # sp plan varying social distance
 
 vc="730"
-vb="119"
+vb="140"
 vs="planned"
 vo="224"
 vv="5000"
 vz="none"
+va="homogeneous"
 
 #for vp in 0.0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1.0
 for vp in 0.0 0.2 0.4 0.6 0.8 1.0
 do
 	for vw in 2 4
 	do
-		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+		exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 	done
 done
 
 ################################################################
 
-# exp 4 - vaccine
+# exp 4 - vaccine in january
 
 # no vaccine
 # no schools
@@ -176,19 +195,20 @@ vc="730"
 vb="28"
 vs="0"
 vp="0.5"
-vo="341"         # open in feb/2021 = 11*30
-vv="310"         # vaccine in january
+vo="341"         # open in feb/2021
+vv="310"         # vaccine in january/2021
 vw="2"
 vz="none"
+va="homogeneous"
 
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 
 # vaccine
 # no schools
 
 vz="priorities"
 
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 
 # no vaccine
 # all students go
@@ -198,7 +218,7 @@ vs="100"
 
 for vw in 2 4
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 done
 
 # vaccine - random
@@ -209,7 +229,7 @@ done
 
 # for vw in 2 4
 # do
-# 	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+# 	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 # done
 
 # vaccine - priorities
@@ -220,7 +240,7 @@ vs="100"
 
 for vw in 2 4
 do
-	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 done
 
 # sp plan with vaccines
@@ -235,6 +255,107 @@ done
 
 #for vw in 2 4
 #do
-#	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu
+#	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 #done
+
+################################################################
+
+# exp 5 - vaccine in march
+
+# no vaccine
+# no schools
+
+vc="730"
+vb="28"
+vs="0"
+vp="0.5"
+vo="400"         # open in aprl/2021
+vv="369"         # vaccine in march/2021
+vw="2"
+vz="none"
+va="homogeneous"
+
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+
+# vaccine
+# no schools
+
+vz="priorities"
+
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+
+# no vaccine
+# all students go
+
+vz="none"
+vs="100"
+
+for vw in 2 4
+do
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+done
+
+# vaccine - random
+# all students go
+
+# vz="random"
+# vs="100"
+
+# for vw in 2 4
+# do
+# 	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+# done
+
+# vaccine - priorities
+# all students go
+
+vz="priorities"
+vs="100"
+
+for vw in 2 4
+do
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+done
+
+# sp plan with vaccines
+
+#vc="730"
+#vb="28"
+#vs="planned"
+#vp="0.5"
+#vo="224"
+#vv="310"
+#vz="priorities"
+
+#for vw in 2 4
+#do
+#	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+#done
+
+################################################################
+
+# exp figure 6
+# sp plan
+
+vc="730"
+vb="145"
+vs="planned"
+vp="0.5"
+vo="224"
+vv="369"
+vz="priorities"
+va="homogeneous"
+
+# (369 + 14 + 14) - (224+28) = 145
+
+for vw in 2 4
+do
+	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+done
+
+vs="0"
+
+exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
+
+#exit
 

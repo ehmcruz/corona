@@ -74,6 +74,9 @@ void cfg_t::set_defaults ()
 	this->r0_factor_per_group[ST_SEVERE] = 0.5;
 	this->r0_factor_per_group[ST_CRITICAL] = 0.5;
 
+	for (uint32_t i=0; i<AGE_CATS_N; i++) // set defaults
+		this->r0_factor_per_age_cat[i] = 1.0;
+
 	for (uint32_t r=0; r<NUMBER_OF_RELATIONS; r++) {
 		for (uint32_t i=0; i<NUMBER_OF_INFECTED_STATES; i++)
 			this->factor_per_relation_group[r][i] = 1.0;

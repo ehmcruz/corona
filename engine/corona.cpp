@@ -1260,6 +1260,16 @@ static void load_regions ()
 	for (person_t *p: population)
 		p->set_id(i++);
 
+	total = 0;
+	for (i=0; i<AGES_N; i++)
+		total += people_per_age[i];
+	C_ASSERT(population.size() == total)
+
+	total = 0;
+	for (i=0; i<AGE_CATS_N; i++)
+		total += people_per_age_cat[i];
+	C_ASSERT(population.size() == total)
+
 	for (region_t *region: regions)
 		region->setup_health_units();
 
