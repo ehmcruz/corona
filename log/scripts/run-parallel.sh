@@ -335,10 +335,10 @@ done
 ################################################################
 
 # exp figure 6
-# sp plan
+# sp plan with vaccine 01/03/2021
 
 vc="730"
-vb="145"
+vb="140"
 vs="planned"
 vp="0.5"
 vo="224"
@@ -346,16 +346,10 @@ vv="369"
 vz="priorities"
 va="homogeneous"
 
-# (369 + 14 + 14) - (224+28) = 145
-
 for vw in 2 4
 do
 	exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 done
-
-vs="0"
-
-exec_exp $vc $vw $vb $vs $vp $vo $vv $vz $vicu $va
 
 #exit
 
