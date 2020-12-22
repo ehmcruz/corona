@@ -11,14 +11,14 @@ group_size = as.integer(args[3])
 
 data = read.csv(csv_input, header = TRUE)
 
-print(data)
+#print(data)
 
 col_reproductive <- numeric(nrow(data))
 col_group_infected <- numeric(nrow(data))
 
-print(nrow(data))
+#print(nrow(data))
 #print(col_group_infected)
-print(group_size)
+#print(group_size)
 
 for (i in 1:length(col_reproductive)) {
 	ini = i - group_size + 1
@@ -49,6 +49,6 @@ data$g_reported = data$ac_infected_state_ST_MILD + data$ac_infected_state_ST_SEV
 
 #data_input$test <- data_input$state_ST_INFECTED
 
-print(data)
+#print(data)
 
 write.csv(data, csv_output)

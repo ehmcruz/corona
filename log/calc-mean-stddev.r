@@ -41,31 +41,54 @@ tstudent <- qt(0.95, df=ns)
 print(paste("number of samples", ns, "student table 95% interval", tstudent))
 #stop()
 
+#
+
 # magica -- calculando media e desvio
-df <- df %>% 
+df <- df %>%
             group_by(cycle, variable) %>%
-            summarize(mean=mean(value), se=tstudent*sd(value)/sqrt(n())) %>%
+            summarize(mean=mean(value), stddev=sd(value), min=min(value), max=max(value), se=tstudent*sd(value)/sqrt(n()), q10=quantile(value, probs=c(.1), na.rm = FALSE, names = FALSE), q50=quantile(value, probs=c(.5), na.rm = FALSE, names = FALSE), q90=quantile(value, probs=c(.9), na.rm = FALSE, names = FALSE) ) %>%
             as.data.frame()
 
 #print(df)
 #stop()
 
-# gamb para dividir em 2 arquivos -- aqui para mean.out
-dm <- df
-dm$se <- NULL
+#head(df)
+#quit()
 
-# aqui para se.out
-ds <- df
-ds$mean <- NULL
+# for debug
+#df <- df %>% filter(variable == "ac_infected_state_ST_CRITICAL")
 
-#convertendo de linha para coluna (como era o original)
-dk <- dcast(dm, cycle ~ variable)
+# gamb para dividir em 6 arquivos -- aqui para mean.out
 
-#salvando
+d <- df %>% select(cycle, variable, mean)
+dk <- dcast(d, cycle ~ variable)
 write_csv(dk, paste0(csvout, "-mean.csv"))
 
-#convertendo de linha para coluna (como era o original)
-dk <- dcast(ds, cycle ~ variable)
+d <- df %>% select(cycle, variable, stddev)
+dk <- dcast(d, cycle ~ variable)
+write_csv(dk, paste0(csvout, "-stddev.csv"))
 
-#salvando
+d <- df %>% select(cycle, variable, min)
+dk <- dcast(d, cycle ~ variable)
+write_csv(dk, paste0(csvout, "-min.csv"))
+
+d <- df %>% select(cycle, variable, max)
+dk <- dcast(d, cycle ~ variable)
+write_csv(dk, paste0(csvout, "-max.csv"))
+
+d <- df %>% select(cycle, variable, se)
+dk <- dcast(d, cycle ~ variable)
 write_csv(dk, paste0(csvout, "-se.csv"))
+
+d <- df %>% select(cycle, variable, q10)
+dk <- dcast(d, cycle ~ variable)
+write_csv(dk, paste0(csvout, "-q10.csv"))
+
+d <- df %>% select(cycle, variable, q50)
+dk <- dcast(d, cycle ~ variable)
+write_csv(dk, paste0(csvout, "-q50.csv"))
+
+d <- df %>% select(cycle, variable, q90)
+dk <- dcast(d, cycle ~ variable)
+write_csv(dk, paste0(csvout, "-q90.csv"))
+
