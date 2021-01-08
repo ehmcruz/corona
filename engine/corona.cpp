@@ -329,15 +329,15 @@ static void run_cycle_step ()
 	uint64_t sanity_check = 0;
 	
 	for (i=0; i<AGE_CATS_N; i++)
-		sanity_check += cycle_stats[GLOBAL_STATS].ac_critical_per_age[i];
+		sanity_check += cycle_stats[GLOBAL_STATS].per_age_ac_critical[i];
 	
 	SANITY_ASSERT( sanity_critical == sanity_check )
 }
 #endif
 	
 	for (i=0; i<AGE_CATS_N; i++) {
-		if (cycle_stats[GLOBAL_STATS].ac_critical_per_age[i] > cycle_stats[GLOBAL_STATS].peak_critical_per_age[i])
-			cycle_stats[GLOBAL_STATS].peak_critical_per_age[i] = cycle_stats[GLOBAL_STATS].ac_critical_per_age[i];
+		if (cycle_stats[GLOBAL_STATS].per_age_ac_critical[i] > cycle_stats[GLOBAL_STATS].per_age_peak_critical[i])
+			cycle_stats[GLOBAL_STATS].per_age_peak_critical[i] = cycle_stats[GLOBAL_STATS].per_age_ac_critical[i];
 	}
 }
 
@@ -635,7 +635,7 @@ void person_t::die ()
 		stats_t& stats = cycle_stats[*it];
 
 		if (this->infected_state == ST_CRITICAL)
-			stats.ac_critical_per_age[ get_age_cat(this->age) ]--;
+			stats.per_age_ac_critical[ get_age_cat(this->age) ]--;
 
 		stats.state[ST_DEAD]++;
 	
@@ -645,6 +645,8 @@ void person_t::die ()
 		stats.ac_infected_state[ this->infected_state ]--;
 	
 		stats.r.acc(this->n_victims);
+
+		stats.per_age_total_deaths[ this->age_cat() ]++;
 	}
 
 	this->state = ST_DEAD;
@@ -867,9 +869,11 @@ void person_t::cycle_infected ()
 							stats.ac_infected_state[ST_MILD]--;
 							stats.ac_infected_state[ST_CRITICAL]++;
 
-							stats.ac_critical_per_age[ get_age_cat(this->age) ]++;
+							stats.per_age_ac_critical[ get_age_cat(this->age) ]++;
 
 							stats.ac_total_infected_state[ST_CRITICAL]++;
+
+							stats.per_age_total_critical[ this->age_cat() ]++;
 						}
 
 						this->infected_state = ST_CRITICAL;
@@ -933,7 +937,7 @@ void person_t::cycle_infected ()
 					stats.ac_infected_state[ ST_CRITICAL ]--;
 					stats.ac_infected_state[ ST_SEVERE ]++;
 
-					stats.ac_critical_per_age[ get_age_cat(this->age) ]--;
+					stats.per_age_ac_critical[ get_age_cat(this->age) ]--;
 				}
 			}
 			else if (this->health_unit == nullptr) // yeah, I know I reapeat this condition, but it is easier this way
@@ -978,6 +982,8 @@ void person_t::pre_infect (person_t *from)
 
 		stats.ac_state[ST_HEALTHY]--;
 		stats.ac_state[ST_INFECTED]++;
+
+		stats.per_age_total_infected[ this->age_cat() ]++;
 	}
 
 	this->setup_infection_countdown( incub_cycles );
@@ -1006,6 +1012,8 @@ void person_t::symptoms_arise (bool fast_track)
 
 			stats.reported++;
 			stats.ac_total_reported++;
+
+			stats.per_age_total_reported_infected[ this->age_cat() ]++;
 		}
 	}
 }

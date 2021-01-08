@@ -162,7 +162,7 @@ exit(1);*/
 void region_t::setup_population ()
 {
 	uint32_t i, n;
-	uint32_t extrapolate = 1000000, total;
+	uint32_t extrapolate = 100000, total;
 
 	std::string name;
 
