@@ -636,7 +636,7 @@ void setup_extra_relations ()
 		break;
 
 		case asymp_cfg_t::asymp: {
-			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.60;
+			cfg->r0_factor_per_group[ ST_ASYMPTOMATIC ] = 0.63;
 
 			/*
 				asymp_trans = factor * symp_trans
