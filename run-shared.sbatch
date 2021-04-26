@@ -1,1 +1,0 @@
-log/scripts/run-shared.sbatch
